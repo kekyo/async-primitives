@@ -2,7 +2,7 @@
 
 A collection of primitive functions for asynchronous operations in TypeScript/JavaScript.
 
-[![npm version](https://img.shields.io/npm/async-primitives.svg)](https://www.npmjs.com/package/async-primitives)
+[![npm version](https://img.shields.io/npm/v/async-primitives.svg)](https://www.npmjs.com/package/async-primitives)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/kekyo/async-primitives/actions/workflows/ci.yml/badge.svg)](https://github.com/kekyo/async-primitives/actions/workflows/ci.yml)
 
@@ -20,7 +20,7 @@ npm install async-primitives
 ## Usage
 
 ```typescript
-import { delay, createAsyncLock, onAbort } from 'async-primitives';
+import { delay } from 'async-primitives';
 
 // Use delay
 await delay(1000) // Wait for 1 second
@@ -31,6 +31,8 @@ await delay(1000, c.signal) // Wait for 1 second
 ```
 
 ```typescript
+import { createAsyncLock } from 'async-primitives';
+
 // Use AsyncLock (Mutex lock)
 const locker = createAsyncLock();
 
@@ -46,6 +48,8 @@ const handler = await locker.lock(c.signal);
 ```
 
 ```typescript
+import { createDeferred } from 'async-primitives';
+
 // Use Deferred
 const deferred = createDeferred<number>();
 
@@ -57,6 +61,8 @@ const value = await deferred.promise;
 ```
 
 ```typescript
+import { onAbort } from 'async-primitives';
+
 // Use onAbort (Abort signal hooking)
 const controller = new AbortController();
 
