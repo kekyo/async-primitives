@@ -19,6 +19,10 @@ npm install async-primitives
 
 ## Usage
 
+### delay()
+
+Provides a delay that can be awaited with Promise, with support for cancellation via AbortSignal.
+
 ```typescript
 import { delay } from 'async-primitives';
 
@@ -29,6 +33,10 @@ await delay(1000) // Wait for 1 second
 const c = new AbortController();
 await delay(1000, c.signal) // Wait for 1 second
 ```
+
+### createAsyncLock()
+
+Provides Promise-based mutex lock functionality to implement critical sections that prevent race conditions in asynchronous operations.
 
 ```typescript
 import { createAsyncLock } from 'async-primitives';
@@ -47,6 +55,10 @@ try {
 const handler = await locker.lock(c.signal);
 ```
 
+### createDeferred()
+
+Creates a Deferred object that allows external control of Promise resolution or rejection. Useful for separating producers and consumers in asynchronous processing.
+
 ```typescript
 import { createDeferred } from 'async-primitives';
 
@@ -59,6 +71,10 @@ deferred.reject(new Error());  // (Error producer)
 // (Consumer)
 const value = await deferred.promise;
 ```
+
+### onAbort()
+
+Registers a hook function to AbortSignal abort events, enabling cleanup processing. Also supports early release.
 
 ```typescript
 import { onAbort } from 'async-primitives';
@@ -73,6 +89,10 @@ const releaseHandle = onAbort(controller.signal, () => {
 // Cleanup early if needed
 releaseHandle.release();
 ```
+
+### defer()
+
+Schedules a callback to be executed asynchronously on the next event loop iteration.
 
 ```typescript
 import { defer } from 'async-primitives';
@@ -98,12 +118,43 @@ const locker = createAsyncLock();
 
 {
   using handle = onAbort(controller.signal, () => {
-    console.log('Cleanup on abort or scope exit');
+    console.log('Cleanup on aborts');
   });
 
   // (Auto release when exit the scope.)
 }
 
+```
+
+## Advanced Topic
+
+### createAsyncLock() Parameter Details
+
+In `createAsyncLock(maxConsecutiveCalls?: number)`, you can specify the `maxConsecutiveCalls` parameter (default value: 20).
+
+This value sets the limit for consecutive executions when processing the lock's waiting queue:
+
+- **Small values (e.g., 1-5)**
+  - Returns control to the event loop more frequently
+  - Minimizes impact on other asynchronous operations
+  - May slightly reduce lock processing throughput
+
+- **Large values (e.g., 50-100)**
+  - Executes more lock processes consecutively
+  - Improves lock processing throughput
+  - May block other asynchronous operations for longer periods
+
+- **Recommended settings**
+  - Default value (20) is suitable for most use cases
+  - For UI responsiveness priority: lower values (3-7)
+  - For high throughput needs like batch processing: higher values (20-100)
+
+```typescript
+// Prioritize UI responsiveness
+const uiLocker = createAsyncLock(5);
+
+// High throughput processing
+const batchLocker = createAsyncLock(50);
 ```
 
 -----
