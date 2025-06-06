@@ -52,7 +52,7 @@ const createLockHandle = (releaseCallback: () => void): LockHandle => {
  * @param maxConsecutiveCalls - The maximum number of consecutive calls to the lockAsync method before yielding control to the next item in the queue
  * @returns A new AsyncLock for promise-based mutex operations
  */
-export const createAsyncLock = (maxConsecutiveCalls: number = 10): AsyncLock => {
+export const createAsyncLock = (maxConsecutiveCalls: number = 20): AsyncLock => {
   let isLocked = false;
   const queue: QueueItem[] = [];
   let count = 0; // Consecutive execution counter
