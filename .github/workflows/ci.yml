@@ -65,4 +65,12 @@ jobs:
           ls -la dist/
           test -f dist/async-primitives.js
           test -f dist/async-primitives.cjs
-          test -f dist/index.d.ts 
+          test -f dist/index.d.ts
+
+      - name: Run benchmarks
+        run: |
+          echo "🚀 Running async-primitives benchmarks..."
+          echo "=========================================="
+          npm run benchmark
+          echo "=========================================="
+          echo "✅ Benchmark completed!"
