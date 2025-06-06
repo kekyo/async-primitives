@@ -118,29 +118,45 @@ export const createAsyncLock = (maxConsecutiveCalls: number = 10): AsyncLock => 
       throw new Error('Lock acquisition was aborted');
     }
 
-    return new Promise<LockHandle>((resolve, reject) => {
-      const queueItem: QueueItem = {
-        resolve,
-        reject,
-        signal
-      };
+    if (signal) {
+      return new Promise<LockHandle>((resolve, reject) => {
+        // Handle case with AbortSignal
+        const queueItem: QueueItem = {
+          resolve: undefined!,
+          reject: undefined!,
+          signal
+        };
 
-      // Set up abort handling using onAbort helper
-      const abortHandle = onAbort(signal, () => {
-        removeFromQueue(queueItem);
-        reject(new Error('Lock acquisition was aborted'));
+        const abortHandle = onAbort(signal, () => {
+          removeFromQueue(queueItem);
+          reject(new Error('Lock acquisition was aborted'));
+        });
+
+        // Wrap to clean up
+        queueItem.resolve = (handle: LockHandle) => {
+          abortHandle.release();
+          resolve(handle);
+        };
+        queueItem.reject = (error: Error) => {
+          abortHandle.release();
+          reject(error);
+        };
+
+        queue.push(queueItem);
+        processQueue();
       });
+    } else {
+      return new Promise<LockHandle>((resolve, reject) => {
+        // Handle case without AbortSignal
+        const queueItem: QueueItem = {
+          resolve,
+          reject
+        };
 
-      // Store the abort handle so it can be cleaned up when the promise resolves
-      const originalResolve = queueItem.resolve;
-      queueItem.resolve = (handle: LockHandle) => {
-        abortHandle.release();
-        originalResolve(handle);
-      };
-
-      queue.push(queueItem);
-      processQueue();
-    });
+        queue.push(queueItem);
+        processQueue();
+      });
+    }
   };
 
   return ({

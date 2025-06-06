@@ -7,10 +7,11 @@ import { Releasable } from "../types.js";
 /**
  * A no-op Releasable object that does nothing when released or disposed
  */
+const NOOP_HANDLER = () => {};
 const NOOP_RELEASABLE: Releasable = {
-  release: () => {},
-  [Symbol.dispose]: () => {}
-};
+  release: NOOP_HANDLER,
+  [Symbol.dispose]: NOOP_HANDLER
+} as const;
 
 /**
  * Hooks up an abort handler to an AbortSignal and returns a handle for early cleanup
@@ -35,14 +36,10 @@ export const onAbort = (signal: AbortSignal | undefined, callback: () => void): 
     abortHandler = null;
   };
 
-  const dispose = (): void => {
-    release();
-  };
-
   // Create the releasable handle
   const handle: Releasable = {
     release,
-    [Symbol.dispose]: dispose
+    [Symbol.dispose]: release
   };
 
   if (signal.aborted) {
