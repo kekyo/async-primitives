@@ -284,4 +284,238 @@ describe('AsyncLock', () => {
       expect(handle.isActive).toBe(false);
     });
   });
+
+  describe('Race condition edge cases', () => {
+    it('should handle rapid lock/release cycles without deadlock', async () => {
+      const locker = createAsyncLock();
+      const iterations = 100;
+      const results: number[] = [];
+
+      // Simulate rapid lock acquisitions and releases
+      const tasks = Array.from({ length: iterations }, async (_, i) => {
+        const handle = await locker.lock();
+        try {
+          results.push(i);
+          // Minimal delay to allow potential race conditions
+          await delay(1);
+        } finally {
+          handle.release();
+        }
+      });
+
+      await Promise.all(tasks);
+
+      expect(results).toHaveLength(iterations);
+      expect(locker.isLocked).toBe(false);
+      expect(locker.pendingCount).toBe(0);
+    });
+
+    it('should handle AbortSignal race condition with simultaneous abort and resolve', async () => {
+      const locker = createAsyncLock();
+      const controller = new AbortController();
+
+      // Hold the lock to force queuing
+      const firstHandle = await locker.lock();
+
+      let caughtError: Error | null = null;
+      const secondLockPromise = (async () => {
+        try {
+          const handle = await locker.lock(controller.signal);
+          handle.release();
+        } catch (error) {
+          caughtError = error as Error;
+        }
+      })();
+
+      // Race condition: abort the signal at the same time as releasing the first lock
+      await delay(10);
+      setTimeout(() => controller.abort(), 0);
+      setTimeout(() => firstHandle.release(), 0);
+
+      await secondLockPromise;
+
+      // Wait a bit more to ensure the lock is fully released
+      await delay(10);
+
+      // The operation should either succeed or be aborted, but not hang
+      if (caughtError) {
+        expect((caughtError as Error).message).toContain('aborted');
+      }
+      expect(locker.isLocked).toBe(false);
+    });
+
+    it('should handle multiple simultaneous AbortSignal cancellations', async () => {
+      const locker = createAsyncLock();
+      const controllers = Array.from({ length: 10 }, () => new AbortController());
+
+      // Hold the lock to force queuing
+      const firstHandle = await locker.lock();
+
+      const errors: Error[] = [];
+      const lockPromises = controllers.map(async (controller) => {
+        try {
+          const handle = await locker.lock(controller.signal);
+          handle.release();
+        } catch (error) {
+          errors.push(error as Error);
+        }
+      });
+
+      // Abort all signals simultaneously
+      await delay(10);
+      controllers.forEach(controller => controller.abort());
+
+      // Release the first lock
+      firstHandle.release();
+
+      await Promise.all(lockPromises);
+
+      // All operations should have been aborted
+      expect(errors).toHaveLength(10);
+      errors.forEach(error => {
+        expect(error.message).toContain('aborted');
+      });
+      expect(locker.isLocked).toBe(false);
+      expect(locker.pendingCount).toBe(0);
+    });
+
+    it('should handle handle.release() called multiple times concurrently', async () => {
+      const locker = createAsyncLock();
+      const handle = await locker.lock();
+
+      // Call release multiple times concurrently
+      const releasePromises = Array.from({ length: 5 }, () => 
+        Promise.resolve().then(() => handle.release())
+      );
+
+      await Promise.all(releasePromises);
+
+      expect(handle.isActive).toBe(false);
+      expect(locker.isLocked).toBe(false);
+
+      // Should be able to acquire lock again
+      const newHandle = await locker.lock();
+      expect(locker.isLocked).toBe(true);
+      newHandle.release();
+    });
+
+    it('should handle concurrent AbortSignal abort and handle release', async () => {
+      const locker = createAsyncLock();
+      const controller = new AbortController();
+
+      // Hold the lock
+      const firstHandle = await locker.lock();
+
+      let caughtError: Error | null = null;
+      const secondLockPromise = (async () => {
+        try {
+          const handle = await locker.lock(controller.signal);
+          handle.release();
+        } catch (error) {
+          caughtError = error as Error;
+        }
+      })();
+
+      await delay(10);
+
+      // Race condition: abort and release at exactly the same time
+      const abortPromise = new Promise(resolve => {
+        setTimeout(() => {
+          controller.abort();
+          resolve(undefined);
+        }, 0);
+      });
+
+      const releasePromise = new Promise(resolve => {
+        setTimeout(() => {
+          firstHandle.release();
+          resolve(undefined);
+        }, 0);
+      });
+
+      await Promise.all([abortPromise, releasePromise, secondLockPromise]);
+
+      // Should either succeed or be aborted, no hanging
+      if (caughtError) {
+        expect((caughtError as Error).message).toContain('aborted');
+      }
+      expect(locker.isLocked).toBe(false);
+    });
+
+    it('should handle maxConsecutiveCalls threshold correctly under heavy load', async () => {
+      const locker = createAsyncLock(5); // Low threshold for testing
+      const results: number[] = [];
+      const iterations = 50;
+
+      const tasks = Array.from({ length: iterations }, async (_, i) => {
+        const handle = await locker.lock();
+        try {
+          results.push(i);
+        } finally {
+          handle.release();
+        }
+      });
+
+      await Promise.all(tasks);
+
+      expect(results).toHaveLength(iterations);
+      expect(locker.isLocked).toBe(false);
+      expect(locker.pendingCount).toBe(0);
+    });
+
+    it('should maintain queue integrity when items are removed during processing', async () => {
+      const locker = createAsyncLock();
+      const controller1 = new AbortController();
+      const controller2 = new AbortController();
+
+      // Hold the lock
+      const firstHandle = await locker.lock();
+
+      const errors: Error[] = [];
+      
+      // Queue multiple items
+      const promise1 = (async () => {
+        try {
+          const handle = await locker.lock(controller1.signal);
+          handle.release();
+        } catch (error) {
+          errors.push(error as Error);
+        }
+      })();
+
+      const promise2 = (async () => {
+        try {
+          const handle = await locker.lock(controller2.signal);
+          handle.release();
+        } catch (error) {
+          errors.push(error as Error);
+        }
+      })();
+
+      const promise3 = (async () => {
+        try {
+          const handle = await locker.lock(); // No abort signal
+          handle.release();
+        } catch (error) {
+          errors.push(error as Error);
+        }
+      })();
+
+      await delay(10);
+      expect(locker.pendingCount).toBe(3);
+
+      // Abort the first two items
+      controller1.abort();
+      controller2.abort();
+
+      // Release the lock
+      firstHandle.release();
+
+      await Promise.all([promise1, promise2, promise3]);
+
+      expect(errors).toHaveLength(2);
+      expect(locker.isLocked).toBe(false);
+      expect(locker.pendingCount).toBe(0);
+    });
+  });
 });
