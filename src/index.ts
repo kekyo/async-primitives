@@ -6,8 +6,11 @@
 // Export all types
 export * from './types'
 
+// defer function export.
+export { defer } from './primitives/defer.js';
+
 // delay function export.
-export { delay } from "./primitives/delay";
+export { delay } from "./primitives/delay.js";
 
 // Abort hooking function export.
 export { onAbort } from './primitives/abort-hook.js';

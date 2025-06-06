@@ -361,4 +361,218 @@ describe('Deferred', () => {
       expect(await nullDeferred.promise).toBe(null);
     });
   });
+
+  describe('Deferred race condition edge cases', () => {
+    it('should handle extremely rapid concurrent resolve/reject attempts', async () => {
+      const deferred = createDeferred<string>();
+      const resolvers: Promise<void>[] = [];
+      const rejecters: Promise<void>[] = [];
+
+      // Create many concurrent resolvers and rejecters
+      for (let i = 0; i < 50; i++) {
+        resolvers.push(
+          (async () => {
+            await delay(Math.random() * 2);
+            deferred.resolve(`resolve-${i}`);
+          })()
+        );
+      }
+
+      for (let i = 0; i < 50; i++) {
+        rejecters.push(
+          (async () => {
+            await delay(Math.random() * 2);
+            deferred.reject(new Error(`reject-${i}`));
+          })()
+        );
+      }
+
+      // Wait for all attempts to complete
+      await Promise.all([...resolvers, ...rejecters]);
+
+      // The promise should be settled with the first successful operation
+      let settled = false;
+      let result: string | undefined = undefined;
+      let error: Error | undefined = undefined;
+
+      try {
+        result = await deferred.promise;
+        settled = true;
+      } catch (err) {
+        error = err as Error;
+        settled = true;
+      }
+
+      expect(settled).toBe(true);
+      if (result !== undefined) {
+        expect(result).toMatch(/^resolve-\d+$/);
+      } else {
+        expect(error).toBeDefined();
+        expect(error!.message).toMatch(/^reject-\d+$/);
+      }
+    });
+
+    it('should handle concurrent resolve with same value type safety', async () => {
+      const deferred = createDeferred<{ id: number; timestamp: number }>();
+      const resolvers: Promise<void>[] = [];
+
+      // Create multiple resolvers with different objects
+      for (let i = 0; i < 20; i++) {
+        resolvers.push(
+          (async () => {
+            await delay(Math.random() * 5);
+            deferred.resolve({ id: i, timestamp: Date.now() + i });
+          })()
+        );
+      }
+
+      await Promise.all(resolvers);
+
+      const result = await deferred.promise;
+      expect(typeof result.id).toBe('number');
+      expect(typeof result.timestamp).toBe('number');
+      expect(result.id).toBeGreaterThanOrEqual(0);
+      expect(result.id).toBeLessThan(20);
+    });
+
+    it('should maintain promise integrity under stress with many waiters', async () => {
+      const deferred = createDeferred<string>();
+      const waiters: Promise<string>[] = [];
+      const results: string[] = [];
+
+      // Create many concurrent waiters
+      for (let i = 0; i < 100; i++) {
+        waiters.push(
+          deferred.promise.then(value => {
+            results.push(`waiter-${i}-got-${value}`);
+            return value;
+          })
+        );
+      }
+
+      // Resolve after all waiters are set up
+      await delay(10);
+      deferred.resolve('shared-result');
+
+      // Wait for all waiters to complete
+      const waiterResults = await Promise.all(waiters);
+
+      // All waiters should get the same result
+      expect(waiterResults).toHaveLength(100);
+      waiterResults.forEach(result => {
+        expect(result).toBe('shared-result');
+      });
+      expect(results).toHaveLength(100);
+      results.forEach(result => {
+        expect(result).toMatch(/^waiter-\d+-got-shared-result$/);
+      });
+    });
+
+    it('should handle Promise.all with concurrent deferred resolution', async () => {
+      const deferreds = Array.from({ length: 50 }, () => createDeferred<number>());
+      
+      // Resolve all deferreds concurrently with random delays
+      const resolvers = deferreds.map(async (deferred, index) => {
+        await delay(Math.random() * 10);
+        deferred.resolve(index);
+      });
+
+      // Wait for all using Promise.all
+      const [results] = await Promise.all([
+        Promise.all(deferreds.map(d => d.promise)),
+        Promise.all(resolvers)
+      ]);
+
+      expect(results).toHaveLength(50);
+      expect(results.sort((a, b) => a - b)).toEqual(
+        Array.from({ length: 50 }, (_, i) => i)
+      );
+    });
+
+    it('should handle mixed resolve/reject scenarios with Promise.allSettled', async () => {
+      const deferreds = Array.from({ length: 20 }, () => createDeferred<number>());
+      
+      // Resolve some, reject others
+      const operations = deferreds.map(async (deferred, index) => {
+        await delay(Math.random() * 5);
+        if (index % 2 === 0) {
+          deferred.resolve(index);
+        } else {
+          deferred.reject(new Error(`error-${index}`));
+        }
+      });
+
+      const [results] = await Promise.all([
+        Promise.allSettled(deferreds.map(d => d.promise)),
+        Promise.all(operations)
+      ]);
+
+      expect(results).toHaveLength(20);
+      
+      const fulfilled = results.filter(r => r.status === 'fulfilled') as PromiseFulfilledResult<number>[];
+      const rejected = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
+
+      expect(fulfilled).toHaveLength(10); // Even indices
+      expect(rejected).toHaveLength(10);  // Odd indices
+
+      fulfilled.forEach(result => {
+        expect(result.value % 2).toBe(0);
+      });
+
+      rejected.forEach(result => {
+        expect(result.reason.message).toMatch(/^error-\d+$/);
+      });
+    });
+
+    it('should handle deferred chain with rapid state changes', async () => {
+      const deferred1 = createDeferred<string>();
+      const deferred2 = createDeferred<number>();
+      const deferred3 = createDeferred<boolean>();
+
+      // Chain deferreds where each depends on the previous
+      const chainPromise = deferred1.promise
+        .then(value => {
+          deferred2.resolve(value.length);
+          return deferred2.promise;
+        })
+        .then(length => {
+          deferred3.resolve(length > 5);
+          return deferred3.promise;
+        });
+
+      // Resolve the first deferred after a short delay
+      setTimeout(() => deferred1.resolve('hello world'), 5);
+
+      const result = await chainPromise;
+      expect(result).toBe(true);
+    });
+
+    it('should handle concurrent access to the same promise reference', async () => {
+      const deferred = createDeferred<string>();
+      const sharedPromise = deferred.promise;
+      const accessResults: string[] = [];
+
+      // Multiple concurrent accesses to the same promise reference
+      const accessors = Array.from({ length: 30 }, async (_, i) => {
+        const result = await sharedPromise;
+        accessResults.push(`accessor-${i}-${result}`);
+        return result;
+      });
+
+      // Resolve after all accessors are set up
+      await delay(5);
+      deferred.resolve('shared-value');
+
+      const results = await Promise.all(accessors);
+
+      expect(results).toHaveLength(30);
+      results.forEach(result => {
+        expect(result).toBe('shared-value');
+      });
+      expect(accessResults).toHaveLength(30);
+      accessResults.forEach(result => {
+        expect(result).toMatch(/^accessor-\d+-shared-value$/);
+      });
+    });
+  });
 }); 

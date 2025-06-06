@@ -4,24 +4,36 @@
  * @param signal - Optional AbortSignal to cancel the delay
  * @returns A promise that resolves after the delay or rejects if aborted
  */
-export const delay = (ms: number, signal?: AbortSignal): Promise<void> => {
-  // Check if already aborted
-  if (signal?.aborted) {
-    throw new Error('Delay was aborted');
-  }
 
-  return new Promise<void>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      resolve();
-    }, ms);
+import { onAbort } from "./abort-hook";
 
-    // Add abort listener if signal is provided
-    if (signal) {
-      const abortHandler = () => {
-        clearTimeout(timeoutId);
-        reject(new Error('Delay was aborted'));
-      };
-      signal.addEventListener('abort', abortHandler, { once: true });
+const ABORTED_ERROR = () => new Error('Delay was aborted');
+
+export const delay = (msec: number, signal?: AbortSignal): Promise<void> => {
+  if (signal) {
+    // Check if already aborted
+    if (signal.aborted) {
+      throw ABORTED_ERROR();
     }
-  });
+
+    // Require aborting handler
+    return new Promise<void>((resolve, reject) => {
+      let timeoutId: NodeJS.Timeout;
+
+      const abortHandle = onAbort(signal, () => {
+        clearTimeout(timeoutId);
+        reject(ABORTED_ERROR());
+      });
+
+      timeoutId = setTimeout(() => {
+        abortHandle.release();
+        resolve();
+      }, msec);
+    });
+  } else {
+    // Without aborting handler
+    return new Promise<void>(resolve => {
+      setTimeout(resolve, msec);
+    });
+  }
 };

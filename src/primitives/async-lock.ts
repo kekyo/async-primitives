@@ -4,6 +4,7 @@
 
 import { AsyncLock, LockHandle } from "../types";
 import { onAbort } from "./abort-hook";
+import { defer } from "./defer";
 
 /**
  * Internal queue item for lock requests
@@ -18,6 +19,8 @@ interface QueueItem {
   /** Optional AbortSignal for cancelling the request */
   signal?: AbortSignal | undefined;
 }
+
+const ABORTED_ERROR = () => new Error('Lock acquisition was aborted');
 
 /**
  * Creates a new LockHandle instance
@@ -35,16 +38,12 @@ const createLockHandle = (releaseCallback: () => void): LockHandle => {
     releaseCallback();
   };
 
-  const dispose = (): void => {
-    release();
-  };
-
   return {
     get isActive() {
       return isActive;
     },
     release,
-    [Symbol.dispose]: dispose
+    [Symbol.dispose]: release
   };
 };
 
@@ -53,7 +52,7 @@ const createLockHandle = (releaseCallback: () => void): LockHandle => {
  * @param maxConsecutiveCalls - The maximum number of consecutive calls to the lockAsync method before yielding control to the next item in the queue
  * @returns A new AsyncLock for promise-based mutex operations
  */
-export const createAsyncLock = (maxConsecutiveCalls: number = 10): AsyncLock => {
+export const createAsyncLock = (maxConsecutiveCalls: number = 20): AsyncLock => {
   let isLocked = false;
   const queue: QueueItem[] = [];
   let count = 0; // Consecutive execution counter
@@ -67,7 +66,7 @@ export const createAsyncLock = (maxConsecutiveCalls: number = 10): AsyncLock => 
 
     // Check if the request was aborted
     if (item.signal?.aborted) {
-      item.reject(new Error('Lock acquisition was aborted'));
+      item.reject(ABORTED_ERROR());
       // Process next item in queue with counting
       scheduleNextProcess();
       return;
@@ -75,20 +74,18 @@ export const createAsyncLock = (maxConsecutiveCalls: number = 10): AsyncLock => 
 
     isLocked = true;
 
-    const handle = createLockHandle(() => {
-      releaseLock();
-    });
-
-    item.resolve(handle);
+    // Continue to locked awaiter with lockHandle
+    const lockHandle = createLockHandle(releaseLock);
+    item.resolve(lockHandle);
   };
 
   const scheduleNextProcess = (): void => {
     count++;
     
-    // Yield control with setTimeout delay every maxConsecutiveCalls consecutive executions
+    // Yield control with defer delay every maxConsecutiveCalls consecutive executions
     if (count >= maxConsecutiveCalls) {
       count = 0;
-      setTimeout(processQueue, 0);
+      defer(processQueue);
     } else {
       // Direct call is sufficient since it's controlled by counter
       processQueue();
@@ -113,34 +110,48 @@ export const createAsyncLock = (maxConsecutiveCalls: number = 10): AsyncLock => 
   };
 
   const lock = async (signal?: AbortSignal): Promise<LockHandle> => {
-    // Check if already aborted
-    if (signal?.aborted) {
-      throw new Error('Lock acquisition was aborted');
-    }
+    if (signal) {
+      // Check if already aborted
+      if (signal.aborted) {
+        throw ABORTED_ERROR();
+      }
 
-    return new Promise<LockHandle>((resolve, reject) => {
-      const queueItem: QueueItem = {
-        resolve,
-        reject,
-        signal
-      };
+      return new Promise<LockHandle>((resolve, reject) => {
+        // Handle case with AbortSignal
+        const queueItem: QueueItem = {
+          resolve: undefined!,
+          reject: undefined!,
+          signal
+        };
 
-      // Set up abort handling using onAbort helper
-      const abortHandle = onAbort(signal, () => {
-        removeFromQueue(queueItem);
-        reject(new Error('Lock acquisition was aborted'));
+        const abortHandle = onAbort(signal, () => {
+          removeFromQueue(queueItem);
+          reject(ABORTED_ERROR());
+        });
+
+        // Wrap to clean up
+        queueItem.resolve = (handle: LockHandle) => {
+          abortHandle.release();
+          resolve(handle);
+        };
+        queueItem.reject = (error: Error) => {
+          abortHandle.release();
+          reject(error);
+        };
+
+        queue.push(queueItem);
+        processQueue();
       });
-
-      // Store the abort handle so it can be cleaned up when the promise resolves
-      const originalResolve = queueItem.resolve;
-      queueItem.resolve = (handle: LockHandle) => {
-        abortHandle.release();
-        originalResolve(handle);
-      };
-
-      queue.push(queueItem);
-      processQueue();
-    });
+    } else {
+      return new Promise<LockHandle>((resolve, reject) => {
+        // Handle case without AbortSignal
+        queue.push({
+          resolve,
+          reject
+        });
+        processQueue();
+      });
+    }
   };
 
   return ({
