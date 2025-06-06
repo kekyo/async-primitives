@@ -7,28 +7,33 @@
 
 import { onAbort } from "./abort-hook";
 
-export const delay = (ms: number, signal?: AbortSignal): Promise<void> => {
-  // Check if already aborted
-  if (signal?.aborted) {
-    throw new Error('Delay was aborted');
-  }
+const ABORTED_ERROR = () => new Error('Delay was aborted');
 
-  return new Promise<void>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      // Clean up abort handle if it exists before resolving
-      if (abortHandle) {
-        abortHandle.release();
-      }
-      resolve();
-    }, ms);
-
-    // Set up abort handling using onAbort helper if signal is provided
-    let abortHandle: ReturnType<typeof onAbort> | null = null;
-    if (signal) {
-      abortHandle = onAbort(signal, () => {
-        clearTimeout(timeoutId);
-        reject(new Error('Delay was aborted'));
-      });
+export const delay = (msec: number, signal?: AbortSignal): Promise<void> => {
+  if (signal) {
+    // Check if already aborted
+    if (signal.aborted) {
+      throw ABORTED_ERROR();
     }
-  });
+
+    // Require aborting handler
+    return new Promise<void>((resolve, reject) => {
+      let timeoutId: NodeJS.Timeout;
+
+      const abortHandle = onAbort(signal, () => {
+        clearTimeout(timeoutId);
+        reject(ABORTED_ERROR());
+      });
+
+      timeoutId = setTimeout(() => {
+        abortHandle.release();
+        resolve();
+      }, msec);
+    });
+  } else {
+    // Without aborting handler
+    return new Promise<void>(resolve => {
+      setTimeout(resolve, msec);
+    });
+  }
 };

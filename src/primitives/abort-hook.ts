@@ -45,9 +45,10 @@ export const onAbort = (signal: AbortSignal | undefined, callback: () => void): 
   if (signal.aborted) {
     try {
       callback();
-    } catch {
+    } catch (error: unknown) {
       // Silently ignore callback errors to prevent unhandled exceptions
       // The caller is responsible for handling their own callback errors
+      console.warn(error);
     }
     return handle;
   }
@@ -60,9 +61,10 @@ export const onAbort = (signal: AbortSignal | undefined, callback: () => void): 
     signal.removeEventListener('abort', abortHandler!);
     try {
       callback();
-    } catch {
+    } catch (error: unknown) {
       // Silently ignore callback errors to prevent unhandled exceptions
       // The caller is responsible for handling their own callback errors
+      console.warn(error);
     }
     abortHandler = null;
   };
