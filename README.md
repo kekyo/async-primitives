@@ -74,6 +74,15 @@ const releaseHandle = onAbort(controller.signal, () => {
 releaseHandle.release();
 ```
 
+```typescript
+import { defer } from 'async-primitives';
+
+// Use defer (Schedule callback for next event loop)
+defer(() => {
+  console.log('Executes asynchronously');
+});
+```
+
 ### ES2022+ using statement
 
 Use with using statement (requires ES2022+ or equivalent polyfill)

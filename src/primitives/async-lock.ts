@@ -4,6 +4,7 @@
 
 import { AsyncLock, LockHandle } from "../types";
 import { onAbort } from "./abort-hook";
+import { defer } from "./defer";
 
 /**
  * Internal queue item for lock requests
@@ -81,10 +82,10 @@ export const createAsyncLock = (maxConsecutiveCalls: number = 10): AsyncLock => 
   const scheduleNextProcess = (): void => {
     count++;
     
-    // Yield control with setTimeout delay every maxConsecutiveCalls consecutive executions
+    // Yield control with defer delay every maxConsecutiveCalls consecutive executions
     if (count >= maxConsecutiveCalls) {
       count = 0;
-      setTimeout(processQueue, 0);
+      defer(processQueue);
     } else {
       // Direct call is sufficient since it's controlled by counter
       processQueue();
