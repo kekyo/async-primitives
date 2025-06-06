@@ -27,13 +27,21 @@ import { defer } from '../src/primitives/defer';
  *    - In test environment: Vitest's error detection intercepts these errors
  *    - Process.on('uncaughtException') handlers don't prevent Vitest detection
  * 
- * 4. Solution Approach:
- *    - Instead of testing error throwing behavior (which causes environment issues),
- *    - We test the core safety guarantee: defer() doesn't execute callbacks synchronously
- *    - This captures the essential behavior without triggering test framework conflicts
+ * 4. Module Caching and Pre-computed Handler:
+ *    - The defer() implementation uses a pre-computed handler function for performance
+ *    - This handler is determined once at module load time based on setImmediate availability
+ *    - Tests that modify global functions (setImmediate/setTimeout) after module load
+ *      won't affect the already-computed handler
+ *    - Solution: Use vi.resetModules() and dynamic import to force re-evaluation
  * 
- * The lesson: Some behaviors are better tested through indirect means in test environments,
- * especially when dealing with global error handling and async execution timing.
+ * 5. Solution Approach:
+ *    - Use vi.resetModules() to clear module cache before environment simulation
+ *    - Dynamic import to get fresh defer function with re-evaluated handler function
+ *    - Test error behavior indirectly to avoid Vitest unhandled error detection
+ *    - Maintain test isolation through proper mock cleanup
+ * 
+ * The lesson: When testing modules with startup-time optimizations, consider module
+ * caching behavior and use dynamic imports for environment simulation tests.
  */
 describe('defer', () => {
   beforeEach(() => {
@@ -45,7 +53,11 @@ describe('defer', () => {
   });
 
   describe('when setImmediate is available (Node.js environment)', () => {
-    it('should use setImmediate to defer callback execution', () => {
+    it('should use setImmediate to defer callback execution', async () => {
+      // Clear module cache to force re-evaluation of DEFER_HANDLER
+      // This is necessary because defer.ts pre-computes the handler at module load time
+      vi.resetModules();
+      
       const callback = vi.fn();
       // Mock setImmediate to execute synchronously for testing purposes
       // Note: This mock could interfere with other tests if not properly cleaned up
@@ -54,7 +66,11 @@ describe('defer', () => {
         return {} as NodeJS.Immediate;
       });
 
-      defer(callback);
+      // Re-import defer to get the new DEFER_HANDLER with mocked setImmediate
+      // Without this dynamic import, the pre-computed handler would still use the original setImmediate
+      const { defer: freshDefer } = await import('../src/primitives/defer');
+      
+      freshDefer(callback);
 
       expect(setImmediateSpy).toHaveBeenCalledWith(callback);
       expect(callback).toHaveBeenCalled();
@@ -95,14 +111,22 @@ describe('defer', () => {
       global.setImmediate = originalSetImmediate;
     });
 
-    it('should use setTimeout with 0 delay when setImmediate is not available', () => {
+    it('should use setTimeout with 0 delay when setImmediate is not available', async () => {
+      // Clear module cache to force re-evaluation of DEFER_HANDLER
+      // This allows the defer module to re-check setImmediate availability
+      vi.resetModules();
+      
       const callback = vi.fn();
       const setTimeoutSpy = vi.spyOn(global, 'setTimeout').mockImplementation((cb) => {
         (cb as () => void)();
         return {} as NodeJS.Timeout;
       });
 
-      defer(callback);
+      // Re-import defer to get the new DEFER_HANDLER with undefined setImmediate
+      // The fresh import will detect that setImmediate is undefined and use setTimeout
+      const { defer: freshDefer } = await import('../src/primitives/defer');
+      
+      freshDefer(callback);
 
       expect(setTimeoutSpy).toHaveBeenCalledWith(callback, 0);
       expect(callback).toHaveBeenCalled();
