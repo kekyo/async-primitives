@@ -17,12 +17,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --------------------------------------------------------
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0
+
+      - name: Install RelaxVersioner
+        run: dotnet tool install -g rv-cli
+
+      # --------------------------------------------------------
 
       - name: Install dependencies
         run: npm ci
@@ -32,6 +46,14 @@ jobs:
 
       - name: Run build
         run: npm run build
+
+      - name: Run benchmarks
+        run: |
+          echo "🚀 Running async-primitives benchmarks..."
+          echo "=========================================="
+          npm run benchmark
+          echo "=========================================="
+          echo "✅ Benchmark completed!"
 
       - name: Upload coverage reports
         if: matrix.node-version == '20.x'
@@ -47,12 +69,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --------------------------------------------------------
 
       - name: Use Node.js 20.x
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: 'npm'
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0
+
+      - name: Install RelaxVersioner
+        run: dotnet tool install -g rv-cli
+
+      # --------------------------------------------------------
 
       - name: Install dependencies
         run: npm ci
@@ -66,11 +102,3 @@ jobs:
           test -f dist/async-primitives.js
           test -f dist/async-primitives.cjs
           test -f dist/index.d.ts
-
-      - name: Run benchmarks
-        run: |
-          echo "🚀 Running async-primitives benchmarks..."
-          echo "=========================================="
-          npm run benchmark
-          echo "=========================================="
-          echo "✅ Benchmark completed!"
