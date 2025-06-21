@@ -1,6 +1,6 @@
 {
   "name": "async-primitives",
-  "version": "0.2.4",
+  "version": "0.2.7",
   "type": "module",
   "description": "A collection of primitive functions for asynchronous operations",
   "keywords": [

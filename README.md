@@ -213,10 +213,18 @@ When using `LogicalContext` for the first time, hooks are inserted into various 
 | `setInterval` | Maintains context across interval callbacks |
 | `queueMicrotask` | Preserves context in microtask queue |
 | `setImmediate` | Preserves context in immediate queue (Node.js only) |
+| `process.nextTick` | Preserves context in next tick queue (Node.js only) |
 | `Promise` | Captures context for `then()`, `catch()` and `finally()` chains |
+| `EventTarget.addEventListener` | Maintains context in all EventTarget event handlers |
 | `Element.addEventListener` | Maintains context in DOM event handlers |
 | `requestAnimationFrame` | Preserves context in animation callbacks |
 | `XMLHttpRequest` | Maintains context in XHR event handlers and callbacks |
+| `WebSocket` | Maintains context in WebSocket event handlers and callbacks |
+| `MutationObserver` | Preserves context in DOM mutation observer callbacks |
+| `ResizeObserver` | Preserves context in element resize observer callbacks |
+| `IntersectionObserver` | Preserves context in intersection observer callbacks |
+| `Worker` | Maintains context in Web Worker event handlers |
+| `MessagePort` | Maintains context in MessagePort communication handlers |
 
 NOTE: `LogicalContext` values are isolated between different contexts but maintained across asynchronous boundaries within the same context.
 This enables proper context isolation in complex asynchronous applications.
