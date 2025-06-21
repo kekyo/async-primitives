@@ -23,3 +23,6 @@ export { createDeferred } from './primitives/deferred.js';
 
 // Logical context exports
 export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContextId, runOnNewLogicalContext } from './primitives/logical-context.js';
+
+// AsyncLocal exports
+export { createAsyncLocal } from './primitives/async-local.js';
