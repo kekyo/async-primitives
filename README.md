@@ -72,9 +72,51 @@ deferred.reject(new Error());  // (Error producer)
 const value = await deferred.promise;
 ```
 
+### createAsyncLocal()
+
+Provides asynchronous context storage similar to thread-local storage, but separated by asynchronous context instead of threads.
+Values are maintained across asynchronous boundaries like `setTimeout`, `await`, and `Promise` chains within the same logical context.
+
+```typescript
+import { createAsyncLocal } from 'async-primitives';
+
+// Create an AsyncLocal instance
+const asyncLocal = createAsyncLocal<string>();
+
+// Set a value in the current context
+asyncLocal.setValue('context value');
+
+// Value is maintained across setTimeout
+setTimeout(() => {
+  console.log(asyncLocal.getValue()); // 'context value'
+}, 100);
+
+// Value is maintained across await boundaries
+async function example() {
+  asyncLocal.setValue('before await');
+  
+  await delay(100);
+  
+  console.log(asyncLocal.getValue()); // 'before await'
+}
+
+// Value is maintained in Promise chains
+Promise.resolve()
+  .then(() => {
+    asyncLocal.setValue('in promise');
+    return asyncLocal.getValue();
+  })
+  .then((value) => {
+    console.log(value); // 'in promise'
+  });
+```
+
+NOTE: The above example is no different than using a variable in the global scope.
+In fact, to isolate the "asynchronous context" and observe different results, you must use `LocalContext` below section.
+
 ### onAbort()
 
-Registers a hook function to AbortSignal abort events, enabling cleanup processing. Also supports early release.
+Registers a hook function to `AbortSignal` abort events, enabling cleanup processing. Also supports early release.
 
 ```typescript
 import { onAbort } from 'async-primitives';
@@ -128,6 +170,65 @@ const locker = createAsyncLock();
 
 ## Advanced Topic
 
+### LogicalContext Operations
+
+`LogicalContext` provides low-level APIs for managing asynchronous execution contexts.
+These are automatically used by `createAsyncLocal()` but can also be used directly for advanced scenarios.
+
+```typescript
+import { 
+  setLogicalContextValue, 
+  getLogicalContextValue, 
+  runOnNewLogicalContext,
+  getCurrentLogicalContextId 
+} from 'async-primitives';
+
+// Direct context value manipulation
+const key = Symbol('my-context-key');
+setLogicalContextValue(key, 'some value');
+const value = getLogicalContextValue<string>(key); // 'some value'
+
+// Get current context ID
+const contextId = getCurrentLogicalContextId();
+console.log(`Current context: ${contextId.toString()}`);
+
+// Execute code in a new isolated context
+const result = runOnNewLogicalContext('my-operation', () => {
+  // This runs in a completely new context
+  const isolatedValue = getLogicalContextValue<string>(key); // undefined
+  
+  setLogicalContextValue(key, 'isolated value');
+  return getLogicalContextValue<string>(key); // 'isolated value'
+});
+
+// Back to original context
+const originalValue = getLogicalContextValue<string>(key); // 'some value'
+```
+
+When using `LogicalContext` for the first time, hooks are inserted into various runtime functions and definitions in JavaScript to maintain the context correctly. Note that these create some overhead.
+
+| Target | Purpose |
+|:----|:----|
+| `setTimeout` | Maintains context across timer callbacks |
+| `setInterval` | Maintains context across interval callbacks |
+| `queueMicrotask` | Preserves context in microtask queue |
+| `setImmediate` | Preserves context in immediate queue (Node.js only) |
+| `process.nextTick` | Preserves context in next tick queue (Node.js only) |
+| `Promise` | Captures context for `then()`, `catch()` and `finally()` chains |
+| `EventTarget.addEventListener` | Maintains context in all EventTarget event handlers |
+| `Element.addEventListener` | Maintains context in DOM event handlers |
+| `requestAnimationFrame` | Preserves context in animation callbacks |
+| `XMLHttpRequest` | Maintains context in XHR event handlers and callbacks |
+| `WebSocket` | Maintains context in WebSocket event handlers and callbacks |
+| `MutationObserver` | Preserves context in DOM mutation observer callbacks |
+| `ResizeObserver` | Preserves context in element resize observer callbacks |
+| `IntersectionObserver` | Preserves context in intersection observer callbacks |
+| `Worker` | Maintains context in Web Worker event handlers |
+| `MessagePort` | Maintains context in MessagePort communication handlers |
+
+NOTE: `LogicalContext` values are isolated between different contexts but maintained across asynchronous boundaries within the same context.
+This enables proper context isolation in complex asynchronous applications.
+
 ### createAsyncLock() Parameter Details
 
 In `createAsyncLock(maxConsecutiveCalls?: number)`, you can specify the `maxConsecutiveCalls` parameter (default value: 20).
@@ -161,7 +262,7 @@ const batchLocker = createAsyncLock(50);
 
 ## Benchmark results
 
-See [benchmark/suites/](benchmark/suites/).
+These results do not introduce hooks by `LogicalContext`. See [benchmark/suites/](benchmark/suites/).
 
 | Benchmark | Operations/sec | Avg Time (ms) | Median Time (ms) | Std Dev (ms) | Total Time (ms) |
 |-----------|----------------|---------------|------------------|--------------|-----------------|

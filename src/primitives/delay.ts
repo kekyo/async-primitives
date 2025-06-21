@@ -16,16 +16,14 @@ export const delay = (msec: number, signal?: AbortSignal): Promise<void> => {
       throw ABORTED_ERROR();
     }
 
-    // Require aborting handler
+        // Require aborting handler
     return new Promise<void>((resolve, reject) => {
-      let timeoutId: NodeJS.Timeout;
-
       const abortHandle = onAbort(signal, () => {
         clearTimeout(timeoutId);
         reject(ABORTED_ERROR());
       });
 
-      timeoutId = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         abortHandle.release();
         resolve();
       }, msec);

@@ -20,3 +20,9 @@ export { createAsyncLock } from './primitives/async-lock.js';
 
 // Deferred exports - only the create function, not the interface
 export { createDeferred } from './primitives/deferred.js';
+
+// Logical context exports
+export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContextId, runOnNewLogicalContext } from './primitives/logical-context.js';
+
+// AsyncLocal exports
+export { createAsyncLocal } from './primitives/async-local.js';

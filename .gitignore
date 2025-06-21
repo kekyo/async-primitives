@@ -56,3 +56,6 @@ dist/
 .DS_Store
 .env
 .cursor/
+
+test-results/
+playwright-report/

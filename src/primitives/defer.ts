@@ -4,9 +4,12 @@
 
 /**
  * Defer execution of a callback to the next tick.
- * @param callback - The function to execute.
+ * @param fn - The function to execute.
  */
-export const defer: (callback: () => void) => void =
-  typeof setImmediate === 'function' ?
-    setImmediate :
-    callback => setTimeout(callback, 0);
+export const defer = (fn: () => void): void => {
+  if (typeof setImmediate === 'function') {
+    setImmediate(fn);
+  } else {
+    setTimeout(fn, 0);
+  }
+};
