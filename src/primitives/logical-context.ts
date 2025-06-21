@@ -1,8 +1,5 @@
 import { createLogicalContext, currentLogicalContext, prepare, setCurrentLogicalContext } from "./internal/logical-context";
 
-// Ensure crypto is available
-declare const crypto: Crypto;
-
 /**
  * Set a value in the current logical context
  * @param key The symbol key for the value
