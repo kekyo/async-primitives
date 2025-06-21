@@ -27,12 +27,13 @@ export interface LogicalContextAdjustment {
 export const trampoline = <T extends any[]>(
   adjustment: LogicalContextAdjustment,
   callback: (...args: T) => any, 
+  thisArg?: any,
   ...args: T
 ) => {
   const previousLogicalContext = currentLogicalContext;
   currentLogicalContext = adjustment.contextToUse;
   try {
-    return callback(...args);
+    return callback.call(thisArg, ...args);
   } finally {
     adjustment.contextAfter = currentLogicalContext;
     currentLogicalContext = previousLogicalContext;
@@ -59,7 +60,7 @@ export const prepare = () => {
       return __setTimeout(
         (...args: any[]) => {
           const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-          trampoline(adjustment, handler, ...args);
+          trampoline(adjustment, handler, undefined, ...args);
         },
         timeout,
         ...args);
@@ -76,7 +77,7 @@ export const prepare = () => {
       return __setInterval(
         (...args: any[]) => {
           const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-          trampoline(adjustment, handler, ...args);
+          trampoline(adjustment, handler, undefined, ...args);
         },
         timeout,
         ...args);
@@ -92,7 +93,7 @@ export const prepare = () => {
       const capturedLogicalContext = currentLogicalContext;
       return __queueMicrotask(() => {
         const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-        trampoline(adjustment, callback);
+        trampoline(adjustment, callback, undefined);
       });
     };
   }
@@ -106,7 +107,7 @@ export const prepare = () => {
       const capturedLogicalContext = currentLogicalContext;
       return __setImmediate((...callbackArgs: any[]) => {
         const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-        trampoline(adjustment, callback, ...callbackArgs);
+        trampoline(adjustment, callback, undefined, ...callbackArgs);
       }, ...args);
     }) as typeof globalThis.setImmediate;
   }
@@ -130,12 +131,12 @@ export const prepare = () => {
         onFulfilled ? value => {
           // Execute the continuation handler in the captured logical context (ConfigureAwait(true) behavior)
           const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-          return trampoline(adjustment, onFulfilled, value);
+          return trampoline(adjustment, onFulfilled, undefined, value);
         } : undefined,
         onRejected ? reason => {
           // Execute the continuation handler in the captured logical context (ConfigureAwait(true) behavior)
           const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-          return trampoline(adjustment, onRejected, reason);
+          return trampoline(adjustment, onRejected, undefined, reason);
         } : undefined) as Promise<TResult1 | TResult2>;
 
       return resultPromise;
@@ -151,7 +152,7 @@ export const prepare = () => {
         onRejected ? reason => {
           // Execute the continuation handler in the captured logical context
           const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-          return trampoline(adjustment, onRejected, reason);
+          return trampoline(adjustment, onRejected, undefined, reason);
         } : undefined) as Promise<T>;
 
       return resultPromise;
@@ -167,7 +168,7 @@ export const prepare = () => {
         onFinally ? () => {
           // Execute the continuation handler in the captured logical context
           const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-          return trampoline(adjustment, onFinally);
+          return trampoline(adjustment, onFinally, undefined);
         } : undefined);
 
       return resultPromise;
@@ -193,7 +194,7 @@ export const prepare = () => {
         const capturedLogicalContext = currentLogicalContext;
         const wrappedListener = (event: Event) => {
           const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-          return trampoline(adjustment, listener, event);
+          return trampoline(adjustment, listener, event.currentTarget, event);
         };
         return __elementAddEventListener.call(this, type, wrappedListener, options);
       } else if (typeof listener === 'object' && 'handleEvent' in listener) {
@@ -220,7 +221,7 @@ export const prepare = () => {
       const capturedLogicalContext = currentLogicalContext;
       return __requestAnimationFrame((time: DOMHighResTimeStamp) => {
         const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-        return trampoline(adjustment, callback, time);
+        return trampoline(adjustment, callback, undefined, time);
       });
     };
   }
@@ -232,11 +233,10 @@ export const prepare = () => {
     const __XMLHttpRequest = globalThis.XMLHttpRequest;
     
     globalThis.XMLHttpRequest = class extends __XMLHttpRequest {
+      private _userHandlers: Map<string, ((event: any) => void) | null> = new Map();
+      
       constructor() {
         super();
-        
-        // Capture context when XMLHttpRequest is created
-        const capturedLogicalContext = currentLogicalContext;
         
         // Hook all event handler properties
         const eventHandlerProperties = [
@@ -245,17 +245,38 @@ export const prepare = () => {
         ];
         
         eventHandlerProperties.forEach(prop => {
-          let handler: ((event: any) => void) | null = null;
           Object.defineProperty(this, prop, {
-            get: () => handler,
+            get: () => this._userHandlers.get(prop) || null,
             set: (newHandler: ((event: any) => void) | null) => {
+              this._userHandlers.set(prop, newHandler);
+              
               if (newHandler && typeof newHandler === 'function') {
-                handler = (event: any) => {
+                const capturedLogicalContext = currentLogicalContext;
+                
+                // Set the wrapped handler using the parent's property descriptor
+                const wrappedHandler = function(this: any, event: any) {
                   const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-                  return trampoline(adjustment, newHandler, event);
+                  return trampoline(adjustment, newHandler, this, event);
                 };
+                
+                // Call the parent setter
+                const parentProto = Object.getPrototypeOf(Object.getPrototypeOf(this));
+                const descriptor = Object.getOwnPropertyDescriptor(parentProto, prop);
+                if (descriptor && descriptor.set) {
+                  descriptor.set.call(this, wrappedHandler);
+                } else {
+                  // Fallback for older browsers or non-standard implementations
+                  (this as any)[`_${prop}`] = wrappedHandler;
+                }
               } else {
-                handler = newHandler;
+                // Clear handler
+                const parentProto = Object.getPrototypeOf(Object.getPrototypeOf(this));
+                const descriptor = Object.getOwnPropertyDescriptor(parentProto, prop);
+                if (descriptor && descriptor.set) {
+                  descriptor.set.call(this, null);
+                } else {
+                  (this as any)[`_${prop}`] = null;
+                }
               }
             },
             configurable: true,
@@ -274,7 +295,7 @@ export const prepare = () => {
         if (typeof listener === 'function') {
           const wrappedListener = (event: Event) => {
             const adjustment = { contextToUse: capturedLogicalContext } as LogicalContextAdjustment;
-            return trampoline(adjustment, listener, event);
+            return trampoline(adjustment, listener, event.currentTarget, event);
           };
           return super.addEventListener(type, wrappedListener, options);
         } else if (typeof listener === 'object' && 'handleEvent' in listener) {

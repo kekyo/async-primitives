@@ -17,6 +17,11 @@ export default [
         AbortController: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        setImmediate: 'readonly',
+        crypto: 'readonly',
+        Crypto: 'readonly',
+        NodeJS: 'readonly',
+        console: 'readonly',
       },
     },
     plugins: {

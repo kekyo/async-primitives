@@ -46,9 +46,11 @@ export const onAbort = (signal: AbortSignal | undefined, callback: () => void): 
     try {
       callback();
     } catch (error: unknown) {
-      // Silently ignore callback errors to prevent unhandled exceptions
-      // The caller is responsible for handling their own callback errors
-      console.warn(error);
+      // Prevent unhandled exceptions that would crash the process
+      // Log the error since we're suppressing it to maintain process stability
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('AbortHook callback error:', error);
+      }
     }
     return handle;
   }
@@ -62,9 +64,11 @@ export const onAbort = (signal: AbortSignal | undefined, callback: () => void): 
     try {
       callback();
     } catch (error: unknown) {
-      // Silently ignore callback errors to prevent unhandled exceptions
-      // The caller is responsible for handling their own callback errors
-      console.warn(error);
+      // Prevent unhandled exceptions that would crash the process
+      // Log the error since we're suppressing it to maintain process stability
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('AbortHook callback error:', error);
+      }
     }
     abortHandler = null;
   };
