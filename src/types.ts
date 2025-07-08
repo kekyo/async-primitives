@@ -63,5 +63,5 @@ export interface Deferred<T> {
    * Reject the promise with an error
    * @param error The error to reject the promise with
    */
-  readonly reject: (error: Error) => void;
+  readonly reject: (error: any) => void;
 }

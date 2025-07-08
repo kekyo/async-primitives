@@ -12,8 +12,8 @@ import { Deferred } from "../types";
 export const createDeferred = <T>(): Deferred<T> => {
   // eslint-disable-next-line no-unused-vars
   let resolve: (value: T) => void;
-  // eslint-disable-next-line no-unused-vars
-  let reject: (error: Error) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-unused-vars
+  let reject: (error: any) => void;
 
   const promise = new Promise<T>((res, rej) => {
     resolve = res;
