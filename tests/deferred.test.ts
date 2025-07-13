@@ -575,4 +575,114 @@ describe('Deferred', () => {
       });
     });
   });
-}); 
+
+  describe('AbortSignal integration', () => {
+    it('should reject with AbortError when signal is aborted before resolution', async () => {
+      const controller = new AbortController();
+      const deferred = createDeferred<string>(controller.signal);
+
+      // Abort immediately
+      controller.abort();
+
+      await expect(deferred.promise).rejects.toThrow('Deferred aborted');
+    });
+
+    it('should reject with AbortError when signal is aborted after creation but before resolution', async () => {
+      const controller = new AbortController();
+      const deferred = createDeferred<string>(controller.signal);
+
+      // Abort after a delay
+      setTimeout(() => controller.abort(), 10);
+
+      await expect(deferred.promise).rejects.toThrow('Deferred aborted');
+    });
+
+    it('should resolve normally if signal is not aborted', async () => {
+      const controller = new AbortController();
+      const deferred = createDeferred<string>(controller.signal);
+
+      setTimeout(() => deferred.resolve('success'), 10);
+
+      const result = await deferred.promise;
+      expect(result).toBe('success');
+    });
+
+    it('should ignore abort after successful resolution', async () => {
+      const controller = new AbortController();
+      const deferred = createDeferred<string>(controller.signal);
+
+      deferred.resolve('resolved');
+      controller.abort();
+
+      const result = await deferred.promise;
+      expect(result).toBe('resolved');
+    });
+
+    it('should ignore abort after rejection', async () => {
+      const controller = new AbortController();
+      const deferred = createDeferred<string>(controller.signal);
+
+      const customError = new Error('custom error');
+      deferred.reject(customError);
+      controller.abort();
+
+      await expect(deferred.promise).rejects.toThrow('custom error');
+    });
+
+    it('should work without AbortSignal (backward compatibility)', async () => {
+      const deferred = createDeferred<string>();
+
+      setTimeout(() => deferred.resolve('no signal'), 10);
+
+      const result = await deferred.promise;
+      expect(result).toBe('no signal');
+    });
+
+    it('should handle both abort and resolve operations 1', async () => {
+      const controller = new AbortController();
+      const deferred = createDeferred<string>(controller.signal);
+
+      controller.abort();   // First
+      deferred.resolve('resolved');
+
+      try {
+        await deferred.promise;
+        expect(true).toBe(false);    // Will not reached
+      } catch (error) {
+        expect((error as Error).message).toBe('Deferred aborted');
+      }
+    });
+
+    it('should handle both abort and resolve operations 2', async () => {
+      const controller = new AbortController();
+      const deferred = createDeferred<string>(controller.signal);
+
+      deferred.resolve('resolved');   // First
+      controller.abort();
+
+      const result = await deferred.promise;
+      expect(result).toBe('resolved');
+    });
+
+    it('should handle multiple deferreds with the same signal', async () => {
+      const controller = new AbortController();
+      const deferred1 = createDeferred<string>(controller.signal);
+      const deferred2 = createDeferred<number>(controller.signal);
+
+      controller.abort();
+
+      await expect(deferred1.promise).rejects.toThrow('Deferred aborted');
+      await expect(deferred2.promise).rejects.toThrow('Deferred aborted');
+    });
+
+    it('should handle already aborted signal', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      const deferred = createDeferred<string>(controller.signal);
+
+      await expect(deferred.promise).rejects.toThrow('Deferred aborted');
+    });
+  });
+});
+
