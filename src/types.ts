@@ -65,3 +65,30 @@ export interface Deferred<T> {
    */
   readonly reject: (error: any) => void;
 }
+
+/**
+ * Manually or automatically signal an event
+ */
+export interface Signal {
+  /**
+   * Set the event
+   */
+  readonly set: () => void;
+
+  /**
+   * Wait for the event to be signaled
+   * @param signal Optional AbortSignal for cancelling the wait
+   * @returns Promise that resolves when the event is signaled
+   */
+  readonly wait: (signal?: AbortSignal) => Promise<void>;
+}
+
+/**
+ * Manually signal an event
+ */
+export interface ManualSignal extends Signal {
+  /**
+   * Reset the event
+   */
+  readonly reset: () => void;
+}

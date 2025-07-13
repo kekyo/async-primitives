@@ -26,3 +26,6 @@ export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContex
 
 // AsyncLocal exports
 export { createAsyncLocal } from './primitives/async-local.js';
+
+// Signal exports
+export { createManualSignal } from './primitives/signal.js';
