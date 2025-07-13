@@ -8,8 +8,8 @@ A collection of primitive functions for asynchronous operations in TypeScript/Ja
 
 ## Features
 
-- 🚀 **Universal**: Works in both browser and Node.js environments
-- 📖 **Zero dependencies**: No external dependencies
+- **Universal**: Works in both browser and Node.js environments
+- **Zero dependencies**: No external dependencies
 
 ## Installation
 
@@ -143,6 +143,38 @@ import { defer } from 'async-primitives';
 defer(() => {
   console.log('Executes asynchronously');
 });
+```
+
+### createManualSignal()
+
+Creates a manually controlled signal that can be set and reset. Multiple waiters can wait for the same signal, and all will be resolved when the signal is set.
+
+```typescript
+import { createManualSignal } from 'async-primitives';
+
+// Create a manual signal
+const signal = createManualSignal();
+
+// Start multiple waiters
+const waiter1 = signal.wait();
+const waiter2 = signal.wait();
+
+// Set the signal - all waiters will resolve
+signal.set();
+
+await Promise.all([waiter1, waiter2]);
+console.log('All waiters resolved');
+
+// Reset the signal for reuse
+signal.reset();
+
+// Wait with AbortSignal support
+const controller = new AbortController();
+try {
+  await signal.wait(controller.signal);
+} catch (error) {
+  console.log('Wait was aborted');
+}
 ```
 
 ### ES2022+ using statement
