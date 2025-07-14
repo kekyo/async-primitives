@@ -2,14 +2,37 @@
 
 A collection of primitive functions for asynchronous operations in TypeScript/JavaScript.
 
-[![npm version](https://img.shields.io/npm/v/async-primitives.svg)](https://www.npmjs.com/package/async-primitives)
+[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/kekyo/async-primitives/actions/workflows/ci.yml/badge.svg)](https://github.com/kekyo/async-primitives/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/async-primitives.svg)](https://www.npmjs.com/package/async-primitives)
 
-## Features
+----
 
-- **Universal**: Works in both browser and Node.js environments
-- **Zero dependencies**: No external dependencies
+## What is this?
+
+If you are interested in performing additional calculations on `Promise<T>`, you may find this small library useful.
+Mutex, producer-consumer separation (side-effect operation), signaling (flag control), logical context and more.
+
+* Works in both browser and Node.js (16 or later) environments.
+* No external dependencies.
+
+| Function | Description |
+|:---------|:------------|
+| `delay()` | Promise-based delay function |
+| `defer()` | Schedule callback for next event loop |
+| `onAbort()` | Register safer abort signal hooks with cleanup |
+| `createAsyncLock()` | Promise-based mutex lock for critical sections |
+| `createDeferred()` | External control of Promise resolution/rejection |
+| `createDeferredGenerator()` | External control of async generator resolution/rejection |
+| `createSignal()` | Automatic signal trigger (one-waiter per trigger) |
+| `createManuallySignal()` | Manual signal control (raise/drop state) |
+
+Advanced features:
+
+| Function | Description |
+|:---------|:------------|
+| `createAsyncLocal()` | Asynchronous context storage |
+| `LogicalContext` | Low-level async execution context management |
 
 ## Installation
 
@@ -17,18 +40,24 @@ A collection of primitive functions for asynchronous operations in TypeScript/Ja
 npm install async-primitives
 ```
 
+----
+
 ## Usage
+
+Each functions are independent and does not require knowledge of each other's assumptions.
 
 ### delay()
 
-Provides a delay that can be awaited with Promise, with support for cancellation via `AbortSignal.`
+Provides a delay that can be awaited with `Promise<void>`, with support for cancellation via `AbortSignal.`
 
 ```typescript
 import { delay } from 'async-primitives';
 
 // Use delay
 await delay(1000) // Wait for 1 second
+```
 
+```typescript
 // With AbortSignal
 const c = new AbortController();
 await delay(1000, c.signal) // Wait for 1 second
@@ -68,7 +97,7 @@ releaseHandle.release();
 
 ### createAsyncLock()
 
-Provides Promise-based mutex lock functionality to implement critical sections that prevent race conditions in asynchronous operations.
+Provides `Promise` based mutex lock functionality to implement critical sections that prevent race conditions in asynchronous operations.
 
 ```typescript
 import { createAsyncLock } from 'async-primitives';
@@ -76,20 +105,25 @@ import { createAsyncLock } from 'async-primitives';
 // Use AsyncLock (Mutex lock)
 const locker = createAsyncLock();
 
+// Lock AsyncLock
 const handler = await locker.lock();
 try {
   // Critical section, avoid race condition.
 } finally {
+  // Release AsyncLock
   handler.release();
 }
+```
 
+```typescript
 // With AbortSignal
 const handler = await locker.lock(c.signal);
 ```
 
 ### createDeferred()
 
-Creates a Deferred object that allows external control of Promise resolution or rejection. Useful for separating producers and consumers in asynchronous processing.
+Creates a `Deferred<T>` object that allows external control of `Promise<T>` resolution or rejection.
+Useful for separating producers and consumers in asynchronous processing.
 
 ```typescript
 import { createDeferred } from 'async-primitives';
@@ -97,11 +131,92 @@ import { createDeferred } from 'async-primitives';
 // Use Deferred
 const deferred = createDeferred<number>();
 
-deferred.resolve(123);         // (Result producer)
-deferred.reject(new Error());  // (Error producer)
+deferred.resolve(123);         // (Produce result value)
+deferred.reject(new Error());  // (Produce an error)
 
 // (Consumer)
 const value = await deferred.promise;
+```
+
+```typescript
+// With AbortSignal support
+const controller = new AbortController();
+const abortableDeferred = createDeferred<number>(controller.signal);
+```
+
+### createDeferredGenerator()
+
+Creates a `DeferredGenerator<T>` object that allows external control of async generator `AsyncGenerator<T, ...>` yielding, returning and throwing operations.
+Useful for separating producers and consumers in streaming data patterns.
+
+```typescript
+import { createDeferredGenerator } from 'async-primitives';
+
+// Basic usage - streaming data
+const deferredGen = createDeferredGenerator<string>();
+
+// Consumer - iterate over values as they arrive
+const consumer = async () => {
+  for await (const value of deferredGen.generator) {
+    console.log('Received:', value);
+  }
+  console.log('Stream completed');
+};
+
+// Start consuming
+consumer();
+
+// Producer - send values externally
+deferredGen.yield('First value');
+deferredGen.yield('Second value');
+deferredGen.yield('Third value');
+deferredGen.return(); // Complete the stream
+```
+
+Can insert an error when yielding:
+
+```typescript
+// With error handling
+const errorGen = createDeferredGenerator<number>();
+
+const errorConsumer = async () => {
+  try {
+    for await (const value of errorGen.generator) {
+      console.log('Number:', value);
+    }
+  } catch (error) {
+    console.log('Error occurred:', error.message);
+  }
+};
+
+errorConsumer();
+errorGen.yield(1);
+errorGen.yield(2);
+errorGen.throw(new Error('Something went wrong'));
+```
+
+Yes, `AbortSignal` supported:
+
+```typescript
+// With AbortSignal support
+const controller = new AbortController();
+const abortableGen = createDeferredGenerator<string>(controller.signal);
+
+const abortableConsumer = async () => {
+  try {
+    for await (const value of abortableGen.generator) {
+      console.log('Processing:', value);
+    }
+  } catch (error) {
+    console.log('Aborted:', error.message);
+  }
+};
+
+abortableConsumer();
+abortableGen.yield('Processing...');
+
+// Abort the operation
+controller.abort(); // Will throw "Deferred generator aborted"
 ```
 
 ### createSignal()
@@ -132,7 +247,9 @@ signal.trigger(); // waiter2 resolves
 
 await waiter2;
 console.log('Second waiter resolved');
+```
 
+```typescript
 // Wait with AbortSignal support
 const controller = new AbortController();
 try {
@@ -170,7 +287,9 @@ console.log('All waiters resolved');
 
 // Drop the signal
 signal.drop();
+```
 
+```typescript
 // Wait with AbortSignal support
 const controller = new AbortController();
 try {
@@ -234,12 +353,12 @@ async function example() {
 }
 
 // Value is maintained in Promise chains
-Promise.resolve()
-  .then(() => {
+Promise.resolve().
+  then(() => {
     asyncLocal.setValue('in promise');
     return asyncLocal.getValue();
-  })
-  .then((value) => {
+  }).
+  then((value) => {
     console.log(value); // 'in promise'
   });
 ```
@@ -335,7 +454,7 @@ const uiLocker = createAsyncLock(5);
 const batchLocker = createAsyncLock(50);
 ```
 
------
+----
 
 ## Benchmark results
 
@@ -384,6 +503,8 @@ These results do not introduce hooks by `LogicalContext`. See [benchmark/suites/
 **CPU:** AMD EPYC 7763 64-Core Processor  
 **Memory:** 16GB  
 **Last Updated:** 2025-06-06
+
+----
 
 ## License
 
