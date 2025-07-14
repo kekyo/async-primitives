@@ -462,47 +462,60 @@ These results do not introduce hooks by `LogicalContext`. See [benchmark/suites/
 
 | Benchmark | Operations/sec | Avg Time (ms) | Median Time (ms) | Std Dev (ms) | Total Time (ms) |
 |-----------|----------------|---------------|------------------|--------------|-----------------|
-| delay(0) | 933 | 1122.527 | 1068.132 | 910.767 | 1000.17 |
-| delay(1) | 936 | 1067.96 | 1066.679 | 7.778 | 1000.68 |
-| AsyncLock acquire/release | 261,176 | 5.128 | 3.667 | 56.087 | 1001.13 |
-| Deferred resolve | 5,415,127 | 0.192 | 0.18 | 0.887 | 1000 |
-| Deferred reject/catch | 201,076 | 5.115 | 4.869 | 11.521 | 1000.02 |
-| defer callback | 716,544 | 1.447 | 1.382 | 3.298 | 1000 |
-| defer [setTimeout(0)] | 937 | 1081.429 | 1065.245 | 451.863 | 1000.32 |
-| onAbort setup/cleanup | 173,463 | 6.54 | 5.48 | 48.185 | 1000 |
-| AsyncLock Sequential (1000x) - maxCalls: 1 | 769 | 1472.277 | 1202.353 | 770.625 | 1001.15 |
-| AsyncLock Sequential (1000x) - maxCalls: 5 | 781 | 1406.61 | 1199.978 | 624.061 | 1000.1 |
-| AsyncLock Sequential (1000x) - maxCalls: 10 | 783 | 1457.013 | 1188.818 | 1614.736 | 1000.97 |
-| AsyncLock Sequential (1000x) - maxCalls: 20 | 801 | 1330.997 | 1177.136 | 463.999 | 1000.91 |
-| AsyncLock Sequential (1000x) - maxCalls: 50 | 797 | 1335.779 | 1181.464 | 458.668 | 1000.5 |
-| AsyncLock Sequential (1000x) - maxCalls: 100 | 789 | 1365.519 | 1193.767 | 524.315 | 1002.29 |
-| AsyncLock Sequential (1000x) - maxCalls: 1000 | 787 | 1386.522 | 1192.815 | 592.317 | 1001.07 |
-| AsyncLock High-freq (500x) - maxCalls: 1 | 1,570 | 798.194 | 605.179 | 789.42 | 1003.33 |
-| AsyncLock High-freq (500x) - maxCalls: 5 | 1,601 | 809.046 | 596.092 | 2416.705 | 1013.74 |
-| AsyncLock High-freq (500x) - maxCalls: 10 | 1,607 | 726.733 | 588.202 | 540.105 | 1001.44 |
-| AsyncLock High-freq (500x) - maxCalls: 20 | 1,644 | 700.609 | 585.477 | 516.439 | 1000.47 |
-| AsyncLock High-freq (500x) - maxCalls: 50 | 1,648 | 693.525 | 584.721 | 489.994 | 1000.06 |
-| AsyncLock High-freq (500x) - maxCalls: 100 | 1,649 | 692.826 | 584.285 | 486.84 | 1001.83 |
-| AsyncLock High-freq (500x) - maxCalls: 1000 | 1,649 | 693.64 | 583.85 | 491.805 | 1000.23 |
-| AsyncLock Concurrent (20x) - maxCalls: 1 | 17,904 | 69.539 | 54.732 | 655.749 | 1000.04 |
-| AsyncLock Concurrent (20x) - maxCalls: 5 | 28,921 | 42.392 | 33.713 | 130.387 | 1000.02 |
-| AsyncLock Concurrent (20x) - maxCalls: 10 | 31,609 | 39.827 | 30.647 | 137.484 | 1000.01 |
-| AsyncLock Concurrent (20x) - maxCalls: 20 | 33,755 | 38.262 | 28.754 | 160.341 | 1002.57 |
-| AsyncLock Concurrent (20x) - maxCalls: 50 | 33,852 | 38.221 | 28.693 | 163.356 | 1000.69 |
-| AsyncLock Concurrent (20x) - maxCalls: 100 | 33,003 | 40.17 | 28.744 | 366.6 | 1000.03 |
-| AsyncLock Concurrent (20x) - maxCalls: 1000 | 34,000 | 34.545 | 28.694 | 95.142 | 1001.77 |
-| AsyncLock Ultra-high-freq (2000x) - maxCalls: 1 | 366 | 3060.63 | 2403.046 | 1256.162 | 1000.83 |
-| AsyncLock Ultra-high-freq (2000x) - maxCalls: 5 | 377 | 2902.171 | 2366.216 | 1060.175 | 1001.25 |
-| AsyncLock Ultra-high-freq (2000x) - maxCalls: 10 | 378 | 3131.075 | 2354.614 | 3947.974 | 1001.94 |
-| AsyncLock Ultra-high-freq (2000x) - maxCalls: 20 | 391 | 2752.435 | 2315.647 | 896.412 | 1001.89 |
-| AsyncLock Ultra-high-freq (2000x) - maxCalls: 50 | 393 | 2706.161 | 2309.741 | 805.667 | 1001.28 |
-| AsyncLock Ultra-high-freq (2000x) - maxCalls: 100 | 393 | 2711.921 | 2309.912 | 829.601 | 1000.7 |
-| AsyncLock Ultra-high-freq (2000x) - maxCalls: 1000 | 388 | 2766.76 | 2341.135 | 890.833 | 1001.57 |
+| delay(0) | 921 | 1114.393 | 1068.076 | 444.608 | 1000.72 |
+| delay(1) | 925 | 1092.361 | 1066.823 | 157.435 | 1000.6 |
+| AsyncLock acquire/release | 269,232 | 5 | 3.616 | 60.263 | 1000 |
+| Deferred resolve | 908,770 | 1.149 | 1.073 | 1.538 | 1000 |
+| Deferred reject/catch | 162,543 | 6.698 | 6.082 | 32.257 | 1000 |
+| defer callback | 46,043 | 886152.052 | 103.447 | 2802011.308 | 8861.52 |
+| defer [setTimeout(0)] | 924 | 1098.239 | 1065.852 | 193.495 | 1000.5 |
+| onAbort setup/cleanup | 183,012 | 5.951 | 5.26 | 22.798 | 1000 |
+| AsyncLock Sequential (1000x) - maxCalls: 1 | 799 | 1421.635 | 1146.637 | 725.98 | 1000.83 |
+| AsyncLock Sequential (1000x) - maxCalls: 5 | 830 | 1296.576 | 1128.785 | 477.884 | 1000.96 |
+| AsyncLock Sequential (1000x) - maxCalls: 10 | 832 | 1283.699 | 1125.293 | 445.244 | 1000 |
+| AsyncLock Sequential (1000x) - maxCalls: 20 | 835 | 1312.434 | 1104.4 | 837.872 | 1000.07 |
+| AsyncLock Sequential (1000x) - maxCalls: 50 | 851 | 1241.166 | 1109.304 | 382.762 | 1000.38 |
+| AsyncLock Sequential (1000x) - maxCalls: 100 | 840 | 1267.654 | 1120.193 | 426.704 | 1000.18 |
+| AsyncLock Sequential (1000x) - maxCalls: 1000 | 839 | 1270.938 | 1119.04 | 437.995 | 1000.23 |
+| AsyncLock High-freq (500x) - maxCalls: 1 | 1,621 | 772.298 | 574.147 | 1104.841 | 1000.13 |
+| AsyncLock High-freq (500x) - maxCalls: 5 | 1,719 | 641.477 | 559.791 | 345.389 | 1000.06 |
+| AsyncLock High-freq (500x) - maxCalls: 10 | 1,724 | 633.467 | 557.396 | 318.059 | 1000.24 |
+| AsyncLock High-freq (500x) - maxCalls: 20 | 1,704 | 648.408 | 562.886 | 356.101 | 1000.49 |
+| AsyncLock High-freq (500x) - maxCalls: 50 | 1,706 | 645.671 | 563.032 | 347.684 | 1000.79 |
+| AsyncLock High-freq (500x) - maxCalls: 100 | 1,703 | 753.441 | 563.307 | 3922.743 | 1073.65 |
+| AsyncLock High-freq (500x) - maxCalls: 1000 | 1,722 | 639.682 | 555.908 | 377.501 | 1000.46 |
+| AsyncLock Concurrent (20x) - maxCalls: 1 | 18,591 | 65.19 | 52.688 | 765.547 | 1000.01 |
+| AsyncLock Concurrent (20x) - maxCalls: 5 | 30,371 | 37.507 | 32.35 | 77.11 | 1000.02 |
+| AsyncLock Concurrent (20x) - maxCalls: 10 | 33,491 | 34.614 | 29.234 | 80.79 | 1000.01 |
+| AsyncLock Concurrent (20x) - maxCalls: 20 | 35,786 | 33.292 | 27.171 | 98.581 | 1000.02 |
+| AsyncLock Concurrent (20x) - maxCalls: 50 | 35,817 | 33.365 | 27.14 | 100.292 | 1001.08 |
+| AsyncLock Concurrent (20x) - maxCalls: 100 | 35,862 | 33.531 | 27.121 | 104.608 | 1000 |
+| AsyncLock Concurrent (20x) - maxCalls: 1000 | 35,390 | 35.203 | 27.151 | 211.557 | 1000 |
+| AsyncLock Ultra-high-freq (2000x) - maxCalls: 1 | 384 | 2828.991 | 2305.131 | 963.976 | 1001.46 |
+| AsyncLock Ultra-high-freq (2000x) - maxCalls: 5 | 395 | 2728.085 | 2255.894 | 949.591 | 1001.21 |
+| AsyncLock Ultra-high-freq (2000x) - maxCalls: 10 | 417 | 2486.416 | 2207.634 | 534.142 | 1002.03 |
+| AsyncLock Ultra-high-freq (2000x) - maxCalls: 20 | 409 | 2551.6 | 2245.396 | 594.723 | 1000.23 |
+| AsyncLock Ultra-high-freq (2000x) - maxCalls: 50 | 410 | 2544.325 | 2241.012 | 592.091 | 1002.46 |
+| AsyncLock Ultra-high-freq (2000x) - maxCalls: 100 | 409 | 2549.292 | 2239.885 | 604.259 | 1001.87 |
+| AsyncLock Ultra-high-freq (2000x) - maxCalls: 1000 | 409 | 2554.267 | 2236.389 | 616.724 | 1001.27 |
+| Signal trigger/wait | 515,193 | 2.216 | 1.913 | 80.86 | 1000 |
+| Signal trigger reaction time | 452,595 | 2.341 | 2.194 | 15.065 | 1000 |
+| Signal multiple waiters with trigger | 81,515 | 12.8 | 12.132 | 13.437 | 1000 |
+| ManualSignal raise/wait | 367,107 | 2.841 | 2.705 | 5.504 | 1000 |
+| ManualSignal raise reaction time | 331,717 | 3.195 | 2.986 | 15.903 | 1000 |
+| ManualSignal trigger/wait | 369,066 | 2.846 | 2.675 | 6.187 | 1000 |
+| ManualSignal trigger reaction time | 338,068 | 3.112 | 2.935 | 14.359 | 1000 |
+| ManualSignal multiple waiters with raise | 77,615 | 13.455 | 12.724 | 14.231 | 1000 |
+| ManualSignal multiple waiters with trigger | 77,737 | 13.421 | 12.713 | 13.587 | 1000.01 |
+| Signal vs ManualSignal - single waiter (Signal) | 519,671 | 2.023 | 1.913 | 5.178 | 1000 |
+| Signal vs ManualSignal - single waiter (ManualSignal) | 368,502 | 2.836 | 2.695 | 5.973 | 1000 |
+| Signal vs ManualSignal - batch waiters (Signal) | 144,636 | 7.294 | 6.843 | 21.87 | 1000.34 |
+| Signal vs ManualSignal - batch waiters (ManualSignal) | 128,812 | 8.141 | 7.685 | 13.078 | 1000.01 |
 
-**Test Environment:** Node.js v20.19.1, linux x64  
+**Test Environment:** Node.js v21.7.3, linux x64  
 **CPU:** AMD EPYC 7763 64-Core Processor  
 **Memory:** 16GB  
-**Last Updated:** 2025-06-06
+**Last Updated:** 2025-07-14
 
 ----
 
