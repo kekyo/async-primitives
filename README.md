@@ -23,7 +23,7 @@ Mutex, producer-consumer separation (side-effect operation), signaling (flag con
 | `onAbort()` | Register safer abort signal hooks with cleanup |
 | `createAsyncLock()` | Promise-based mutex lock for critical sections |
 | `createDeferred()` | External control of Promise resolution/rejection |
-| `createDeferredGenerator()` | External control of async generator resolution/rejection |
+| `createDeferredGenerator()` | External control of async generator with queue management |
 | `createSignal()` | Automatic signal trigger (one-waiter per trigger) |
 | `createManuallySignal()` | Manual signal control (raise/drop state) |
 
@@ -166,11 +166,11 @@ const consumer = async () => {
 // Start consuming
 consumer();
 
-// Producer - send values externally
-deferredGen.yield('First value');
-deferredGen.yield('Second value');
-deferredGen.yield('Third value');
-deferredGen.return(); // Complete the stream
+// Producer - send values externally (now returns Promise<void>)
+await deferredGen.yield('First value');
+await deferredGen.yield('Second value');
+await deferredGen.yield('Third value');
+await deferredGen.return(); // Complete the stream
 ```
 
 Can insert an error when yielding:
@@ -190,33 +190,26 @@ const errorConsumer = async () => {
 };
 
 errorConsumer();
-errorGen.yield(1);
-errorGen.yield(2);
-errorGen.throw(new Error('Something went wrong'));
+await errorGen.yield(1);
+await errorGen.yield(2);
+await errorGen.throw(new Error('Something went wrong'));
 ```
 
-Yes, `AbortSignal` supported:
+#### Queue Size Management
+
+Control the maximum number of items that can be queued using the `maxItemReserved` option:
 
 ```typescript
-// With AbortSignal support
-const controller = new AbortController();
-const abortableGen = createDeferredGenerator<string>(controller.signal);
+// Limit queue to 3 items maximum
+const limitedGen = createDeferredGenerator<string>({ maxItemReserved: 3 });
 
-const abortableConsumer = async () => {
-  try {
-    for await (const value of abortableGen.generator) {
-      console.log('Processing:', value);
-    }
-  } catch (error) {
-    console.log('Aborted:', error.message);
-  }
-};
+// When queue is full, yield operations will wait for space
+await limitedGen.yield('item1');
+await limitedGen.yield('item2');
+await limitedGen.yield('item3'); // Queue is now full
 
-abortableConsumer();
-abortableGen.yield('Processing...');
-
-// Abort the operation
-controller.abort(); // Will throw "Deferred generator aborted"
+// This will wait until consumer processes some items
+await limitedGen.yield('item4'); // Waits for queue space
 ```
 
 ### createSignal()

@@ -68,6 +68,20 @@ export interface Deferred<T> {
 }
 
 /**
+ * Options for creating a deferred generator
+ */
+export interface DeferredGeneratorOptions {
+  /**
+   * Optional maximum number of items to reserve in the queue (Default: unlimited)
+   */
+  maxItemReserved?: number;
+  /**
+   * Optional AbortSignal for cancelling the consumer (async iterator) wait
+   */
+  signal?: AbortSignal;
+}
+
+/**
  * Deferred generator interface for async-generator-based streaming result handling
  */
 export interface DeferredGenerator<T> {
@@ -79,19 +93,22 @@ export interface DeferredGenerator<T> {
   /**
    * Yield a value to the generator
    * @param value The value to yield
+   * @param signal Optional AbortSignal for cancelling the yield
    */
-  readonly yield: (value: T) => void;
+  readonly yield: (value: T, signal?: AbortSignal) => Promise<void>;
 
   /**
    * Complete the generator (equivalent to return)
+   * @param signal Optional AbortSignal for cancelling the return
    */
-  readonly return: () => void;
+  readonly return: (signal?: AbortSignal) => Promise<void>;
 
   /**
    * Throw an error to the generator
    * @param error The error to throw
+   * @param signal Optional AbortSignal for cancelling the throw
    */
-  readonly throw: (error: any) => void;
+  readonly throw: (error: any, signal?: AbortSignal) => Promise<void>;
 }
 
 /**

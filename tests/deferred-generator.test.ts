@@ -32,13 +32,13 @@ describe('DeferredGenerator', () => {
 
       // Yield some values
       await delay(10);
-      deferredGen.yield(1);
+      await deferredGen.yield(1);
       await delay(10);
-      deferredGen.yield(2);
+      await deferredGen.yield(2);
       await delay(10);
-      deferredGen.yield(3);
+      await deferredGen.yield(3);
       await delay(10);
-      deferredGen.return();
+      await deferredGen.return();
 
       await iterationPromise;
 
@@ -62,11 +62,11 @@ describe('DeferredGenerator', () => {
       })();
 
       console.log('[Test] Calling yield(hello)');
-      stringGen.yield('hello');
+      await stringGen.yield('hello');
       console.log('[Test] Calling yield(world)');
-      stringGen.yield('world');
+      await stringGen.yield('world');
       console.log('[Test] Calling return()');
-      stringGen.return();
+      await stringGen.return();
       console.log('[Test] Awaiting iteration completion');
       await stringIteration;
       console.log('[Test] Iteration completed, results:', stringResults);
@@ -88,9 +88,9 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      objectGen.yield({ id: 1, name: 'test1' });
-      objectGen.yield({ id: 2, name: 'test2' });
-      objectGen.return();
+      await objectGen.yield({ id: 1, name: 'test1' });
+      await objectGen.yield({ id: 2, name: 'test2' });
+      await objectGen.return();
       await objectIteration;
 
       expect(objectResults).toEqual([
@@ -113,7 +113,7 @@ describe('DeferredGenerator', () => {
 
       // Complete without yielding any values
       await delay(10);
-      deferredGen.return();
+      await deferredGen.return();
 
       await iterationPromise;
 
@@ -125,7 +125,7 @@ describe('DeferredGenerator', () => {
       const results: number[] = [];
 
       // Return immediately
-      deferredGen.return();
+      await deferredGen.return();
 
       for await (const value of deferredGen.generator) {
         results.push(value);
@@ -153,7 +153,7 @@ describe('DeferredGenerator', () => {
 
       // Throw error before any yield
       await delay(10);
-      deferredGen.throw(new Error('early error'));
+      await deferredGen.throw(new Error('early error'));
 
       await iterationPromise;
 
@@ -178,9 +178,9 @@ describe('DeferredGenerator', () => {
       })();
 
       // Throw error and then try to yield
-      deferredGen.throw(new Error('early error'));
-      deferredGen.yield('should be ignored');
-      deferredGen.return();
+      await deferredGen.throw(new Error('early error'));
+      await deferredGen.yield('should be ignored');
+      await deferredGen.return();
 
       await iterationPromise;
 
@@ -208,11 +208,11 @@ describe('DeferredGenerator', () => {
 
       // Yield some values, then throw
       await delay(10);
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
-      deferredGen.yield('value2');
+      await deferredGen.yield('value2');
       await delay(10);
-      deferredGen.throw(new Error('mid-iteration error'));
+      await deferredGen.throw(new Error('mid-iteration error'));
 
       await iterationPromise;
 
@@ -237,11 +237,11 @@ describe('DeferredGenerator', () => {
       })();
 
       // Yield, throw, then try more operations
-      deferredGen.yield(1);
+      await deferredGen.yield(1);
       await delay(10);
-      deferredGen.throw(new Error('mid error'));
-      deferredGen.yield(2); // Should be ignored
-      deferredGen.return(); // Should be ignored
+      await deferredGen.throw(new Error('mid error'));
+      await deferredGen.yield(2); // Should be ignored
+      await deferredGen.return(); // Should be ignored
 
       await iterationPromise;
 
@@ -262,10 +262,10 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
-      deferredGen.return();
-      deferredGen.yield('should be ignored');
+      await deferredGen.return();
+      await deferredGen.yield('should be ignored');
 
       await iterationPromise;
 
@@ -287,10 +287,10 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
-      deferredGen.throw(new Error('test error'));
-      deferredGen.return(); // Should be ignored
+      await deferredGen.throw(new Error('test error'));
+      await deferredGen.return(); // Should be ignored
 
       await iterationPromise;
 
@@ -309,10 +309,10 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
-      deferredGen.return();
-      deferredGen.return(); // Second return should be ignored
+      await deferredGen.return();
+      await deferredGen.return(); // Second return should be ignored
 
       await iterationPromise;
 
@@ -334,10 +334,10 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
-      deferredGen.throw(new Error('first error'));
-      deferredGen.throw(new Error('second error')); // Should be ignored
+      await deferredGen.throw(new Error('first error'));
+      await deferredGen.throw(new Error('second error')); // Should be ignored
 
       await iterationPromise;
 
@@ -361,12 +361,12 @@ describe('DeferredGenerator', () => {
       // Yield values concurrently
       const yieldOperations = Array.from({ length: 5 }, async (_, i) => {
         await delay(Math.random() * 10);
-        deferredGen.yield(i);
+        await deferredGen.yield(i);
       });
 
       await Promise.all(yieldOperations);
       await delay(20);
-      deferredGen.return();
+      await deferredGen.return();
 
       await iterationPromise;
 
@@ -388,19 +388,19 @@ describe('DeferredGenerator', () => {
       const operations = [
         (async () => {
           await delay(5);
-          deferredGen.yield('value1');
+          await deferredGen.yield('value1');
         })(),
         (async () => {
           await delay(10);
-          deferredGen.yield('value2');
+          await deferredGen.yield('value2');
         })(),
         (async () => {
           await delay(15);
-          deferredGen.return();
+          await deferredGen.return();
         })(),
         (async () => {
           await delay(20);
-          deferredGen.yield('should be ignored');
+          await deferredGen.yield('should be ignored');
         })()
       ];
 
@@ -433,9 +433,9 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      deferredGen.yield(1);
-      deferredGen.yield(2);
-      deferredGen.return();
+      await deferredGen.yield(1);
+      await deferredGen.yield(2);
+      await deferredGen.return();
 
       await Promise.all([consumer1, consumer2]);
 
@@ -455,9 +455,9 @@ describe('DeferredGenerator', () => {
           await delay(10);
           const value = `item-${i}`;
           produced.push(value);
-          deferredGen.yield(value);
+          await deferredGen.yield(value);
         }
-        deferredGen.return();
+        await deferredGen.return();
       };
 
       // Consumer
@@ -504,8 +504,8 @@ describe('DeferredGenerator', () => {
         timestamp: new Date()
       };
 
-      deferredGen.yield(testObject);
-      deferredGen.return();
+      await deferredGen.yield(testObject);
+      await deferredGen.return();
 
       await iterationPromise;
 
@@ -522,7 +522,7 @@ describe('DeferredGenerator', () => {
       const controller = new AbortController();
       controller.abort();
 
-      const deferredGen = createDeferredGenerator<string>(controller.signal);
+      const deferredGen = createDeferredGenerator<string>({ signal: controller.signal });
       const results: string[] = [];
       let caughtError: Error | null = null;
 
@@ -541,7 +541,7 @@ describe('DeferredGenerator', () => {
 
     it('should abort iteration when signal is aborted during iteration', async () => {
       const controller = new AbortController();
-      const deferredGen = createDeferredGenerator<string>(controller.signal);
+      const deferredGen = createDeferredGenerator<string>({ signal: controller.signal });
       const results: string[] = [];
       let caughtError: Error | null = null;
 
@@ -556,9 +556,9 @@ describe('DeferredGenerator', () => {
       })();
 
       await delay(10);
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
-      deferredGen.yield('value2');
+      await deferredGen.yield('value2');
       await delay(10);
       
       // Abort while waiting for next value
@@ -573,7 +573,7 @@ describe('DeferredGenerator', () => {
 
     it('should abort while waiting for values', async () => {
       const controller = new AbortController();
-      const deferredGen = createDeferredGenerator<string>(controller.signal);
+      const deferredGen = createDeferredGenerator<string>({ signal: controller.signal });
       const results: string[] = [];
       let caughtError: Error | null = null;
 
@@ -609,11 +609,11 @@ describe('DeferredGenerator', () => {
       })();
 
       await delay(10);
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
-      deferredGen.yield('value2');
+      await deferredGen.yield('value2');
       await delay(10);
-      deferredGen.return();
+      await deferredGen.return();
 
       await iterationPromise;
 
@@ -622,8 +622,8 @@ describe('DeferredGenerator', () => {
 
     it('should abort multiple generators with the same signal', async () => {
       const controller = new AbortController();
-      const gen1 = createDeferredGenerator<string>(controller.signal);
-      const gen2 = createDeferredGenerator<number>(controller.signal);
+      const gen1 = createDeferredGenerator<string>({ signal: controller.signal });
+      const gen2 = createDeferredGenerator<number>({ signal: controller.signal });
       
       const results1: string[] = [];
       const results2: number[] = [];
@@ -651,8 +651,8 @@ describe('DeferredGenerator', () => {
       })();
 
       await delay(10);
-      gen1.yield('string1');
-      gen2.yield(1);
+      await gen1.yield('string1');
+      await gen2.yield(1);
       await delay(10);
       
       controller.abort();
@@ -667,7 +667,7 @@ describe('DeferredGenerator', () => {
 
     it('should handle abort during queue processing', async () => {
       const controller = new AbortController();
-      const deferredGen = createDeferredGenerator<string>(controller.signal);
+      const deferredGen = createDeferredGenerator<string>({ signal: controller.signal });
       const results: string[] = [];
       let caughtError: Error | undefined;
 
@@ -686,9 +686,9 @@ describe('DeferredGenerator', () => {
       })();
 
       // Add multiple values to queue
-      deferredGen.yield('value1');
-      deferredGen.yield('value2');
-      deferredGen.yield('value3');
+      await deferredGen.yield('value1');
+      await deferredGen.yield('value2');
+      await deferredGen.yield('value3');
 
       await iterationPromise;
 
@@ -700,7 +700,7 @@ describe('DeferredGenerator', () => {
 
     it('should ignore operations after abort', async () => {
       const controller = new AbortController();
-      const deferredGen = createDeferredGenerator<string>(controller.signal);
+      const deferredGen = createDeferredGenerator<string>({ signal: controller.signal });
       const results: string[] = [];
       let caughtError: Error | undefined;
 
@@ -714,13 +714,13 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
       controller.abort();
       
       // These should be ignored
-      deferredGen.yield('value2');
-      deferredGen.return();
+      await deferredGen.yield('value2');
+      await deferredGen.return();
 
       await iterationPromise;
 
@@ -730,7 +730,7 @@ describe('DeferredGenerator', () => {
 
     it('should handle concurrent abort and generator operations', async () => {
       const controller = new AbortController();
-      const deferredGen = createDeferredGenerator<string>(controller.signal);
+      const deferredGen = createDeferredGenerator<string>({ signal: controller.signal });
       const results: string[] = [];
       let caughtError: Error | undefined;
 
@@ -748,7 +748,7 @@ describe('DeferredGenerator', () => {
       const operations = [
         (async () => {
           await delay(5);
-          deferredGen.yield('value1');
+          await deferredGen.yield('value1');
         })(),
         (async () => {
           await delay(10);
@@ -756,7 +756,7 @@ describe('DeferredGenerator', () => {
         })(),
         (async () => {
           await delay(15);
-          deferredGen.yield('value2');
+          await deferredGen.yield('value2');
         })()
       ];
 
@@ -770,7 +770,7 @@ describe('DeferredGenerator', () => {
 
     it('should handle abort with error handling in iteration', async () => {
       const controller = new AbortController();
-      const deferredGen = createDeferredGenerator<string>(controller.signal);
+      const deferredGen = createDeferredGenerator<string>({ signal: controller.signal });
       const results: string[] = [];
       let abortHandled = false;
 
@@ -786,7 +786,7 @@ describe('DeferredGenerator', () => {
         }
       })();
 
-      deferredGen.yield('value1');
+      await deferredGen.yield('value1');
       await delay(10);
       controller.abort();
 
@@ -794,6 +794,195 @@ describe('DeferredGenerator', () => {
 
       expect(results).toEqual(['value1']);
       expect(abortHandled).toBe(true);
+    });
+  });
+
+  describe('AbortSignal parameter in yield, return, throw methods', () => {
+    it('should throw when yield is aborted while waiting for queue space', async () => {
+      const controller = new AbortController();
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 2 }); // maxItemReserved = 2
+      let yieldError: Error | undefined;
+
+      // Fill the queue to capacity
+      await deferredGen.yield('item1');
+      await deferredGen.yield('item2');
+
+      // This yield should wait for space in the queue
+      const yieldPromise = deferredGen.yield('item3', controller.signal).catch(error => {
+        yieldError = error as Error;
+      });
+
+      // Abort the signal while yield is waiting
+      await delay(10);
+      controller.abort();
+
+      await yieldPromise;
+
+      expect(yieldError).toBeDefined();
+      expect(yieldError!.message).toBe('Deferred generator aborted');
+    });
+
+    it('should throw when return is aborted while waiting for queue space', async () => {
+      const controller = new AbortController();
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 2 }); // maxItemReserved = 2
+      let returnError: Error | undefined;
+
+      // Fill the queue to capacity
+      await deferredGen.yield('item1');
+      await deferredGen.yield('item2');
+
+      // This return should wait for space in the queue
+      const returnPromise = deferredGen.return(controller.signal).catch(error => {
+        returnError = error as Error;
+      });
+
+      // Abort the signal while return is waiting
+      await delay(10);
+      controller.abort();
+
+      await returnPromise;
+
+      expect(returnError).toBeDefined();
+      expect(returnError!.message).toBe('Deferred generator aborted');
+    });
+
+    it('should throw when throw is aborted while waiting for queue space', async () => {
+      const controller = new AbortController();
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 2 }); // maxItemReserved = 2
+      let throwError: Error | undefined;
+
+      // Fill the queue to capacity
+      await deferredGen.yield('item1');
+      await deferredGen.yield('item2');
+
+      // This throw should wait for space in the queue
+      const throwPromise = deferredGen.throw(new Error('test error'), controller.signal).catch(error => {
+        throwError = error as Error;
+      });
+
+      // Abort the signal while throw is waiting
+      await delay(10);
+      controller.abort();
+
+      await throwPromise;
+
+      expect(throwError).toBeDefined();
+      expect(throwError!.message).toBe('Deferred generator aborted');
+    });
+
+    it('should handle multiple concurrent operations with AbortSignal', async () => {
+      const controller = new AbortController();
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 1 }); // maxItemReserved = 1
+      const errors: Error[] = [];
+
+      // Fill the queue to capacity
+      await deferredGen.yield('item1');
+
+      // Start multiple operations that will all wait for queue space
+      const operations = [
+        deferredGen.yield('item2', controller.signal).catch(error => errors.push(error)),
+        deferredGen.yield('item3', controller.signal).catch(error => errors.push(error)),
+        deferredGen.return(controller.signal).catch(error => errors.push(error)),
+        deferredGen.throw(new Error('test'), controller.signal).catch(error => errors.push(error))
+      ];
+
+      // Abort all operations
+      await delay(10);
+      controller.abort();
+
+      await Promise.all(operations);
+
+      expect(errors).toHaveLength(4);
+      expect(errors.every(error => error.message === 'Deferred generator aborted')).toBe(true);
+    });
+
+    it('should work normally with AbortSignal when queue has space', async () => {
+      const controller = new AbortController();
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 5 }); // maxItemReserved = 5
+      const results: string[] = [];
+
+      const iterationPromise = (async () => {
+        try {
+          for await (const value of deferredGen.generator) {
+            results.push(value);
+          }
+        } catch (error) {
+          results.push(`ERROR: ${(error as Error).message}`);
+        }
+      })();
+
+      // These should all succeed because queue has space
+      await deferredGen.yield('item1', controller.signal);
+      await deferredGen.yield('item2', controller.signal);
+      await deferredGen.yield('item3', controller.signal);
+      await deferredGen.return(controller.signal);
+
+      await iterationPromise;
+
+      expect(results).toEqual(['item1', 'item2', 'item3']);
+    });
+
+    it('should respect already aborted AbortSignal for yield', async () => {
+      const controller = new AbortController();
+      controller.abort(); // Abort immediately
+
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 1 });
+      let yieldError: Error | undefined;
+
+      // Fill the queue to capacity
+      await deferredGen.yield('item1');
+
+      // This should fail immediately because signal is already aborted
+      try {
+        await deferredGen.yield('item2', controller.signal);
+      } catch (error) {
+        yieldError = error as Error;
+      }
+
+      expect(yieldError).toBeDefined();
+      expect(yieldError!.message).toBe('Deferred generator aborted');
+    });
+
+    it('should respect already aborted AbortSignal for return', async () => {
+      const controller = new AbortController();
+      controller.abort(); // Abort immediately
+
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 1 });
+      let returnError: Error | undefined;
+
+      // Fill the queue to capacity
+      await deferredGen.yield('item1');
+
+      // This should fail immediately because signal is already aborted
+      try {
+        await deferredGen.return(controller.signal);
+      } catch (error) {
+        returnError = error as Error;
+      }
+
+      expect(returnError).toBeDefined();
+      expect(returnError!.message).toBe('Deferred generator aborted');
+    });
+
+    it('should respect already aborted AbortSignal for throw', async () => {
+      const controller = new AbortController();
+      controller.abort(); // Abort immediately
+
+      const deferredGen = createDeferredGenerator<string>({ maxItemReserved: 1 });
+      let throwError: Error | undefined;
+
+      // Fill the queue to capacity
+      await deferredGen.yield('item1');
+
+      // This should fail immediately because signal is already aborted
+      try {
+        await deferredGen.throw(new Error('test'), controller.signal);
+      } catch (error) {
+        throwError = error as Error;
+      }
+
+      expect(throwError).toBeDefined();
+      expect(throwError!.message).toBe('Deferred generator aborted');
     });
   });
 });

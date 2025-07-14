@@ -9,6 +9,7 @@ import { createDeferred } from "./deferred";
 
 /**
  * Creates a signal that can be automatically triggered
+ * @returns A signal that can be automatically triggered
  */
 export const createSignal = (): Signal => {
   const waiters: Deferred<void>[] = [];
@@ -39,11 +40,12 @@ export const createSignal = (): Signal => {
 
 /**
  * Creates a signal that can be manually set and reset
+ * @param initialState - Optional initial state of the signal (Default: false, dropped)
  * @returns A signal that can be manually set and reset
  */
-export const createManuallySignal = (): ManuallySignal => {
+export const createManuallySignal = (initialState?: boolean): ManuallySignal => {
   const waiters: Deferred<void>[] = [];
-  let raised = false;
+  let raised = initialState ?? false;
   return {
     trigger: () => {
       raised = false;

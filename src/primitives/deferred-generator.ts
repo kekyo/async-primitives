@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { DeferredGenerator } from "../types";
+import { DeferredGenerator, DeferredGeneratorOptions } from "../types";
 import { createManuallySignal } from "./signal";
 
 interface QueuedValue<T> {
@@ -26,12 +26,15 @@ type QueuedItem<T> = QueuedValue<T> | QueuedCompletion | QueuedError;
 /**
  * Creates a new deferred generator object
  * @param T - The type of the yielded values
- * @param signal - Optional AbortSignal for cancelling the wait
+ * @param options - Optional options for the deferred generator
  * @returns A deferred generator object with an async generator and control functions
  */
-export const createDeferredGenerator = <T>(signal?: AbortSignal): DeferredGenerator<T> => {
+export const createDeferredGenerator = <T>(options?: DeferredGeneratorOptions): DeferredGenerator<T> => {
+  const maxItemReserved = options?.maxItemReserved;
+  const signal = options?.signal;
   const queue: QueuedItem<T>[] = [];
   const arrived = createManuallySignal();
+  const canReserve = maxItemReserved ? createManuallySignal(true) : undefined;
 
   // Allocate the async generator
   const generator = (async function* () {
@@ -41,8 +44,12 @@ export const createDeferredGenerator = <T>(signal?: AbortSignal): DeferredGenera
       while (true) {
         // Get the next item from the queue
         const item = queue.shift();
+        // If the queue is not full, raise the signal to release the suspending operator
+        if (maxItemReserved && queue.length === (maxItemReserved - 1)) {
+          canReserve!.raise();
+        }
+        // No more items, break the loop
         if (!item) {
-          // No more items, break the loop
           break;
         }
         // Process the item
@@ -80,30 +87,47 @@ export const createDeferredGenerator = <T>(signal?: AbortSignal): DeferredGenera
     }
   })();
 
+  // Enqueue an item to the queue
+  const enqueue = async (item: QueuedItem<T>, signal: AbortSignal | undefined) => {
+    while (true) {
+      if (!maxItemReserved || queue.length < maxItemReserved) {
+        const remains = queue.push(item);
+        if (remains === 1) {
+          // Raise the signal to release the consumer
+          arrived.raise();
+        }
+        if (remains === maxItemReserved) {
+          // Drop the signal because the queue is full
+          canReserve!.drop();
+        }
+        break;
+      }
+      // Wait for the signal to be raised, or the signal is aborted
+      try {
+        await canReserve!.wait(signal);
+      } catch (error: unknown) {
+        // If the signal is aborted, throw a more descriptive error
+        if (error instanceof Error && error.message === "Signal aborted") {
+          error.message = "Deferred generator aborted";
+        }
+        // Rethrow the error
+        throw error;
+      }
+    }
+  }
+
   return {
     // The async generator that yields values
     generator,
     // Yield a value to the generator
-    yield: (value: T) => {
-      if (queue.push({ kind: 'value', value }) === 1) {
-        // Raise the signal to release the waiter when the queue is empty
-        arrived.raise();
-      }
-    },
+    yield: (value: T, signal?: AbortSignal) =>
+      enqueue({ kind: 'value', value }, signal),
     // Complete the generator (equivalent to return)
-    return: () => {
-      if (queue.push({ kind: 'completed' }) === 1) {
-        // Raise the signal to release the waiter when the queue is empty
-        arrived.raise();
-      }
-    },
+    return: (signal?: AbortSignal) =>
+      enqueue({ kind: 'completed' }, signal),
     // Throw an error to the generator
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    throw: (error: any) => {
-      if (queue.push({ kind: 'error', error }) === 1) {
-        // Raise the signal to release the waiter when the queue is empty
-        arrived.raise();
-      }
-    },
+    throw: (error: any, signal?: AbortSignal) =>
+      enqueue({ kind: 'error', error }, signal),
   };
 };
