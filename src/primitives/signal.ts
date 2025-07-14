@@ -1,4 +1,9 @@
-import { Deferred, ManualSignal, Signal } from "../types";
+// async-primitives - A collection of primitive functions for asynchronous operations in TypeScript/JavaScript.
+// Copyright (c) Kouji Matsui. (@kekyo@mi.kekyo.net)
+// Under MIT.
+// https://github.com/kekyo/async-primitives
+
+import { Deferred, ManuallySignal, Signal } from "../types";
 import { onAbort } from "./abort-hook";
 import { createDeferred } from "./deferred";
 
@@ -36,7 +41,7 @@ export const createSignal = (): Signal => {
  * Creates a signal that can be manually set and reset
  * @returns A signal that can be manually set and reset
  */
-export const createManualSignal = (): ManualSignal => {
+export const createManuallySignal = (): ManuallySignal => {
   const waiters: Deferred<void>[] = [];
   let raised = false;
   return {

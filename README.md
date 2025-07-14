@@ -21,7 +21,7 @@ npm install async-primitives
 
 ### delay()
 
-Provides a delay that can be awaited with Promise, with support for cancellation via AbortSignal.
+Provides a delay that can be awaited with Promise, with support for cancellation via `AbortSignal.`
 
 ```typescript
 import { delay } from 'async-primitives';
@@ -32,6 +32,38 @@ await delay(1000) // Wait for 1 second
 // With AbortSignal
 const c = new AbortController();
 await delay(1000, c.signal) // Wait for 1 second
+```
+
+### defer()
+
+Schedules a callback to be executed asynchronously on the next event loop iteration.
+
+```typescript
+import { defer } from 'async-primitives';
+
+// Use defer (Schedule callback for next event loop)
+defer(() => {
+  console.log('Executes asynchronously');
+});
+```
+
+### onAbort()
+
+Registers a hook function to `AbortSignal` abort events, enabling cleanup processing. Also supports early release.
+
+```typescript
+import { onAbort } from 'async-primitives';
+
+// Use onAbort (Abort signal hooking)
+const controller = new AbortController();
+
+const releaseHandle = onAbort(controller.signal, () => {
+  console.log('Operation was aborted!');
+  // (Will automatically cleanup when exit)
+});
+
+// Cleanup early if needed
+releaseHandle.release();
 ```
 
 ### createAsyncLock()
@@ -72,85 +104,12 @@ deferred.reject(new Error());  // (Error producer)
 const value = await deferred.promise;
 ```
 
-### createAsyncLocal()
-
-Provides asynchronous context storage similar to thread-local storage, but separated by asynchronous context instead of threads.
-Values are maintained across asynchronous boundaries like `setTimeout`, `await`, and `Promise` chains within the same logical context.
-
-```typescript
-import { createAsyncLocal } from 'async-primitives';
-
-// Create an AsyncLocal instance
-const asyncLocal = createAsyncLocal<string>();
-
-// Set a value in the current context
-asyncLocal.setValue('context value');
-
-// Value is maintained across setTimeout
-setTimeout(() => {
-  console.log(asyncLocal.getValue()); // 'context value'
-}, 100);
-
-// Value is maintained across await boundaries
-async function example() {
-  asyncLocal.setValue('before await');
-  
-  await delay(100);
-  
-  console.log(asyncLocal.getValue()); // 'before await'
-}
-
-// Value is maintained in Promise chains
-Promise.resolve()
-  .then(() => {
-    asyncLocal.setValue('in promise');
-    return asyncLocal.getValue();
-  })
-  .then((value) => {
-    console.log(value); // 'in promise'
-  });
-```
-
-NOTE: The above example is no different than using a variable in the global scope.
-In fact, to isolate the "asynchronous context" and observe different results, you must use `LocalContext` below section.
-
-### onAbort()
-
-Registers a hook function to `AbortSignal` abort events, enabling cleanup processing. Also supports early release.
-
-```typescript
-import { onAbort } from 'async-primitives';
-
-// Use onAbort (Abort signal hooking)
-const controller = new AbortController();
-
-const releaseHandle = onAbort(controller.signal, () => {
-  console.log('Operation was aborted!');
-});
-
-// Cleanup early if needed
-releaseHandle.release();
-```
-
-### defer()
-
-Schedules a callback to be executed asynchronously on the next event loop iteration.
-
-```typescript
-import { defer } from 'async-primitives';
-
-// Use defer (Schedule callback for next event loop)
-defer(() => {
-  console.log('Executes asynchronously');
-});
-```
-
-### Signal (awaitable flag)
+### createSignal()
 
 Creates an automatically or manually controlled signal that can be raise and drop.
-Multiple waiters can wait for the same signal, and all will be resolved when the signal is raise.
+Multiple waiters can await for the same signal, and all will be resolved when the signal is raise.
 
-The `Signal` (automatic signal) is "trigger" automatically raise-and-drop one signal to release only one-waiter:
+The `Signal` (automatic signal) is "trigger" automatically raise-and-drop to release only one-waiter:
 
 ```typescript
 import { createSignal } from 'async-primitives';
@@ -186,13 +145,15 @@ try {
 }
 ```
 
-The `ManualSignal` is manually controlled raise and drop state, and trigger is optional.
+### createManuallySignal()
+
+The `ManuallySignal` is manually controlled raise and drop state, and trigger action is optional.
 
 ```typescript
-import { createManualSignal } from 'async-primitives';
+import { createManuallySignal } from 'async-primitives';
 
-// Create a manual signal
-const signal = createManualSignal();
+// Create a manually signal
+const signal = createManuallySignal();
 
 // Start multiple waiters
 const waiter1 = signal.wait();
@@ -243,6 +204,48 @@ const locker = createAsyncLock();
 ```
 
 ## Advanced Topic
+
+### createAsyncLocal()
+
+Provides asynchronous context storage similar to thread-local storage, but separated by asynchronous context instead of threads.
+Values are maintained across asynchronous boundaries like `setTimeout`, `await`, and `Promise` chains within the same logical context.
+
+```typescript
+import { createAsyncLocal } from 'async-primitives';
+
+// Create an AsyncLocal instance
+const asyncLocal = createAsyncLocal<string>();
+
+// Set a value in the current context
+asyncLocal.setValue('context value');
+
+// Value is maintained across setTimeout
+setTimeout(() => {
+  console.log(asyncLocal.getValue()); // 'context value'
+}, 100);
+
+// Value is maintained across await boundaries
+async function example() {
+  asyncLocal.setValue('before await');
+  
+  await delay(100);
+  
+  console.log(asyncLocal.getValue()); // 'before await'
+}
+
+// Value is maintained in Promise chains
+Promise.resolve()
+  .then(() => {
+    asyncLocal.setValue('in promise');
+    return asyncLocal.getValue();
+  })
+  .then((value) => {
+    console.log(value); // 'in promise'
+  });
+```
+
+NOTE: The above example is no different than using a variable in the global scope.
+In fact, to isolate the "asynchronous context" and observe different results, you must use `LogicalContext` below section.
 
 ### LogicalContext Operations
 

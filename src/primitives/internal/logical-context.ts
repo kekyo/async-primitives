@@ -1,3 +1,8 @@
+// async-primitives - A collection of primitive functions for asynchronous operations in TypeScript/JavaScript.
+// Copyright (c) Kouji Matsui. (@kekyo@mi.kekyo.net)
+// Under MIT.
+// https://github.com/kekyo/async-primitives
+
 // Logical context
 export interface LogicalContext {
   readonly id: symbol;

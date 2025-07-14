@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createDeferredGenerator } from '../src/primitives/deferred.js';
+import { createDeferredGenerator } from '../src/primitives/deferred-generator.js';
 import { delay } from '../src/primitives/delay.js';
 
 describe('DeferredGenerator', () => {
@@ -627,8 +627,8 @@ describe('DeferredGenerator', () => {
       
       const results1: string[] = [];
       const results2: number[] = [];
-      let error1: Error | null = null;
-      let error2: Error | null = null;
+      let error1: Error | undefined;
+      let error2: Error | undefined;
 
       const iteration1 = (async () => {
         try {
@@ -669,7 +669,7 @@ describe('DeferredGenerator', () => {
       const controller = new AbortController();
       const deferredGen = createDeferredGenerator<string>(controller.signal);
       const results: string[] = [];
-      let caughtError: Error | null = null;
+      let caughtError: Error | undefined;
 
       const iterationPromise = (async () => {
         try {
@@ -702,7 +702,7 @@ describe('DeferredGenerator', () => {
       const controller = new AbortController();
       const deferredGen = createDeferredGenerator<string>(controller.signal);
       const results: string[] = [];
-      let caughtError: Error | null = null;
+      let caughtError: Error | undefined;
 
       const iterationPromise = (async () => {
         try {
@@ -732,7 +732,7 @@ describe('DeferredGenerator', () => {
       const controller = new AbortController();
       const deferredGen = createDeferredGenerator<string>(controller.signal);
       const results: string[] = [];
-      let caughtError: Error | null = null;
+      let caughtError: Error | undefined;
 
       const iterationPromise = (async () => {
         try {
