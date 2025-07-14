@@ -67,28 +67,36 @@ export interface Deferred<T> {
 }
 
 /**
- * Manually or automatically signal an event
+ * Signal interface that can be automatically triggered
  */
 export interface Signal {
   /**
-   * Set the event
+   * Trigger the signal
+   * @remarks This will resolve only one waiter
    */
-  readonly set: () => void;
+  readonly trigger: () => void;
 
   /**
-   * Wait for the event to be signaled
+   * Wait to be signaled
    * @param signal Optional AbortSignal for cancelling the wait
-   * @returns Promise that resolves when the event is signaled
+   * @returns Promise that resolves when signaled
    */
   readonly wait: (signal?: AbortSignal) => Promise<void>;
 }
 
 /**
- * Manually signal an event
+ * Signal interface that can be manually set and reset
  */
 export interface ManualSignal extends Signal {
   /**
-   * Reset the event
+   * Raise the signal
+   * @remarks This will resolve all waiters
    */
-  readonly reset: () => void;
+  readonly raise: () => void;
+
+  /**
+   * Drop the signal
+   * @remarks This will drop the signal, all waiters will be blocked until the signal is raised again
+   */
+  readonly drop: () => void;
 }

@@ -147,7 +147,7 @@ defer(() => {
 
 ### createManualSignal()
 
-Creates a manually controlled signal that can be set and reset. Multiple waiters can wait for the same signal, and all will be resolved when the signal is set.
+Creates a manually controlled signal that can be raise and drop. Multiple waiters can wait for the same signal, and all will be resolved when the signal is raise.
 
 ```typescript
 import { createManualSignal } from 'async-primitives';
@@ -159,14 +159,14 @@ const signal = createManualSignal();
 const waiter1 = signal.wait();
 const waiter2 = signal.wait();
 
-// Set the signal - all waiters will resolve
-signal.set();
+// Raise the signal - all waiters will resolve
+signal.raise();
 
 await Promise.all([waiter1, waiter2]);
 console.log('All waiters resolved');
 
-// Reset the signal for reuse
-signal.reset();
+// Drop the signal for reuse
+signal.drop();
 
 // Wait with AbortSignal support
 const controller = new AbortController();
