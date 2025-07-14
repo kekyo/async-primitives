@@ -1,17 +1,10 @@
-/**
- * Abort hooking function
- */
+// async-primitives - A collection of primitive functions for asynchronous operations in TypeScript/JavaScript.
+// Copyright (c) Kouji Matsui. (@kekyo@mi.kekyo.net)
+// Under MIT.
+// https://github.com/kekyo/async-primitives
 
 import { Releasable } from "../types.js";
-
-/**
- * A no-op Releasable object that does nothing when released or disposed
- */
-const NOOP_HANDLER = () => {};
-const NOOP_RELEASABLE: Releasable = {
-  release: NOOP_HANDLER,
-  [Symbol.dispose]: NOOP_HANDLER
-} as const;
+import { __NOOP_RELEASABLE } from "./internal/utils.js";
 
 /**
  * Hooks up an abort handler to an AbortSignal and returns a handle for early cleanup
@@ -21,58 +14,45 @@ const NOOP_RELEASABLE: Releasable = {
  */
 export const onAbort = (signal: AbortSignal | undefined, callback: () => void): Releasable => {
   if (!signal) {
-    return NOOP_RELEASABLE;
+    return __NOOP_RELEASABLE;
   }
 
-  let isReleased = false;
-  let abortHandler: (() => void) | null = null;
-
-  const release = (): void => {
-    if (isReleased || !signal || !abortHandler) {
-      return;
+  if (signal.aborted) {
+    try {
+      callback();
+    } catch (error: unknown) {
+      console.warn('AbortHook callback error: ', error);
     }
-    isReleased = true;
-    signal.removeEventListener('abort', abortHandler);
-    abortHandler = null;
+    return __NOOP_RELEASABLE;
+  }
+
+  let abortHandler: (() => void) | undefined;
+  abortHandler = () => {
+    if (abortHandler) {
+      signal.removeEventListener('abort', abortHandler);
+      abortHandler = undefined;
+
+      try {
+        callback();
+      } catch (error: unknown) {
+        console.warn('AbortHook callback error: ', error);
+      }
+    }
   };
+ 
+  const release = (): void => {
+    if (abortHandler) {
+      signal.removeEventListener('abort', abortHandler);
+      abortHandler = undefined;
+    }
+  };
+
+  signal.addEventListener('abort', abortHandler, { once: true });
 
   // Create the releasable handle
   const handle: Releasable = {
     release,
     [Symbol.dispose]: release
   };
-
-  if (signal.aborted) {
-    try {
-      callback();
-    } catch (error: unknown) {
-      // Prevent unhandled exceptions that would crash the process
-      // Log the error since we're suppressing it to maintain process stability
-      if (typeof console !== 'undefined' && console.warn) {
-        console.warn('AbortHook callback error:', error);
-      }
-    }
-    return handle;
-  }
-
-  abortHandler = () => {
-    if (isReleased) {
-      return;
-    }
-    isReleased = true;
-    signal.removeEventListener('abort', abortHandler!);
-    try {
-      callback();
-    } catch (error: unknown) {
-      // Prevent unhandled exceptions that would crash the process
-      // Log the error since we're suppressing it to maintain process stability
-      if (typeof console !== 'undefined' && console.warn) {
-        console.warn('AbortHook callback error:', error);
-      }
-    }
-    abortHandler = null;
-  };
-
-  signal.addEventListener('abort', abortHandler, { once: true });
-  return handle;
+ return handle;
 };

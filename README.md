@@ -8,8 +8,8 @@ A collection of primitive functions for asynchronous operations in TypeScript/Ja
 
 ## Features
 
-- 🚀 **Universal**: Works in both browser and Node.js environments
-- 📖 **Zero dependencies**: No external dependencies
+- **Universal**: Works in both browser and Node.js environments
+- **Zero dependencies**: No external dependencies
 
 ## Installation
 
@@ -21,7 +21,7 @@ npm install async-primitives
 
 ### delay()
 
-Provides a delay that can be awaited with Promise, with support for cancellation via AbortSignal.
+Provides a delay that can be awaited with Promise, with support for cancellation via `AbortSignal.`
 
 ```typescript
 import { delay } from 'async-primitives';
@@ -32,6 +32,38 @@ await delay(1000) // Wait for 1 second
 // With AbortSignal
 const c = new AbortController();
 await delay(1000, c.signal) // Wait for 1 second
+```
+
+### defer()
+
+Schedules a callback to be executed asynchronously on the next event loop iteration.
+
+```typescript
+import { defer } from 'async-primitives';
+
+// Use defer (Schedule callback for next event loop)
+defer(() => {
+  console.log('Executes asynchronously');
+});
+```
+
+### onAbort()
+
+Registers a hook function to `AbortSignal` abort events, enabling cleanup processing. Also supports early release.
+
+```typescript
+import { onAbort } from 'async-primitives';
+
+// Use onAbort (Abort signal hooking)
+const controller = new AbortController();
+
+const releaseHandle = onAbort(controller.signal, () => {
+  console.log('Operation was aborted!');
+  // (Will automatically cleanup when exit)
+});
+
+// Cleanup early if needed
+releaseHandle.release();
 ```
 
 ### createAsyncLock()
@@ -71,6 +103,107 @@ deferred.reject(new Error());  // (Error producer)
 // (Consumer)
 const value = await deferred.promise;
 ```
+
+### createSignal()
+
+Creates an automatically or manually controlled signal that can be raise and drop.
+Multiple waiters can await for the same signal, and all will be resolved when the signal is raise.
+
+The `Signal` (automatic signal) is "trigger" automatically raise-and-drop to release only one-waiter:
+
+```typescript
+import { createSignal } from 'async-primitives';
+
+// Create an automatic signal
+const signal = createSignal();
+
+// Start multiple waiters
+const waiter1 = signal.wait();
+const waiter2 = signal.wait();
+
+// Trigger the signal - only one waiter will resolve per trigger
+signal.trigger(); // waiter1 resolves
+
+await waiter1;
+console.log('First waiter resolved');
+
+// Second waiter is still waiting
+signal.trigger(); // waiter2 resolves
+
+await waiter2;
+console.log('Second waiter resolved');
+
+// Wait with AbortSignal support
+const controller = new AbortController();
+try {
+  const waitPromise = signal.wait(controller.signal);
+  // Abort the wait operation
+  controller.abort();
+  await waitPromise;
+} catch (error) {
+  console.log('Wait was aborted');
+}
+```
+
+### createManuallySignal()
+
+The `ManuallySignal` is manually controlled raise and drop state, and trigger action is optional.
+
+```typescript
+import { createManuallySignal } from 'async-primitives';
+
+// Create a manually signal
+const signal = createManuallySignal();
+
+// Start multiple waiters
+const waiter1 = signal.wait();
+const waiter2 = signal.wait();
+
+// Raise the signal - all waiters will resolve
+signal.raise();
+
+// Or, you can release only one-waiter
+//signal.trigger();　　// waiter1 resolves
+
+await Promise.all([waiter1, waiter2]);
+console.log('All waiters resolved');
+
+// Drop the signal
+signal.drop();
+
+// Wait with AbortSignal support
+const controller = new AbortController();
+try {
+  await signal.wait(controller.signal);
+} catch (error) {
+  console.log('Wait was aborted');
+}
+```
+
+### ES2022+ using statement
+
+Use with using statement (requires ES2022+ or equivalent polyfill)
+
+```typescript
+const locker = createAsyncLock();
+
+{
+  using handler = await locker.lock();
+
+  // (Auto release when exit the scope.)
+}
+
+{
+  using handle = onAbort(controller.signal, () => {
+    console.log('Cleanup on aborts');
+  });
+
+  // (Auto release when exit the scope.)
+}
+
+```
+
+## Advanced Topic
 
 ### createAsyncLocal()
 
@@ -112,63 +245,7 @@ Promise.resolve()
 ```
 
 NOTE: The above example is no different than using a variable in the global scope.
-In fact, to isolate the "asynchronous context" and observe different results, you must use `LocalContext` below section.
-
-### onAbort()
-
-Registers a hook function to `AbortSignal` abort events, enabling cleanup processing. Also supports early release.
-
-```typescript
-import { onAbort } from 'async-primitives';
-
-// Use onAbort (Abort signal hooking)
-const controller = new AbortController();
-
-const releaseHandle = onAbort(controller.signal, () => {
-  console.log('Operation was aborted!');
-});
-
-// Cleanup early if needed
-releaseHandle.release();
-```
-
-### defer()
-
-Schedules a callback to be executed asynchronously on the next event loop iteration.
-
-```typescript
-import { defer } from 'async-primitives';
-
-// Use defer (Schedule callback for next event loop)
-defer(() => {
-  console.log('Executes asynchronously');
-});
-```
-
-### ES2022+ using statement
-
-Use with using statement (requires ES2022+ or equivalent polyfill)
-
-```typescript
-const locker = createAsyncLock();
-
-{
-  using handler = await locker.lock();
-
-  // (Auto release when exit the scope.)
-}
-
-{
-  using handle = onAbort(controller.signal, () => {
-    console.log('Cleanup on aborts');
-  });
-
-  // (Auto release when exit the scope.)
-}
-
-```
-
-## Advanced Topic
+In fact, to isolate the "asynchronous context" and observe different results, you must use `LogicalContext` below section.
 
 ### LogicalContext Operations
 

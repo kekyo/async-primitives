@@ -1,6 +1,7 @@
-/**
- * AsyncLock implementation for promise-based mutex functionality.
- */
+// async-primitives - A collection of primitive functions for asynchronous operations in TypeScript/JavaScript.
+// Copyright (c) Kouji Matsui. (@kekyo@mi.kekyo.net)
+// Under MIT.
+// https://github.com/kekyo/async-primitives
 
 import { AsyncLock, LockHandle } from "../types";
 import { onAbort } from "./abort-hook";
