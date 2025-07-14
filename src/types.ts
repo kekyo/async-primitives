@@ -100,3 +100,30 @@ export interface ManualSignal extends Signal {
    */
   readonly drop: () => void;
 }
+
+/**
+ * Deferred generator interface for async-generator-based streaming result handling
+ */
+export interface DeferredGenerator<T> {
+  /**
+   * AsyncGenerator that yields values of type T
+   */
+  readonly generator: AsyncGenerator<T, void, unknown>;
+
+  /**
+   * Yield a value to the generator
+   * @param value The value to yield
+   */
+  readonly yield: (value: T) => void;
+
+  /**
+   * Complete the generator (equivalent to return)
+   */
+  readonly return: () => void;
+
+  /**
+   * Throw an error to the generator
+   * @param error The error to throw
+   */
+  readonly throw: (error: any) => void;
+}
