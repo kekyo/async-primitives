@@ -9,6 +9,7 @@ import { createDeferredBenchmarks } from './suites/deferred.bench.js';
 import { createDeferBenchmarks } from './suites/defer.bench.js';
 import { createAbortHookBenchmarks } from './suites/abort-hook.bench.js';
 import { createMaxConsecutiveCallsBenchmarks } from './suites/max-consecutive-calls.bench.js';
+import { createSignalBenchmarks } from './suites/signal.bench.js';
 
 async function main() {
   const outputFormat = process.argv.includes('--output=json') ? 'json' : 'markdown';
@@ -24,6 +25,7 @@ async function main() {
   createDeferBenchmarks(bench);
   createAbortHookBenchmarks(bench);
   createMaxConsecutiveCallsBenchmarks(bench);
+  createSignalBenchmarks(bench);
 
   console.log('Running benchmarks...');
   await bench.run();

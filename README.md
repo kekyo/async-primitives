@@ -145,9 +145,48 @@ defer(() => {
 });
 ```
 
-### createManualSignal()
+### Signal (awaitable flag)
 
-Creates a manually controlled signal that can be raise and drop. Multiple waiters can wait for the same signal, and all will be resolved when the signal is raise.
+Creates an automatically or manually controlled signal that can be raise and drop.
+Multiple waiters can wait for the same signal, and all will be resolved when the signal is raise.
+
+The `Signal` (automatic signal) is "trigger" automatically raise-and-drop one signal to release only one-waiter:
+
+```typescript
+import { createSignal } from 'async-primitives';
+
+// Create an automatic signal
+const signal = createSignal();
+
+// Start multiple waiters
+const waiter1 = signal.wait();
+const waiter2 = signal.wait();
+
+// Trigger the signal - only one waiter will resolve per trigger
+signal.trigger(); // waiter1 resolves
+
+await waiter1;
+console.log('First waiter resolved');
+
+// Second waiter is still waiting
+signal.trigger(); // waiter2 resolves
+
+await waiter2;
+console.log('Second waiter resolved');
+
+// Wait with AbortSignal support
+const controller = new AbortController();
+try {
+  const waitPromise = signal.wait(controller.signal);
+  // Abort the wait operation
+  controller.abort();
+  await waitPromise;
+} catch (error) {
+  console.log('Wait was aborted');
+}
+```
+
+The `ManualSignal` is manually controlled raise and drop state, and trigger is optional.
 
 ```typescript
 import { createManualSignal } from 'async-primitives';
@@ -162,10 +201,13 @@ const waiter2 = signal.wait();
 // Raise the signal - all waiters will resolve
 signal.raise();
 
+// Or, you can release only one-waiter
+//signal.trigger();　　// waiter1 resolves
+
 await Promise.all([waiter1, waiter2]);
 console.log('All waiters resolved');
 
-// Drop the signal for reuse
+// Drop the signal
 signal.drop();
 
 // Wait with AbortSignal support
