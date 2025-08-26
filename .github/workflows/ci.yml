@@ -120,6 +120,6 @@ jobs:
       - name: Check build output
         run: |
           ls -la dist/
-          test -f dist/async-primitives.js
-          test -f dist/async-primitives.cjs
+          test -f dist/index.js
+          test -f dist/index.cjs
           test -f dist/index.d.ts

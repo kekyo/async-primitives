@@ -18,8 +18,8 @@
     "url": "https://github.com/kekyo/async-primitives.git"
   },
   "homepage": "https://github.com/kekyo/async-primitives#readme",
-  "main": "./dist/async-primitives.cjs",
-  "module": "./dist/async-primitives.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
