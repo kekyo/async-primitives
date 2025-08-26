@@ -32,7 +32,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "npm run lint && vite build && tsc --emitDeclarationOnly --outDir dist",
+    "build": "npm run lint && vite build",
     "test": "npm run test:root && npm run test:browser",
     "test:root": "npm run build && vitest run",
     "test:browser": "npm run build && npx playwright test --reporter=line",
