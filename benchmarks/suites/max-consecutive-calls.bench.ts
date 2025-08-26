@@ -1,5 +1,5 @@
 import { Bench } from 'tinybench';
-import { createAsyncLock } from '../../src/index.js';
+import { createMutex } from '../../src/index.js';
 
 export function createMaxConsecutiveCallsBenchmarks(bench: Bench) {
   // Test various maxConsecutiveCalls values
@@ -7,8 +7,8 @@ export function createMaxConsecutiveCallsBenchmarks(bench: Bench) {
   
   // Sequential lock (1000x)
   testValues.forEach(maxCalls => {
-    bench.add(`AsyncLock Sequential (1000x) - maxCalls: ${maxCalls}`, async () => {
-      const locker = createAsyncLock(maxCalls);
+    bench.add(`Mutex Sequential (1000x) - maxCalls: ${maxCalls}`, async () => {
+      const locker = createMutex(maxCalls);
       for (let i = 0; i < 1000; i++) {
         const handler = await locker.lock();
         handler.release();
@@ -18,8 +18,8 @@ export function createMaxConsecutiveCallsBenchmarks(bench: Bench) {
 
   // High-frequency lock (500x)
   testValues.forEach(maxCalls => {
-    bench.add(`AsyncLock High-freq (500x) - maxCalls: ${maxCalls}`, async () => {
-      const locker = createAsyncLock(maxCalls);
+    bench.add(`Mutex High-freq (500x) - maxCalls: ${maxCalls}`, async () => {
+      const locker = createMutex(maxCalls);
       for (let i = 0; i < 500; i++) {
         const handler = await locker.lock();
         handler.release();
@@ -29,8 +29,8 @@ export function createMaxConsecutiveCallsBenchmarks(bench: Bench) {
 
   // Moderate concurrency (20x)
   testValues.forEach(maxCalls => {
-    bench.add(`AsyncLock Concurrent (20x) - maxCalls: ${maxCalls}`, async () => {
-      const locker = createAsyncLock(maxCalls);
+    bench.add(`Mutex Concurrent (20x) - maxCalls: ${maxCalls}`, async () => {
+      const locker = createMutex(maxCalls);
       const promises = Array.from({ length: 20 }, async () => {
         const handler = await locker.lock();
         handler.release();
@@ -41,8 +41,8 @@ export function createMaxConsecutiveCallsBenchmarks(bench: Bench) {
 
   // Ultra-high-frequency lock (2000x)
   testValues.forEach(maxCalls => {
-    bench.add(`AsyncLock Ultra-high-freq (2000x) - maxCalls: ${maxCalls}`, async () => {
-      const locker = createAsyncLock(maxCalls);
+    bench.add(`Mutex Ultra-high-freq (2000x) - maxCalls: ${maxCalls}`, async () => {
+      const locker = createMutex(maxCalls);
       for (let i = 0; i < 2000; i++) {
         const handler = await locker.lock();
         handler.release();

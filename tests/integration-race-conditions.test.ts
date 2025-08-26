@@ -4,15 +4,15 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createAsyncLock } from '../src/primitives/async-lock.js';
+import { createMutex } from '../src/index.js';
 import { createDeferred } from '../src/primitives/deferred.js';
 import { onAbort } from '../src/primitives/abort-hook.js';
 import { delay } from '../src/primitives/delay.js';
 
 describe('Integration Race Conditions', () => {
-  describe('AsyncLock + Deferred interactions', () => {
+  describe('Mutex + Deferred interactions', () => {
     it('should handle lock acquisition with deferred resolution under heavy concurrency', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const deferred = createDeferred<string>();
       const results: string[] = [];
 
@@ -44,7 +44,7 @@ describe('Integration Race Conditions', () => {
     });
 
     it('should handle deferred resolution controlling lock acquisition', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const deferred = createDeferred<boolean>();
       const results: string[] = [];
 
@@ -82,7 +82,7 @@ describe('Integration Race Conditions', () => {
 
   describe('AsyncLock + AbortSignal + Deferred interactions', () => {
     it('should handle complex abort scenarios with lock and deferred', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const deferred = createDeferred<string>();
       const controller = new AbortController();
       const results: string[] = [];
@@ -129,7 +129,7 @@ describe('Integration Race Conditions', () => {
     });
 
     it('should handle cascading abort signals across multiple primitives', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const controller1 = new AbortController();
       const controller2 = new AbortController();
       const deferred = createDeferred<void>();
@@ -178,7 +178,7 @@ describe('Integration Race Conditions', () => {
 
   describe('All primitives interaction under stress', () => {
     it('should handle complex scenario with all primitives under concurrent load', async () => {
-      const locker = createAsyncLock(3); // Low maxConsecutiveCalls for testing
+      const locker = createMutex(3); // Low maxConsecutiveCalls for testing
       const controllers = Array.from({ length: 10 }, () => new AbortController());
       const deferreds = Array.from({ length: 3 }, () => createDeferred<number>());
       const results: string[] = [];
@@ -253,7 +253,7 @@ describe('Integration Race Conditions', () => {
              // Rapidly create and use different primitives
        for (let i = 0; i < 50; i++) {
          const operation = (async () => {
-           const locker = createAsyncLock();
+           const locker = createMutex();
            const deferred = createDeferred<string>();
            const controller = new AbortController();
 
@@ -286,7 +286,7 @@ describe('Integration Race Conditions', () => {
 
   describe('Error propagation across primitives', () => {
     it('should handle errors propagating through primitive interactions', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const deferred = createDeferred<void>();
       const controller = new AbortController();
       const errors: Error[] = [];

@@ -1,17 +1,17 @@
 import { Bench } from 'tinybench';
-import { createSignal, createManuallySignal } from '../../src/index.js';
+import { createConditional, createManuallyConditional } from '../../src/index.js';
 
-export function createSignalBenchmarks(bench: Bench) {
-  // Signal (automatic) benchmarks
+export function createConditionalBenchmarks(bench: Bench) {
+  // Conditional (automatic) benchmarks
   bench
-    .add('Signal trigger/wait', async () => {
-      const signal = createSignal();
+    .add('Conditional trigger/wait', async () => {
+      const signal = createConditional();
       const waitPromise = signal.wait();
       signal.trigger();
       await waitPromise;
     })
-    .add('Signal trigger reaction time', async () => {
-      const signal = createSignal();
+    .add('Conditional trigger reaction time', async () => {
+      const signal = createConditional();
       const startTime = performance.now();
       const waitPromise = signal.wait().then(() => {
         return performance.now() - startTime;
@@ -19,8 +19,8 @@ export function createSignalBenchmarks(bench: Bench) {
       signal.trigger();
       await waitPromise;
     })
-    .add('Signal multiple waiters with trigger', async () => {
-      const signal = createSignal();
+    .add('Conditional multiple waiters with trigger', async () => {
+      const signal = createConditional();
       const waiters = Array.from({ length: 10 }, () => signal.wait());
       
       // Trigger for each waiter
@@ -31,17 +31,17 @@ export function createSignalBenchmarks(bench: Bench) {
       await Promise.all(waiters);
     });
 
-  // ManualSignal benchmarks
+  // ManuallyConditional benchmarks
   bench
-    .add('ManualSignal raise/wait', async () => {
-      const signal = createManuallySignal();
+    .add('ManuallyConditional raise/wait', async () => {
+      const signal = createManuallyConditional();
       const waitPromise = signal.wait();
       signal.raise();
       await waitPromise;
       signal.drop();
     })
-    .add('ManualSignal raise reaction time', async () => {
-      const signal = createManuallySignal();
+    .add('ManuallyConditional raise reaction time', async () => {
+      const signal = createManuallyConditional();
       const startTime = performance.now();
       const waitPromise = signal.wait().then(() => {
         return performance.now() - startTime;
@@ -50,14 +50,14 @@ export function createSignalBenchmarks(bench: Bench) {
       await waitPromise;
       signal.drop();
     })
-    .add('ManualSignal trigger/wait', async () => {
-      const signal = createManuallySignal();
+    .add('ManuallyConditional trigger/wait', async () => {
+      const signal = createManuallyConditional();
       const waitPromise = signal.wait();
       signal.trigger();
       await waitPromise;
     })
-    .add('ManualSignal trigger reaction time', async () => {
-      const signal = createManuallySignal();
+    .add('ManuallyConditional trigger reaction time', async () => {
+      const signal = createManuallyConditional();
       const startTime = performance.now();
       const waitPromise = signal.wait().then(() => {
         return performance.now() - startTime;
@@ -65,16 +65,16 @@ export function createSignalBenchmarks(bench: Bench) {
       signal.trigger();
       await waitPromise;
     })
-    .add('ManualSignal multiple waiters with raise', async () => {
-      const signal = createManuallySignal();
+    .add('ManuallyConditional multiple waiters with raise', async () => {
+      const signal = createManuallyConditional();
       const waiters = Array.from({ length: 10 }, () => signal.wait());
       
       signal.raise(); // All waiters resolve at once
       await Promise.all(waiters);
       signal.drop();
     })
-    .add('ManualSignal multiple waiters with trigger', async () => {
-      const signal = createManuallySignal();
+    .add('ManuallyConditional multiple waiters with trigger', async () => {
+      const signal = createManuallyConditional();
       const waiters = Array.from({ length: 10 }, () => signal.wait());
       
       // Trigger for each waiter
@@ -87,20 +87,20 @@ export function createSignalBenchmarks(bench: Bench) {
 
   // Comparison benchmarks
   bench
-    .add('Signal vs ManualSignal - single waiter (Signal)', async () => {
-      const signal = createSignal();
+    .add('Conditional vs ManuallyConditional - single waiter (Conditional)', async () => {
+      const signal = createConditional();
       const waitPromise = signal.wait();
       signal.trigger();
       await waitPromise;
     })
-    .add('Signal vs ManualSignal - single waiter (ManualSignal)', async () => {
-      const signal = createManuallySignal();
+    .add('Conditional vs ManuallyConditional - single waiter (ManuallyConditional)', async () => {
+      const signal = createManuallyConditional();
       const waitPromise = signal.wait();
       signal.trigger();
       await waitPromise;
     })
-    .add('Signal vs ManualSignal - batch waiters (Signal)', async () => {
-      const signal = createSignal();
+    .add('Conditional vs ManuallyConditional - batch waiters (Conditional)', async () => {
+      const signal = createConditional();
       const waiters = Array.from({ length: 5 }, () => signal.wait());
       
       for (let i = 0; i < 5; i++) {
@@ -109,8 +109,8 @@ export function createSignalBenchmarks(bench: Bench) {
       
       await Promise.all(waiters);
     })
-    .add('Signal vs ManualSignal - batch waiters (ManualSignal)', async () => {
-      const signal = createManuallySignal();
+    .add('Conditional vs ManuallyConditional - batch waiters (ManuallyConditional)', async () => {
+      const signal = createManuallyConditional();
       const waiters = Array.from({ length: 5 }, () => signal.wait());
       
       signal.raise(); // All resolve at once

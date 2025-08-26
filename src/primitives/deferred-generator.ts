@@ -4,7 +4,7 @@
 // https://github.com/kekyo/async-primitives
 
 import { DeferredGenerator, DeferredGeneratorOptions } from "../types";
-import { createManuallySignal } from "./signal";
+import { createManuallyConditional } from "./conditional";
 
 interface QueuedValue<T> {
   readonly kind: 'value';
@@ -33,8 +33,8 @@ export const createDeferredGenerator = <T>(options?: DeferredGeneratorOptions): 
   const maxItemReserved = options?.maxItemReserved;
   const signal = options?.signal;
   const queue: QueuedItem<T>[] = [];
-  const arrived = createManuallySignal();
-  const canReserve = maxItemReserved ? createManuallySignal(true) : undefined;
+  const arrived = createManuallyConditional();
+  const canReserve = maxItemReserved ? createManuallyConditional(true) : undefined;
 
   // Allocate the async generator
   const generator = (async function* () {
@@ -77,7 +77,7 @@ export const createDeferredGenerator = <T>(options?: DeferredGeneratorOptions): 
         await arrived.wait(signal);
       } catch (error: unknown) {
         // If the signal is aborted, throw a more descriptive error
-        if (error instanceof Error && error.message === "Signal aborted") {
+        if (error instanceof Error && error.message === "Conditional aborted") {
           error.message = "Deferred generator aborted";
         }
         // Rethrow the error
@@ -107,7 +107,7 @@ export const createDeferredGenerator = <T>(options?: DeferredGeneratorOptions): 
         await canReserve!.wait(signal);
       } catch (error: unknown) {
         // If the signal is aborted, throw a more descriptive error
-        if (error instanceof Error && error.message === "Signal aborted") {
+        if (error instanceof Error && error.message === "Conditional aborted") {
           error.message = "Deferred generator aborted";
         }
         // Rethrow the error

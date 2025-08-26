@@ -24,9 +24,9 @@ export interface LockHandle extends Releasable {
 }
 
 /**
- * AsyncLock interface for promise-based mutex operations
+ * Mutex interface for promise-based mutex operations
  */
-export interface AsyncLock {
+export interface Mutex {
   /**
    * Acquires the lock asynchronously
    * @param signal Optional AbortSignal for cancelling the lock acquisition
@@ -112,11 +112,11 @@ export interface DeferredGenerator<T> {
 }
 
 /**
- * Signal interface that can be automatically triggered
+ * Conditional interface that can be automatically triggered
  */
-export interface Signal {
+export interface Conditional {
   /**
-   * Trigger the signal
+   * Trigger the conditional
    * @remarks This will resolve only one waiter
    */
   readonly trigger: () => void;
@@ -130,18 +130,120 @@ export interface Signal {
 }
 
 /**
- * Signal interface that can be manually raise and drop
+ * Conditional interface that can be manually raise and drop
  */
-export interface ManuallySignal extends Signal {
+export interface ManuallyConditional extends Conditional {
   /**
-   * Raise the signal
+   * Raise the conditional
    * @remarks This will resolve all waiters
    */
   readonly raise: () => void;
 
   /**
-   * Drop the signal
-   * @remarks This will drop the signal, all waiters will be blocked until the signal is raised again
+   * Drop the conditional
+   * @remarks This will drop the conditional, all waiters will be blocked until the conditional is raised again
    */
   readonly drop: () => void;
 }
+
+/**
+ * Semaphore handle for managing acquired semaphore resources
+ */
+export interface SemaphoreHandle extends Releasable {
+  /**
+   * Indicates if the handle is still active
+   */
+  readonly isActive: boolean;
+}
+
+/**
+ * Semaphore interface for managing limited concurrent access
+ */
+export interface Semaphore {
+  /**
+   * Acquires a semaphore resource asynchronously
+   * @param signal Optional AbortSignal for cancelling the acquisition
+   * @returns Promise that resolves to a disposable semaphore handle
+   */
+  readonly acquire: (signal?: AbortSignal) => Promise<SemaphoreHandle>;
+
+  /**
+   * Number of currently available resources
+   */
+  readonly availableCount: number;
+
+  /**
+   * Number of pending acquisition requests
+   */
+  readonly pendingCount: number;
+}
+
+/**
+ * Read lock handle for managing acquired read locks
+ */
+export interface ReadLockHandle extends Releasable {
+  /**
+   * Indicates if the handle is still active
+   */
+  readonly isActive: boolean;
+}
+
+/**
+ * Write lock handle for managing acquired write locks
+ */
+export interface WriteLockHandle extends Releasable {
+  /**
+   * Indicates if the handle is still active
+   */
+  readonly isActive: boolean;
+}
+
+/**
+ * Reader-Writer lock interface for managing concurrent read and exclusive write access
+ */
+export interface ReaderWriterLock {
+  /**
+   * Acquires a read lock asynchronously
+   * @param signal Optional AbortSignal for cancelling the lock acquisition
+   * @returns Promise that resolves to a disposable read lock handle
+   */
+  readonly readLock: (signal?: AbortSignal) => Promise<ReadLockHandle>;
+
+  /**
+   * Acquires a write lock asynchronously
+   * @param signal Optional AbortSignal for cancelling the lock acquisition
+   * @returns Promise that resolves to a disposable write lock handle
+   */
+  readonly writeLock: (signal?: AbortSignal) => Promise<WriteLockHandle>;
+
+  /**
+   * Number of currently active readers
+   */
+  readonly currentReaders: number;
+
+  /**
+   * Indicates if a writer currently holds the lock
+   */
+  readonly hasWriter: boolean;
+
+  /**
+   * Number of pending read lock requests
+   */
+  readonly pendingReadersCount: number;
+
+  /**
+   * Number of pending write lock requests
+   */
+  readonly pendingWritersCount: number;
+}
+
+// Deprecated type aliases for backward compatibility
+
+/** @deprecated Use `Mutex` instead */
+export type AsyncLock = Mutex;
+
+/** @deprecated Use `Conditional` instead */
+export type Signal = Conditional;
+
+/** @deprecated Use `ManuallyConditional` instead */
+export type ManuallySignal = ManuallyConditional;

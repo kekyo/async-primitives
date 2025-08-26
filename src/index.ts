@@ -7,28 +7,46 @@
 export * from './types'
 
 // delay function export.
-export { delay } from "./primitives/delay.js";
+export { delay } from "./primitives/delay";
 
 // defer function export.
-export { defer } from './primitives/defer.js';
+export { defer } from './primitives/defer';
 
 // Abort hooking function export.
-export { onAbort } from './primitives/abort-hook.js';
+export { onAbort } from './primitives/abort-hook';
 
-// AsyncLock exports - only the create function, not the interface
-export { createAsyncLock } from './primitives/async-lock.js';
+// Mutex exports - only the create function, not the interface
+export { createMutex } from './primitives/mutex';
+// Deprecated alias for backward compatibility
+export { 
+  /** @deprecated Use `createMutex` instead */
+  createMutex as createAsyncLock 
+} from './primitives/mutex';
 
 // Deferred exports - only the create function, not the interface
-export { createDeferred } from './primitives/deferred.js';
+export { createDeferred } from './primitives/deferred';
 
 // Deferred generator exports - only the create function, not the interface
-export { createDeferredGenerator } from './primitives/deferred-generator.js';
+export { createDeferredGenerator } from './primitives/deferred-generator';
 
-// Signal exports
-export { createSignal, createManuallySignal } from './primitives/signal.js';
+// Conditional exports
+export { createConditional, createManuallyConditional } from './primitives/conditional';
+// Deprecated aliases for backward compatibility
+export { 
+  /** @deprecated Use `createConditional` instead */
+  createConditional as createSignal,
+  /** @deprecated Use `createManuallyConditional` instead */
+  createManuallyConditional as createManuallySignal
+} from './primitives/conditional';
 
 // Logical context exports
-export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContextId, runOnNewLogicalContext } from './primitives/logical-context.js';
+export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContextId, runOnNewLogicalContext } from './primitives/logical-context';
 
 // AsyncLocal exports
-export { createAsyncLocal } from './primitives/async-local.js';
+export { createAsyncLocal } from './primitives/async-local';
+
+// Semaphore exports - only the create function, not the interface
+export { createSemaphore } from './primitives/semaphore';
+
+// ReaderWriterLock exports - only the create function, not the interface
+export { createReaderWriterLock } from './primitives/reader-writer-lock';

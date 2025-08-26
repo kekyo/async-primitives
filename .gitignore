@@ -7,6 +7,7 @@ yarn-error.log*
 # Build outputs
 dist/
 build/
+artifacts/
 *.tsbuildinfo
 
 # Coverage reports
@@ -31,6 +32,8 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.claude/
+.cursor/
 *.swp
 *.swo
 *~
