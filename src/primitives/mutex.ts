@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { AsyncLock, LockHandle } from "../types";
+import { Mutex, LockHandle } from "../types";
 import { onAbort } from "./abort-hook";
 import { defer } from "./defer";
 
@@ -49,11 +49,11 @@ const createLockHandle = (releaseCallback: () => void): LockHandle => {
 };
 
 /**
- * Creates a new AsyncLock instance
+ * Creates a new Mutex instance
  * @param maxConsecutiveCalls - The maximum number of consecutive calls to the lockAsync method before yielding control to the next item in the queue
- * @returns A new AsyncLock for promise-based mutex operations
+ * @returns A new Mutex for promise-based mutex operations
  */
-export const createAsyncLock = (maxConsecutiveCalls: number = 20): AsyncLock => {
+export const createMutex = (maxConsecutiveCalls: number = 20): Mutex => {
   let isLocked = false;
   const queue: QueueItem[] = [];
   let count = 0; // Consecutive execution counter

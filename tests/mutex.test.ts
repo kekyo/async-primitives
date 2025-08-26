@@ -1,16 +1,16 @@
 /**
- * Basic tests for AsyncLock functionality
+ * Basic tests for Mutex functionality
  * These tests verify the core behavior of the promise-based mutex
  */
 
 import { describe, it, expect } from 'vitest';
-import { createAsyncLock } from '../src/primitives/async-lock.js';
+import { createMutex, createAsyncLock } from '../src/index.js';
 import { delay } from '../src/primitives/delay.js';
 
-describe('AsyncLock', () => {
+describe('Mutex', () => {
   describe('Basic functionality', () => {
     it('should acquire and release lock automatically', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
 
       // Initially should not be locked
       expect(locker.isLocked).toBe(false);
@@ -29,7 +29,7 @@ describe('AsyncLock', () => {
     });
 
     it('should provide pending count information', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
 
       expect(locker.pendingCount).toBe(0);
 
@@ -63,7 +63,7 @@ describe('AsyncLock', () => {
 
   describe('Sequential access', () => {
     it('should enforce sequential access to critical sections', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const results: string[] = [];
 
       const task = async (id: string) => {
@@ -99,7 +99,7 @@ describe('AsyncLock', () => {
 
   describe('AbortSignal support', () => {
     it('should handle AbortSignal cancellation', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const controller = new AbortController();
 
       // Hold the lock
@@ -140,7 +140,7 @@ describe('AsyncLock', () => {
     });
 
     it('should reject immediately if signal is already aborted', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const controller = new AbortController();
       controller.abort(); // Abort before calling lock
 
@@ -159,7 +159,7 @@ describe('AsyncLock', () => {
 
   describe('Error handling', () => {
     it('should release lock automatically even when errors occur', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
 
       let caughtError: Error | null = null;
       try {
@@ -268,7 +268,7 @@ describe('AsyncLock', () => {
 
   describe('Lock handle', () => {
     it('should track handle active state correctly', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
 
       let handle: any;
       const lockHandle = await locker.lock();
@@ -287,7 +287,7 @@ describe('AsyncLock', () => {
 
   describe('Race condition edge cases', () => {
     it('should handle rapid lock/release cycles without deadlock', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const iterations = 100;
       const results: number[] = [];
 
@@ -311,7 +311,7 @@ describe('AsyncLock', () => {
     });
 
     it('should handle AbortSignal race condition with simultaneous abort and resolve', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const controller = new AbortController();
 
       // Hold the lock to force queuing
@@ -345,7 +345,7 @@ describe('AsyncLock', () => {
     });
 
     it('should handle multiple simultaneous AbortSignal cancellations', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const controllers = Array.from({ length: 10 }, () => new AbortController());
 
       // Hold the lock to force queuing
@@ -380,7 +380,7 @@ describe('AsyncLock', () => {
     });
 
     it('should handle handle.release() called multiple times concurrently', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const handle = await locker.lock();
 
       // Call release multiple times concurrently
@@ -400,7 +400,7 @@ describe('AsyncLock', () => {
     });
 
     it('should handle concurrent AbortSignal abort and handle release', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const controller = new AbortController();
 
       // Hold the lock
@@ -464,7 +464,7 @@ describe('AsyncLock', () => {
     });
 
     it('should maintain queue integrity when items are removed during processing', async () => {
-      const locker = createAsyncLock();
+      const locker = createMutex();
       const controller1 = new AbortController();
       const controller2 = new AbortController();
 
@@ -516,6 +516,21 @@ describe('AsyncLock', () => {
       expect(errors).toHaveLength(2);
       expect(locker.isLocked).toBe(false);
       expect(locker.pendingCount).toBe(0);
+    });
+  });
+
+  describe('Backward compatibility', () => {
+    it('should support deprecated createAsyncLock function', async () => {
+      // Should be able to use deprecated name without errors
+      const locker = createAsyncLock();
+      
+      expect(locker.isLocked).toBe(false);
+      
+      const handle = await locker.lock();
+      expect(locker.isLocked).toBe(true);
+      handle.release();
+      
+      expect(locker.isLocked).toBe(false);
     });
   });
 });

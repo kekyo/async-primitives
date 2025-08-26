@@ -21,11 +21,11 @@ Mutex, producer-consumer separation (side-effect operation), signaling (flag con
 | `delay()` | Promise-based delay function |
 | `defer()` | Schedule callback for next event loop |
 | `onAbort()` | Register safer abort signal hooks with cleanup |
-| `createAsyncLock()` | Promise-based mutex lock for critical sections |
+| `createMutex()` | Promise-based mutex lock for critical sections |
 | `createDeferred()` | External control of Promise resolution/rejection |
 | `createDeferredGenerator()` | External control of async generator with queue management |
-| `createSignal()` | Automatic signal trigger (one-waiter per trigger) |
-| `createManuallySignal()` | Manual signal control (raise/drop state) |
+| `createConditional()` | Automatic conditional trigger (one-waiter per trigger) |
+| `createManuallyConditional()` | Manual conditional control (raise/drop state) |
 
 Advanced features:
 
@@ -95,22 +95,22 @@ const releaseHandle = onAbort(controller.signal, () => {
 releaseHandle.release();
 ```
 
-### createAsyncLock()
+### createMutex()
 
-Provides `Promise` based mutex lock functionality to implement critical sections that prevent race conditions in asynchronous operations.
+Provides `Promise` based mutex functionality to implement critical sections that prevent race conditions in asynchronous operations.
 
 ```typescript
-import { createAsyncLock } from 'async-primitives';
+import { createMutex } from 'async-primitives';
 
-// Use AsyncLock (Mutex lock)
-const locker = createAsyncLock();
+// Use Mutex
+const locker = createMutex();
 
-// Lock AsyncLock
+// Lock Mutex
 const handler = await locker.lock();
 try {
   // Critical section, avoid race condition.
 } finally {
-  // Release AsyncLock
+  // Release Mutex
   handler.release();
 }
 ```
@@ -212,18 +212,18 @@ await limitedGen.yield('item3'); // Queue is now full
 await limitedGen.yield('item4'); // Waits for queue space
 ```
 
-### createSignal()
+### createConditional()
 
 Creates an automatically or manually controlled signal that can be raise and drop.
 Multiple waiters can await for the same signal, and all will be resolved when the signal is raise.
 
-The `Signal` (automatic signal) is "trigger" automatically raise-and-drop to release only one-waiter:
+The `Conditional` (automatic conditional) is "trigger" automatically raise-and-drop to release only one-waiter:
 
 ```typescript
-import { createSignal } from 'async-primitives';
+import { createConditional } from 'async-primitives';
 
-// Create an automatic signal
-const signal = createSignal();
+// Create an automatic conditional
+const signal = createConditional();
 
 // Start multiple waiters
 const waiter1 = signal.wait();
@@ -255,15 +255,15 @@ try {
 }
 ```
 
-### createManuallySignal()
+### createManuallyConditional()
 
-The `ManuallySignal` is manually controlled raise and drop state, and trigger action is optional.
+The `ManuallyConditional` is manually controlled raise and drop state, and trigger action is optional.
 
 ```typescript
-import { createManuallySignal } from 'async-primitives';
+import { createManuallyConditional } from 'async-primitives';
 
-// Create a manually signal
-const signal = createManuallySignal();
+// Create a manually conditional
+const signal = createManuallyConditional();
 
 // Start multiple waiters
 const waiter1 = signal.wait();
@@ -297,7 +297,7 @@ try {
 Use with using statement (requires ES2022+ or equivalent polyfill)
 
 ```typescript
-const locker = createAsyncLock();
+const locker = createMutex();
 
 {
   using handler = await locker.lock();
@@ -418,9 +418,9 @@ When using `LogicalContext` for the first time, hooks are inserted into various 
 NOTE: `LogicalContext` values are isolated between different contexts but maintained across asynchronous boundaries within the same context.
 This enables proper context isolation in complex asynchronous applications.
 
-### createAsyncLock() Parameter Details
+### createMutex() Parameter Details
 
-In `createAsyncLock(maxConsecutiveCalls?: number)`, you can specify the `maxConsecutiveCalls` parameter (default value: 20).
+In `createMutex(maxConsecutiveCalls?: number)`, you can specify the `maxConsecutiveCalls` parameter (default value: 20).
 
 This value sets the limit for consecutive executions when processing the lock's waiting queue:
 
@@ -441,10 +441,10 @@ This value sets the limit for consecutive executions when processing the lock's 
 
 ```typescript
 // Prioritize UI responsiveness
-const uiLocker = createAsyncLock(5);
+const uiLocker = createMutex(5);
 
 // High throughput processing
-const batchLocker = createAsyncLock(50);
+const batchLocker = createMutex(50);
 ```
 
 ----

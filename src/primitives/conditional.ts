@@ -3,15 +3,15 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Deferred, ManuallySignal, Signal } from "../types";
+import { Deferred, ManuallyConditional, Conditional } from "../types";
 import { onAbort } from "./abort-hook";
 import { createDeferred } from "./deferred";
 
 /**
- * Creates a signal that can be automatically triggered
- * @returns A signal that can be automatically triggered
+ * Creates a conditional that can be automatically triggered
+ * @returns A conditional that can be automatically triggered
  */
-export const createSignal = (): Signal => {
+export const createConditional = (): Conditional => {
   const waiters: Deferred<void>[] = [];
   return {
     trigger: () => {
@@ -21,13 +21,13 @@ export const createSignal = (): Signal => {
     },
     wait: async (signal?: AbortSignal) => {
       if (signal?.aborted) {
-        throw new Error("Signal aborted");
+        throw new Error("Conditional aborted");
       }
       const waiter = createDeferred<void>();
       waiters.push(waiter);
       const disposer = onAbort(signal, () => {
         waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.reject(new Error("Signal aborted"));
+        waiter.reject(new Error("Conditional aborted"));
       });
       try {
         await waiter.promise;
@@ -39,11 +39,11 @@ export const createSignal = (): Signal => {
 };
 
 /**
- * Creates a signal that can be manually set and reset
- * @param initialState - Optional initial state of the signal (Default: false, dropped)
- * @returns A signal that can be manually set and reset
+ * Creates a conditional that can be manually set and reset
+ * @param initialState - Optional initial state of the conditional (Default: false, dropped)
+ * @returns A conditional that can be manually set and reset
  */
-export const createManuallySignal = (initialState?: boolean): ManuallySignal => {
+export const createManuallyConditional = (initialState?: boolean): ManuallyConditional => {
   const waiters: Deferred<void>[] = [];
   let raised = initialState ?? false;
   return {
@@ -70,13 +70,13 @@ export const createManuallySignal = (initialState?: boolean): ManuallySignal => 
         return;
       }
       if (signal?.aborted) {
-        throw new Error("Signal aborted");
+        throw new Error("Conditional aborted");
       }
       const waiter = createDeferred<void>();
       waiters.push(waiter);
       const disposer = onAbort(signal, () => {
         waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.reject(new Error("Signal aborted"));
+        waiter.reject(new Error("Conditional aborted"));
       });
       try {
         await waiter.promise;

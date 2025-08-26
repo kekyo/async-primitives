@@ -1,16 +1,16 @@
 /**
- * Tests for ManualSignal functionality
- * These tests verify the core behavior of manual signal operations
+ * Tests for ManuallyConditional functionality
+ * These tests verify the core behavior of manual conditional operations
  */
 
 import { describe, it, expect } from 'vitest';
-import { createManuallySignal, createSignal } from '../src/primitives/signal.js';
+import { createManuallyConditional, createConditional, createManuallySignal, createSignal } from '../src/index.js';
 import { delay } from '../src/primitives/delay.js';
 
-describe('createManuallySignal', () => {
+describe('createManuallyConditional', () => {
   describe('Basic wait/set functionality', () => {
     it('should wait for signal and resolve when set', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       let resolved = false;
 
       // Start waiting
@@ -31,7 +31,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should return immediately when signal is already raised', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       
       // Raise the signal first
       signal.raise();
@@ -46,7 +46,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should return immediately when signal is already triggered', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       let resolved = false;
 
       // Start waiting
@@ -67,7 +67,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should only one waiter be resolved when signal is triggered', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       let resolved1 = false;
       let resolved2 = false;
 
@@ -95,7 +95,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should abort wait when AbortSignal is triggered', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const abortController = new AbortController();
       
       let aborted = false;
@@ -125,7 +125,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should allow multiple waiters to be resolved by single raise', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const results: number[] = [];
 
       // Create multiple waiters
@@ -149,7 +149,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should drop signal and wait again after raise', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       
       // Raise the signal
       signal.raise();
@@ -182,7 +182,7 @@ describe('createManuallySignal', () => {
 
   describe('Edge cases and error handling', () => {
     it('should handle already aborted signal', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const abortController = new AbortController();
       
       // Abort before waiting
@@ -196,11 +196,11 @@ describe('createManuallySignal', () => {
       }
       
       expect(error).toBeDefined();
-      expect(error!.message).toBe('Signal aborted');
+      expect(error!.message).toBe('Conditional aborted');
     });
 
     it('should handle multiple raise calls idempotently', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       
       // Raise multiple times
       signal.raise();
@@ -216,7 +216,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should handle multiple drop calls', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       
       // Raise then drop multiple times
       signal.raise();
@@ -240,7 +240,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should handle concurrent raise and wait operations', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const results: string[] = [];
       
       // Start multiple concurrent operations
@@ -270,7 +270,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should handle abort during concurrent waits', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const abortController = new AbortController();
       const results: string[] = [];
       
@@ -312,7 +312,7 @@ describe('createManuallySignal', () => {
 
   describe('Complex scenarios', () => {
     it('should handle rapid raise/drop cycles', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const results: number[] = [];
       
       // Perform rapid raise/drop cycles
@@ -327,7 +327,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should handle interleaved operations', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const timeline: string[] = [];
       
       // Start a waiter
@@ -361,7 +361,7 @@ describe('createManuallySignal', () => {
     });
 
     it('should maintain state consistency under stress', async () => {
-      const signal = createManuallySignal();
+      const signal = createManuallyConditional();
       const resolvedCount = { value: 0 };
       const abortedCount = { value: 0 };
       
@@ -398,10 +398,10 @@ describe('createManuallySignal', () => {
   });
 });
 
-describe('createSignal', () => {
+describe('createConditional', () => {
   describe('Basic wait/trigger functionality', () => {
     it('should wait for signal and resolve when triggered', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       let resolved = false;
 
       // Start waiting
@@ -422,7 +422,7 @@ describe('createSignal', () => {
     });
 
     it('should only one waiter be resolved when signal is triggered', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       let resolved1 = false;
       let resolved2 = false;
 
@@ -450,7 +450,7 @@ describe('createSignal', () => {
     });
 
     it('should abort wait when AbortSignal is triggered', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       const abortController = new AbortController();
       
       let aborted = false;
@@ -482,7 +482,7 @@ describe('createSignal', () => {
 
   describe('Edge cases and error handling', () => {
     it('should handle already aborted signal', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       const abortController = new AbortController();
       
       // Abort before waiting
@@ -496,11 +496,11 @@ describe('createSignal', () => {
       }
       
       expect(error).toBeDefined();
-      expect(error!.message).toBe('Signal aborted');
+      expect(error!.message).toBe('Conditional aborted');
     });
 
     it('should handle multiple trigger calls with different waiters', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       let resolved1 = false;
       let resolved2 = false;
       
@@ -529,7 +529,7 @@ describe('createSignal', () => {
     });
 
     it('should handle concurrent trigger and wait operations', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       const results: string[] = [];
       
       // Start multiple concurrent operations
@@ -559,7 +559,7 @@ describe('createSignal', () => {
     });
 
     it('should handle abort during concurrent waits', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       const abortController = new AbortController();
       const results: string[] = [];
       
@@ -605,7 +605,7 @@ describe('createSignal', () => {
 
   describe('Complex scenarios', () => {
     it('should handle sequential trigger/wait cycles', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       const results: number[] = [];
       
       // Perform sequential trigger/wait cycles
@@ -621,7 +621,7 @@ describe('createSignal', () => {
     });
 
     it('should handle interleaved operations', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       const timeline: string[] = [];
       
       // Start a waiter
@@ -659,7 +659,7 @@ describe('createSignal', () => {
     });
 
     it('should maintain state consistency under stress', async () => {
-      const signal = createSignal();
+      const signal = createConditional();
       const resolvedCount = { value: 0 };
       const abortedCount = { value: 0 };
       
@@ -697,5 +697,38 @@ describe('createSignal', () => {
       expect(resolvedCount.value).toBeGreaterThan(30);
       expect(abortedCount.value).toBeGreaterThan(0);
     });
+  });
+});
+
+
+describe('Backward compatibility', () => {
+  it('should support deprecated createSignal function', async () => {
+    // Should be able to use deprecated name without errors
+    const signal = createSignal();
+    let resolved = false;
+
+    const waitPromise = signal.wait().then(() => {
+      resolved = true;
+    });
+
+    await delay(10);
+    expect(resolved).toBe(false);
+
+    signal.trigger();
+    await waitPromise;
+    expect(resolved).toBe(true);
+  });
+
+  it('should support deprecated createManuallySignal function', async () => {
+    // Should be able to use deprecated name without errors
+    const signal = createManuallySignal();
+    
+    signal.raise();
+    
+    const startTime = Date.now();
+    await signal.wait();
+    const endTime = Date.now();
+
+    expect(endTime - startTime).toBeLessThan(10);
   });
 });

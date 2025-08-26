@@ -24,9 +24,9 @@ export interface LockHandle extends Releasable {
 }
 
 /**
- * AsyncLock interface for promise-based mutex operations
+ * Mutex interface for promise-based mutex operations
  */
-export interface AsyncLock {
+export interface Mutex {
   /**
    * Acquires the lock asynchronously
    * @param signal Optional AbortSignal for cancelling the lock acquisition
@@ -112,11 +112,11 @@ export interface DeferredGenerator<T> {
 }
 
 /**
- * Signal interface that can be automatically triggered
+ * Conditional interface that can be automatically triggered
  */
-export interface Signal {
+export interface Conditional {
   /**
-   * Trigger the signal
+   * Trigger the conditional
    * @remarks This will resolve only one waiter
    */
   readonly trigger: () => void;
@@ -130,18 +130,18 @@ export interface Signal {
 }
 
 /**
- * Signal interface that can be manually raise and drop
+ * Conditional interface that can be manually raise and drop
  */
-export interface ManuallySignal extends Signal {
+export interface ManuallyConditional extends Conditional {
   /**
-   * Raise the signal
+   * Raise the conditional
    * @remarks This will resolve all waiters
    */
   readonly raise: () => void;
 
   /**
-   * Drop the signal
-   * @remarks This will drop the signal, all waiters will be blocked until the signal is raised again
+   * Drop the conditional
+   * @remarks This will drop the conditional, all waiters will be blocked until the conditional is raised again
    */
   readonly drop: () => void;
 }
@@ -236,3 +236,14 @@ export interface ReaderWriterLock {
    */
   readonly pendingWritersCount: number;
 }
+
+// Deprecated type aliases for backward compatibility
+
+/** @deprecated Use `Mutex` instead */
+export type AsyncLock = Mutex;
+
+/** @deprecated Use `Conditional` instead */
+export type Signal = Conditional;
+
+/** @deprecated Use `ManuallyConditional` instead */
+export type ManuallySignal = ManuallyConditional;
