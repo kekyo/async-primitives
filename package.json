@@ -24,8 +24,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/async-primitives.js",
-      "require": "./dist/async-primitives.cjs"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
@@ -39,7 +39,7 @@
     "lint": "eslint src/**/*.ts && tsc --noEmit",
     "benchmark": "tsx benchmarks/benchmark.ts",
     "benchmark:json": "tsx benchmarks/benchmark.ts --output=json",
-    "pack": "screw-up --pack-destination ./artifacts"
+    "pack": "screw-up pack --pack-destination ./artifacts"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",
