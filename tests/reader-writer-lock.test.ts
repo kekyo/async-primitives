@@ -731,5 +731,164 @@ describe('ReaderWriterLock', () => {
       expect(rwLock.pendingReadersCount).toBe(0);
       expect(rwLock.pendingWritersCount).toBe(0);
     });
+
+    it('should deadlock when attempting to upgrade read lock to write lock', async () => {
+      const rwLock = createReaderWriterLock();
+      
+      // Acquire a read lock
+      const readHandle = await rwLock.readLock();
+      expect(rwLock.currentReaders).toBe(1);
+      
+      // Attempt to acquire write lock while holding read lock (will deadlock)
+      let error: Error | null = null;
+      try {
+        // Use AbortSignal.timeout for 500ms timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 500);
+        
+        try {
+          const writeHandle = await rwLock.writeLock(controller.signal);
+          // Should never reach here
+          writeHandle.release();
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (e) {
+        error = e as Error;
+      }
+      
+      // Should have been aborted due to deadlock
+      expect(error).toBeTruthy();
+      expect(error!.message).toContain('aborted');
+      
+      // Clean up
+      readHandle.release();
+      expect(rwLock.currentReaders).toBe(0);
+    });
+
+    it('should deadlock when attempting to acquire read lock while holding write lock', async () => {
+      const rwLock = createReaderWriterLock();
+      
+      // Acquire a write lock
+      const writeHandle = await rwLock.writeLock();
+      expect(rwLock.hasWriter).toBe(true);
+      
+      // Attempt to acquire read lock while holding write lock (will deadlock)
+      let error: Error | null = null;
+      try {
+        // Use AbortSignal.timeout for 500ms timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 500);
+        
+        try {
+          const readHandle = await rwLock.readLock(controller.signal);
+          // Should never reach here
+          readHandle.release();
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (e) {
+        error = e as Error;
+      }
+      
+      // Should have been aborted due to deadlock
+      expect(error).toBeTruthy();
+      expect(error!.message).toContain('aborted');
+      
+      // Clean up
+      writeHandle.release();
+      expect(rwLock.hasWriter).toBe(false);
+    });
+
+    it('should deadlock when attempting to upgrade while holding multiple read locks', async () => {
+      const rwLock = createReaderWriterLock();
+      
+      // Acquire multiple read locks from same context
+      const readHandle1 = await rwLock.readLock();
+      const readHandle2 = await rwLock.readLock();
+      expect(rwLock.currentReaders).toBe(2);
+      
+      // Attempt to acquire write lock (will deadlock waiting for own read locks)
+      let error: Error | null = null;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 500);
+        
+        try {
+          const writeHandle = await rwLock.writeLock(controller.signal);
+          // Should never reach here
+          writeHandle.release();
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (e) {
+        error = e as Error;
+      }
+      
+      // Should have been aborted due to deadlock
+      expect(error).toBeTruthy();
+      expect(error!.message).toContain('aborted');
+      
+      // Clean up
+      readHandle1.release();
+      readHandle2.release();
+      expect(rwLock.currentReaders).toBe(0);
+    });
+
+    it('should NOT support reentrant write locking (documents current limitation)', async () => {
+      const rwLock = createReaderWriterLock();
+      
+      // Acquire a write lock
+      const handle1 = await rwLock.writeLock();
+      expect(rwLock.hasWriter).toBe(true);
+      
+      // Try to acquire another write lock from same context (will block)
+      let secondAcquired = false;
+      const promise = (async () => {
+        const handle2 = await rwLock.writeLock();
+        secondAcquired = true;
+        handle2.release();
+      })();
+      
+      // Give time for the second acquisition to try
+      await delay(10);
+      
+      // Second acquisition should be blocked (not reentrant)
+      expect(secondAcquired).toBe(false);
+      expect(rwLock.pendingWritersCount).toBe(1);
+      
+      // Release first lock
+      handle1.release();
+      
+      // Now second acquisition should complete
+      await promise;
+      expect(secondAcquired).toBe(true);
+      expect(rwLock.hasWriter).toBe(false);
+      expect(rwLock.pendingWritersCount).toBe(0);
+    });
+
+    it('should allow multiple read locks from same context (not tracked separately)', async () => {
+      const rwLock = createReaderWriterLock();
+      
+      // Can acquire multiple read locks from same context
+      const handle1 = await rwLock.readLock();
+      const handle2 = await rwLock.readLock();
+      const handle3 = await rwLock.readLock();
+      
+      expect(rwLock.currentReaders).toBe(3);
+      
+      // Each needs to be released separately
+      handle1.release();
+      expect(rwLock.currentReaders).toBe(2);
+      
+      handle2.release();
+      expect(rwLock.currentReaders).toBe(1);
+      
+      handle3.release();
+      expect(rwLock.currentReaders).toBe(0);
+      
+      // This documents that the lock doesn't track "who" holds it
+      // Multiple reads from same context are allowed and counted separately
+    });
   });
 });
