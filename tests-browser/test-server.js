@@ -1,10 +1,8 @@
-import http from 'http';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// __dirname is automatically available in CommonJS
 
 const server = http.createServer((req, res) => {
   // CORS headers

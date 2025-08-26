@@ -3,8 +3,8 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Releasable } from "../types.js";
-import { __NOOP_RELEASABLE } from "./internal/utils.js";
+import { Releasable } from "../types";
+import { __NOOP_RELEASABLE } from "./internal/utils";
 
 /**
  * Hooks up an abort handler to an AbortSignal and returns a handle for early cleanup
