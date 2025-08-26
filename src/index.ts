@@ -32,3 +32,9 @@ export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContex
 
 // AsyncLocal exports
 export { createAsyncLocal } from './primitives/async-local.js';
+
+// Semaphore exports - only the create function, not the interface
+export { createSemaphore } from './primitives/semaphore.js';
+
+// ReaderWriterLock exports - only the create function, not the interface
+export { createReaderWriterLock } from './primitives/reader-writer-lock.js';

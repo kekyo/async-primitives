@@ -145,3 +145,94 @@ export interface ManuallySignal extends Signal {
    */
   readonly drop: () => void;
 }
+
+/**
+ * Semaphore handle for managing acquired semaphore resources
+ */
+export interface SemaphoreHandle extends Releasable {
+  /**
+   * Indicates if the handle is still active
+   */
+  readonly isActive: boolean;
+}
+
+/**
+ * Semaphore interface for managing limited concurrent access
+ */
+export interface Semaphore {
+  /**
+   * Acquires a semaphore resource asynchronously
+   * @param signal Optional AbortSignal for cancelling the acquisition
+   * @returns Promise that resolves to a disposable semaphore handle
+   */
+  readonly acquire: (signal?: AbortSignal) => Promise<SemaphoreHandle>;
+
+  /**
+   * Number of currently available resources
+   */
+  readonly availableCount: number;
+
+  /**
+   * Number of pending acquisition requests
+   */
+  readonly pendingCount: number;
+}
+
+/**
+ * Read lock handle for managing acquired read locks
+ */
+export interface ReadLockHandle extends Releasable {
+  /**
+   * Indicates if the handle is still active
+   */
+  readonly isActive: boolean;
+}
+
+/**
+ * Write lock handle for managing acquired write locks
+ */
+export interface WriteLockHandle extends Releasable {
+  /**
+   * Indicates if the handle is still active
+   */
+  readonly isActive: boolean;
+}
+
+/**
+ * Reader-Writer lock interface for managing concurrent read and exclusive write access
+ */
+export interface ReaderWriterLock {
+  /**
+   * Acquires a read lock asynchronously
+   * @param signal Optional AbortSignal for cancelling the lock acquisition
+   * @returns Promise that resolves to a disposable read lock handle
+   */
+  readonly readLock: (signal?: AbortSignal) => Promise<ReadLockHandle>;
+
+  /**
+   * Acquires a write lock asynchronously
+   * @param signal Optional AbortSignal for cancelling the lock acquisition
+   * @returns Promise that resolves to a disposable write lock handle
+   */
+  readonly writeLock: (signal?: AbortSignal) => Promise<WriteLockHandle>;
+
+  /**
+   * Number of currently active readers
+   */
+  readonly currentReaders: number;
+
+  /**
+   * Indicates if a writer currently holds the lock
+   */
+  readonly hasWriter: boolean;
+
+  /**
+   * Number of pending read lock requests
+   */
+  readonly pendingReadersCount: number;
+
+  /**
+   * Number of pending write lock requests
+   */
+  readonly pendingWritersCount: number;
+}
