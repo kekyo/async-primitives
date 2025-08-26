@@ -22,6 +22,8 @@ Mutex, producer-consumer separation (side-effect operation), signaling (flag con
 | `defer()` | Schedule callback for next event loop |
 | `onAbort()` | Register safer abort signal hooks with cleanup |
 | `createMutex()` | Promise-based mutex lock for critical sections |
+| `createSemaphore()` | Promise-based semaphore for limiting concurrent access |
+| `createReaderWriterLock()` | Read-write lock for multiple readers/single writer |
 | `createDeferred()` | External control of Promise resolution/rejection |
 | `createDeferredGenerator()` | External control of async generator with queue management |
 | `createConditional()` | Automatic conditional trigger (one-waiter per trigger) |
@@ -292,6 +294,156 @@ try {
 }
 ```
 
+### createSemaphore()
+
+Creates a `Semaphore` that limits the number of concurrent operations to a specified count.
+Useful for rate limiting, resource pooling, and controlling concurrent access to limited resources.
+
+```typescript
+import { createSemaphore } from 'async-primitives';
+
+// Create a semaphore with max 3 concurrent operations
+const semaphore = createSemaphore(3);
+
+// Acquire a resource
+const handle = await semaphore.acquire();
+try {
+  // Critical section - only 3 operations can run concurrently
+  await performExpensiveOperation();
+} finally {
+  // Release the resource
+  handle.release();
+}
+
+// Check available resources
+console.log(`Available: ${semaphore.availableCount}`);
+console.log(`Waiting: ${semaphore.pendingCount}`);
+```
+
+Rate limiting example for API calls:
+
+```typescript
+// Limit to 5 concurrent API calls
+const apiSemaphore = createSemaphore(5);
+
+async function rateLimitedFetch(url: string) {
+  const handle = await apiSemaphore.acquire();
+  try {
+    return await fetch(url);
+  } finally {
+    handle.release();
+  }
+}
+
+// Process many URLs with controlled concurrency
+const urls = ['url1', 'url2', /* ... many more ... */];
+const promises = urls.map(url => rateLimitedFetch(url));
+const results = await Promise.all(promises);
+// Only 5 requests will be in-flight at any time
+```
+
+```typescript
+// With AbortSignal support
+const controller = new AbortController();
+try {
+  const handle = await semaphore.acquire(controller.signal);
+  // Use the resource
+  handle.release();
+} catch (error) {
+  console.log('Semaphore acquisition was aborted');
+}
+```
+
+### createReaderWriterLock()
+
+Creates a `ReaderWriterLock` that allows multiple concurrent readers but only one exclusive writer.
+Uses a write-preferring policy: when a writer is waiting, new readers must wait until the writer completes.
+
+```typescript
+import { createReaderWriterLock } from 'async-primitives';
+
+// Create a reader-writer lock
+const rwLock = createReaderWriterLock();
+
+// Multiple readers can access concurrently
+async function readData() {
+  const handle = await rwLock.readLock();
+  try {
+    // Multiple threads can read simultaneously
+    const data = await readFromSharedResource();
+    return data;
+  } finally {
+    handle.release();
+  }
+}
+
+// Writers have exclusive access
+async function writeData(newData: any) {
+  const handle = await rwLock.writeLock();
+  try {
+    // Exclusive access - no readers or other writers
+    await writeToSharedResource(newData);
+  } finally {
+    handle.release();
+  }
+}
+
+// Check lock state
+console.log(`Current readers: ${rwLock.currentReaders}`);
+console.log(`Has writer: ${rwLock.hasWriter}`);
+console.log(`Pending readers: ${rwLock.pendingReadersCount}`);
+console.log(`Pending writers: ${rwLock.pendingWritersCount}`);
+```
+
+Cache implementation example:
+
+```typescript
+const cacheLock = createReaderWriterLock();
+const cache = new Map();
+
+// Read from cache (multiple concurrent reads allowed)
+async function getCached(key: string) {
+  const handle = await cacheLock.readLock();
+  try {
+    return cache.get(key);
+  } finally {
+    handle.release();
+  }
+}
+
+// Update cache (exclusive write access)
+async function updateCache(key: string, value: any) {
+  const handle = await cacheLock.writeLock();
+  try {
+    cache.set(key, value);
+  } finally {
+    handle.release();
+  }
+}
+
+// Clear cache (exclusive write access)
+async function clearCache() {
+  const handle = await cacheLock.writeLock();
+  try {
+    cache.clear();
+  } finally {
+    handle.release();
+  }
+}
+```
+
+```typescript
+// With AbortSignal support
+const controller = new AbortController();
+try {
+  const readHandle = await rwLock.readLock(controller.signal);
+  // Read operations...
+  readHandle.release();
+} catch (error) {
+  console.log('Lock acquisition was aborted');
+}
+```
+
 ### ES2022+ using statement
 
 Use with using statement (requires ES2022+ or equivalent polyfill)
@@ -310,6 +462,39 @@ const locker = createMutex();
     console.log('Cleanup on aborts');
   });
 
+  // (Auto release when exit the scope.)
+}
+
+// Semaphore with using statement
+const semaphore = createSemaphore(3);
+
+{
+  using handle = await semaphore.acquire();
+  
+  // Perform rate-limited operation
+  await performOperation();
+  
+  // (Auto release when exit the scope.)
+}
+
+// ReaderWriterLock with using statement
+const rwLock = createReaderWriterLock();
+
+{
+  // Reader scope
+  using readHandle = await rwLock.readLock();
+  
+  const data = await readSharedData();
+  
+  // (Auto release when exit the scope.)
+}
+
+{
+  // Writer scope
+  using writeHandle = await rwLock.writeLock();
+  
+  await writeSharedData(newData);
+  
   // (Auto release when exit the scope.)
 }
 
