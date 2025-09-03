@@ -27,29 +27,35 @@ const __NOOP_DUMMY_HANDLE: LockHandle = {
  */
 export const createConditional = (): Conditional => {
   const waiters: Deferred<void>[] = [];
+
+  const trigger = () => {
+    if (waiters.length >= 1) {
+      waiters.shift()!.resolve();
+    }
+  };
+
+  const wait = async (signal?: AbortSignal) => {
+    if (signal?.aborted) {
+      throw new Error('Conditional aborted');
+    }
+    const waiter = createDeferred<void>();
+    waiters.push(waiter);
+    const disposer = onAbort(signal, () => {
+      waiters.splice(waiters.indexOf(waiter), 1);
+      waiter.reject(new Error('Conditional aborted'));
+    });
+    try {
+      await waiter.promise;
+    } finally {
+      disposer.release();
+    }
+    return __NOOP_DUMMY_HANDLE;
+  };
+
   return {
-    trigger: () => {
-      if (waiters.length >= 1) {
-        waiters.shift()!.resolve();
-      }
-    },
-    wait: async (signal?: AbortSignal) => {
-      if (signal?.aborted) {
-        throw new Error('Conditional aborted');
-      }
-      const waiter = createDeferred<void>();
-      waiters.push(waiter);
-      const disposer = onAbort(signal, () => {
-        waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.reject(new Error('Conditional aborted'));
-      });
-      try {
-        await waiter.promise;
-      } finally {
-        disposer.release();
-      }
-      return __NOOP_DUMMY_HANDLE;
-    },
+    trigger,
+    wait,
+    waitable: () => wait,
   };
 };
 
@@ -63,44 +69,54 @@ export const createManuallyConditional = (
 ): ManuallyConditional => {
   const waiters: Deferred<void>[] = [];
   let raised = initialState ?? false;
-  return {
-    trigger: () => {
+
+  const trigger = () => {
+    raised = false;
+    const waiter = waiters.shift();
+    if (waiter) {
+      waiter.resolve();
       raised = false;
-      const waiter = waiters.shift();
-      if (waiter) {
-        waiter.resolve();
-        raised = false;
-      }
-    },
-    raise: () => {
-      while (waiters.length >= 1) {
-        raised = true;
-        waiters.shift()!.resolve();
-      }
+    }
+  };
+
+  const raise = () => {
+    while (waiters.length >= 1) {
       raised = true;
-    },
-    drop: () => {
-      raised = false;
-    },
-    wait: async (signal?: AbortSignal) => {
-      if (raised) {
-        return __NOOP_DUMMY_HANDLE;
-      }
-      if (signal?.aborted) {
-        throw new Error('Conditional aborted');
-      }
-      const waiter = createDeferred<void>();
-      waiters.push(waiter);
-      const disposer = onAbort(signal, () => {
-        waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.reject(new Error('Conditional aborted'));
-      });
-      try {
-        await waiter.promise;
-      } finally {
-        disposer.release();
-      }
+      waiters.shift()!.resolve();
+    }
+    raised = true;
+  };
+
+  const drop = () => {
+    raised = false;
+  };
+
+  const wait = async (signal?: AbortSignal) => {
+    if (raised) {
       return __NOOP_DUMMY_HANDLE;
-    },
+    }
+    if (signal?.aborted) {
+      throw new Error('Conditional aborted');
+    }
+    const waiter = createDeferred<void>();
+    waiters.push(waiter);
+    const disposer = onAbort(signal, () => {
+      waiters.splice(waiters.indexOf(waiter), 1);
+      waiter.reject(new Error('Conditional aborted'));
+    });
+    try {
+      await waiter.promise;
+    } finally {
+      disposer.release();
+    }
+    return __NOOP_DUMMY_HANDLE;
+  };
+
+  return {
+    trigger,
+    raise,
+    drop,
+    wait,
+    waitable: () => wait,
   };
 };

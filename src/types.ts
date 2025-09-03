@@ -24,9 +24,21 @@ export interface LockHandle extends Releasable {
 }
 
 /**
+ * Waitable object
+ */
+export interface Waitable {
+  /**
+   * Get waiting changed object conditionality function
+   * @param signal Optional AbortSignal for cancelling the lock acquisition
+   * @returns Waiting changed object conditionality function
+   */
+  readonly waitable: () => ((signal?: AbortSignal) => Promise<LockHandle>);
+}
+
+/**
  * Mutex interface for promise-based mutex operations
  */
-export interface Mutex {
+export interface Mutex extends Waitable {
   /**
    * Acquires the lock asynchronously
    * @param signal Optional AbortSignal for cancelling the lock acquisition
@@ -48,7 +60,7 @@ export interface Mutex {
 /**
  * Conditional interface that can be automatically triggered
  */
-export interface Conditional {
+export interface Conditional extends Waitable {
   /**
    * Trigger the conditional
    * @remarks This will resolve only one waiter
@@ -83,7 +95,7 @@ export interface ManuallyConditional extends Conditional {
 /**
  * Semaphore interface for managing limited concurrent access
  */
-export interface Semaphore {
+export interface Semaphore extends Waitable {
   /**
    * Acquires a semaphore resource asynchronously
    * @param signal Optional AbortSignal for cancelling the acquisition

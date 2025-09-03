@@ -173,6 +173,7 @@ export const createSemaphore = (
 
   return {
     acquire,
+    waitable: () => acquire,
     get availableCount() {
       return availableCount;
     },
