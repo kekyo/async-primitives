@@ -194,7 +194,7 @@ describe('Semaphore', () => {
       await acquirePromise;
 
       expect(caughtError).toBeTruthy();
-      expect((caughtError as Error).message).toContain('aborted');
+      expect((caughtError! as Error).message).toContain('aborted');
       expect(semaphore.pendingCount).toBe(0);
 
       handle1.release();
@@ -384,7 +384,7 @@ describe('Semaphore', () => {
 
       // Should either succeed or be aborted, but not hang
       if (caughtError) {
-        expect(caughtError.message).toContain('aborted');
+        expect((caughtError as Error).message).toContain('aborted');
       }
 
       // Clean up

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createManuallyConditional, createConditional, createManuallySignal, createSignal } from '../src/index.js';
+import { createManuallyConditional, createConditional, createManuallySignal, createSignal, LockHandle } from '../src/index.js';
 import { delay } from '../src/primitives/delay.js';
 
 describe('createManuallyConditional', () => {
@@ -672,13 +672,13 @@ describe('createConditional', () => {
           const abortController = new AbortController();
           operations.push(
             signal.wait(abortController.signal)
-              .then(() => resolvedCount.value++)
-              .catch(() => abortedCount.value++)
+              .then(() => { resolvedCount.value++ })
+              .catch(() => { abortedCount.value++ })
           );
           setTimeout(() => abortController.abort(), Math.random() * 20);
         } else {
           operations.push(
-            signal.wait().then(() => resolvedCount.value++)
+            signal.wait().then(() => { resolvedCount.value++ })
           );
         }
       }
