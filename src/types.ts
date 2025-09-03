@@ -58,9 +58,9 @@ export interface Conditional {
   /**
    * Wait to be signaled
    * @param signal Optional AbortSignal for cancelling the wait
-   * @returns Promise that resolves when signaled
+   * @returns Promise that resolves when signaled, returns dummy lock handle
    */
-  readonly wait: (signal?: AbortSignal) => Promise<void>;
+  readonly wait: (signal?: AbortSignal) => Promise<LockHandle>;
 }
 
 /**

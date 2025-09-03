@@ -3,9 +3,16 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Deferred, ManuallyConditional, Conditional } from "../types";
+import { Deferred, ManuallyConditional, Conditional, LockHandle } from "../types";
 import { onAbort } from "./abort-hook";
 import { createDeferred } from "./deferred";
+import { __NOOP_HANDLER } from "./internal/utils";
+
+const __NOOP_HANDLE: LockHandle = {
+  isActive: false,
+  release: __NOOP_HANDLER,
+  [Symbol.dispose]: __NOOP_HANDLER
+} as const;
 
 /**
  * Creates a conditional that can be automatically triggered
@@ -34,6 +41,7 @@ export const createConditional = (): Conditional => {
       } finally {
         disposer.release();
       }
+      return __NOOP_HANDLE;
     },
   };
 };
@@ -67,7 +75,7 @@ export const createManuallyConditional = (initialState?: boolean): ManuallyCondi
     },
     wait: async (signal?: AbortSignal) => {
       if (raised) {
-        return;
+        return __NOOP_HANDLE;
       }
       if (signal?.aborted) {
         throw new Error("Conditional aborted");
@@ -83,6 +91,7 @@ export const createManuallyConditional = (initialState?: boolean): ManuallyCondi
       } finally {
         disposer.release();
       }
+      return __NOOP_HANDLE;
     },
   };
 };
