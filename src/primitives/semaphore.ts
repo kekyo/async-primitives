@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Semaphore, SemaphoreHandle } from '../types';
+import { LockHandle, Semaphore } from '../types';
 import { onAbort } from './abort-hook';
 import { defer } from './defer';
 
@@ -13,7 +13,7 @@ import { defer } from './defer';
 interface QueueItem {
   /** Promise resolver for the semaphore acquisition */
   // eslint-disable-next-line no-unused-vars
-  resolve: (handle: SemaphoreHandle) => void;
+  resolve: (handle: LockHandle) => void;
   /** Promise rejecter for the semaphore acquisition */
   // eslint-disable-next-line no-unused-vars
   reject: (error: Error) => void;
@@ -30,9 +30,7 @@ const INVALID_COUNT_ERROR = () =>
  * @param releaseCallback Callback function to release the semaphore resource
  * @returns A SemaphoreHandle object with release and dispose functionality
  */
-const createSemaphoreHandle = (
-  releaseCallback: () => void
-): SemaphoreHandle => {
+const createSemaphoreHandle = (releaseCallback: () => void): LockHandle => {
   let isActive = true;
 
   const release = (): void => {
@@ -116,7 +114,7 @@ export const createSemaphore = (
     }
   };
 
-  const acquire = async (signal?: AbortSignal): Promise<SemaphoreHandle> => {
+  const acquire = async (signal?: AbortSignal): Promise<LockHandle> => {
     if (signal) {
       // Check if already aborted
       if (signal.aborted) {
@@ -129,7 +127,7 @@ export const createSemaphore = (
         return createSemaphoreHandle(releaseSemaphore);
       }
 
-      return new Promise<SemaphoreHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case with AbortSignal
         const queueItem: QueueItem = {
           resolve: undefined!,
@@ -143,7 +141,7 @@ export const createSemaphore = (
         });
 
         // Wrap to clean up
-        queueItem.resolve = (handle: SemaphoreHandle) => {
+        queueItem.resolve = (handle: LockHandle) => {
           abortHandle.release();
           resolve(handle);
         };
@@ -162,7 +160,7 @@ export const createSemaphore = (
         return createSemaphoreHandle(releaseSemaphore);
       }
 
-      return new Promise<SemaphoreHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case without AbortSignal
         queue.push({
           resolve,

@@ -13,8 +13,10 @@ import { onAbort } from './abort-hook';
 import { createDeferred } from './deferred';
 import { __NOOP_HANDLER } from './internal/utils';
 
-const __NOOP_HANDLE: LockHandle = {
-  isActive: false,
+const __NOOP_DUMMY_HANDLE: LockHandle = {
+  get isActive() {
+    return false;
+  },
   release: __NOOP_HANDLER,
   [Symbol.dispose]: __NOOP_HANDLER,
 } as const;
@@ -46,7 +48,7 @@ export const createConditional = (): Conditional => {
       } finally {
         disposer.release();
       }
-      return __NOOP_HANDLE;
+      return __NOOP_DUMMY_HANDLE;
     },
   };
 };
@@ -82,7 +84,7 @@ export const createManuallyConditional = (
     },
     wait: async (signal?: AbortSignal) => {
       if (raised) {
-        return __NOOP_HANDLE;
+        return __NOOP_DUMMY_HANDLE;
       }
       if (signal?.aborted) {
         throw new Error('Conditional aborted');
@@ -98,7 +100,7 @@ export const createManuallyConditional = (
       } finally {
         disposer.release();
       }
-      return __NOOP_HANDLE;
+      return __NOOP_DUMMY_HANDLE;
     },
   };
 };

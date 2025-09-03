@@ -89,7 +89,7 @@ export interface Semaphore {
    * @param signal Optional AbortSignal for cancelling the acquisition
    * @returns Promise that resolves to a disposable semaphore handle
    */
-  readonly acquire: (signal?: AbortSignal) => Promise<SemaphoreHandle>;
+  readonly acquire: (signal?: AbortSignal) => Promise<LockHandle>;
 
   /**
    * Number of currently available resources
@@ -111,14 +111,14 @@ export interface ReaderWriterLock {
    * @param signal Optional AbortSignal for cancelling the lock acquisition
    * @returns Promise that resolves to a disposable read lock handle
    */
-  readonly readLock: (signal?: AbortSignal) => Promise<ReadLockHandle>;
+  readonly readLock: (signal?: AbortSignal) => Promise<LockHandle>;
 
   /**
    * Acquires a write lock asynchronously
    * @param signal Optional AbortSignal for cancelling the lock acquisition
    * @returns Promise that resolves to a disposable write lock handle
    */
-  readonly writeLock: (signal?: AbortSignal) => Promise<WriteLockHandle>;
+  readonly writeLock: (signal?: AbortSignal) => Promise<LockHandle>;
 
   /**
    * Number of currently active readers

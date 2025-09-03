@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { ReaderWriterLock, ReadLockHandle, WriteLockHandle } from '../types';
+import { LockHandle, ReaderWriterLock } from '../types';
 import { onAbort } from './abort-hook';
 import { defer } from './defer';
 
@@ -13,7 +13,7 @@ import { defer } from './defer';
 interface ReadQueueItem {
   /** Promise resolver for the read lock acquisition */
   // eslint-disable-next-line no-unused-vars
-  resolve: (handle: ReadLockHandle) => void;
+  resolve: (handle: LockHandle) => void;
   /** Promise rejecter for the read lock acquisition */
   // eslint-disable-next-line no-unused-vars
   reject: (error: Error) => void;
@@ -27,7 +27,7 @@ interface ReadQueueItem {
 interface WriteQueueItem {
   /** Promise resolver for the write lock acquisition */
   // eslint-disable-next-line no-unused-vars
-  resolve: (handle: WriteLockHandle) => void;
+  resolve: (handle: LockHandle) => void;
   /** Promise rejecter for the write lock acquisition */
   // eslint-disable-next-line no-unused-vars
   reject: (error: Error) => void;
@@ -42,7 +42,7 @@ const ABORTED_ERROR = () => new Error('Lock acquisition was aborted');
  * @param releaseCallback Callback function to release the read lock
  * @returns A ReadLockHandle object with release and dispose functionality
  */
-const createReadLockHandle = (releaseCallback: () => void): ReadLockHandle => {
+const createReadLockHandle = (releaseCallback: () => void): LockHandle => {
   let isActive = true;
 
   const release = (): void => {
@@ -67,9 +67,7 @@ const createReadLockHandle = (releaseCallback: () => void): ReadLockHandle => {
  * @param releaseCallback Callback function to release the write lock
  * @returns A WriteLockHandle object with release and dispose functionality
  */
-const createWriteLockHandle = (
-  releaseCallback: () => void
-): WriteLockHandle => {
+const createWriteLockHandle = (releaseCallback: () => void): LockHandle => {
   let isActive = true;
 
   const release = (): void => {
@@ -192,7 +190,7 @@ export const createReaderWriterLock = (
     }
   };
 
-  const readLock = async (signal?: AbortSignal): Promise<ReadLockHandle> => {
+  const readLock = async (signal?: AbortSignal): Promise<LockHandle> => {
     if (signal) {
       // Check if already aborted
       if (signal.aborted) {
@@ -205,7 +203,7 @@ export const createReaderWriterLock = (
         return createReadLockHandle(releaseReadLock);
       }
 
-      return new Promise<ReadLockHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case with AbortSignal
         const queueItem: ReadQueueItem = {
           resolve: undefined!,
@@ -219,7 +217,7 @@ export const createReaderWriterLock = (
         });
 
         // Wrap to clean up
-        queueItem.resolve = (handle: ReadLockHandle) => {
+        queueItem.resolve = (handle: LockHandle) => {
           abortHandle.release();
           resolve(handle);
         };
@@ -238,7 +236,7 @@ export const createReaderWriterLock = (
         return createReadLockHandle(releaseReadLock);
       }
 
-      return new Promise<ReadLockHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case without AbortSignal
         readQueue.push({
           resolve,
@@ -249,7 +247,7 @@ export const createReaderWriterLock = (
     }
   };
 
-  const writeLock = async (signal?: AbortSignal): Promise<WriteLockHandle> => {
+  const writeLock = async (signal?: AbortSignal): Promise<LockHandle> => {
     if (signal) {
       // Check if already aborted
       if (signal.aborted) {
@@ -262,7 +260,7 @@ export const createReaderWriterLock = (
         return createWriteLockHandle(releaseWriteLock);
       }
 
-      return new Promise<WriteLockHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case with AbortSignal
         const queueItem: WriteQueueItem = {
           resolve: undefined!,
@@ -276,7 +274,7 @@ export const createReaderWriterLock = (
         });
 
         // Wrap to clean up
-        queueItem.resolve = (handle: WriteLockHandle) => {
+        queueItem.resolve = (handle: LockHandle) => {
           abortHandle.release();
           resolve(handle);
         };
@@ -295,7 +293,7 @@ export const createReaderWriterLock = (
         return createWriteLockHandle(releaseWriteLock);
       }
 
-      return new Promise<WriteLockHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case without AbortSignal
         writeQueue.push({
           resolve,
