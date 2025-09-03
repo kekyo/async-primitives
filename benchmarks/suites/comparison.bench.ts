@@ -1,5 +1,9 @@
 import { Bench } from 'tinybench';
-import { createMutex, createSemaphore, createReaderWriterLock } from '../../src/index.js';
+import {
+  createMutex,
+  createSemaphore,
+  createReaderWriterLock,
+} from '../../src/index.js';
 
 export function createComparisonBenchmarks(bench: Bench) {
   // Single resource management comparison: Mutex vs Semaphore(1)
@@ -96,101 +100,112 @@ export function createComparisonBenchmarks(bench: Bench) {
     .add('[Comparison] RWLock read-mostly (90% read)', async () => {
       const lock = createReaderWriterLock();
       const operations: Promise<void>[] = [];
-      
+
       for (let i = 0; i < 50; i++) {
         if (i % 10 === 0) {
-          operations.push((async () => {
-            const handle = await lock.writeLock();
-            handle.release();
-          })());
+          operations.push(
+            (async () => {
+              const handle = await lock.writeLock();
+              handle.release();
+            })()
+          );
         } else {
-          operations.push((async () => {
-            const handle = await lock.readLock();
-            handle.release();
-          })());
+          operations.push(
+            (async () => {
+              const handle = await lock.readLock();
+              handle.release();
+            })()
+          );
         }
       }
-      
+
       await Promise.all(operations);
     })
     .add('[Comparison] Mutex for read-mostly (simulated)', async () => {
       const mutex = createMutex();
       const operations: Promise<void>[] = [];
-      
+
       for (let i = 0; i < 50; i++) {
-        operations.push((async () => {
-          const handle = await mutex.lock();
-          handle.release();
-        })());
+        operations.push(
+          (async () => {
+            const handle = await mutex.lock();
+            handle.release();
+          })()
+        );
       }
-      
+
       await Promise.all(operations);
     });
 
   // Real-world scenario: Connection Pool
-  bench
-    .add('[Scenario] Connection Pool - Semaphore(3)', async () => {
-      const pool = createSemaphore(3);
-      const connections: Promise<void>[] = [];
-      
-      // Simulate 10 connection requests
-      for (let i = 0; i < 10; i++) {
-        connections.push((async () => {
+  bench.add('[Scenario] Connection Pool - Semaphore(3)', async () => {
+    const pool = createSemaphore(3);
+    const connections: Promise<void>[] = [];
+
+    // Simulate 10 connection requests
+    for (let i = 0; i < 10; i++) {
+      connections.push(
+        (async () => {
           const conn = await pool.acquire();
           // Simulate connection usage
           await Promise.resolve();
           conn.release();
-        })());
-      }
-      
-      await Promise.all(connections);
-    });
+        })()
+      );
+    }
+
+    await Promise.all(connections);
+  });
 
   // Real-world scenario: Cache Access Pattern
-  bench
-    .add('[Scenario] Cache - RWLock (70% read, 30% write)', async () => {
-      const cache = createReaderWriterLock();
-      const operations: Promise<void>[] = [];
-      
-      for (let i = 0; i < 30; i++) {
-        if (i % 10 < 7) {
-          // 70% cache reads
-          operations.push((async () => {
+  bench.add('[Scenario] Cache - RWLock (70% read, 30% write)', async () => {
+    const cache = createReaderWriterLock();
+    const operations: Promise<void>[] = [];
+
+    for (let i = 0; i < 30; i++) {
+      if (i % 10 < 7) {
+        // 70% cache reads
+        operations.push(
+          (async () => {
             const handle = await cache.readLock();
             await Promise.resolve();
             handle.release();
-          })());
-        } else {
-          // 30% cache updates
-          operations.push((async () => {
+          })()
+        );
+      } else {
+        // 30% cache updates
+        operations.push(
+          (async () => {
             const handle = await cache.writeLock();
             await Promise.resolve();
             handle.release();
-          })());
-        }
+          })()
+        );
       }
-      
-      await Promise.all(operations);
-    });
+    }
+
+    await Promise.all(operations);
+  });
 
   // Real-world scenario: Critical Section Protection
-  bench
-    .add('[Scenario] Critical Section - Mutex', async () => {
-      const mutex = createMutex();
-      const tasks: Promise<void>[] = [];
-      
-      // Simulate 15 tasks accessing critical section
-      for (let i = 0; i < 15; i++) {
-        tasks.push((async () => {
+  bench.add('[Scenario] Critical Section - Mutex', async () => {
+    const mutex = createMutex();
+    const tasks: Promise<void>[] = [];
+
+    // Simulate 15 tasks accessing critical section
+    for (let i = 0; i < 15; i++) {
+      tasks.push(
+        (async () => {
           const guard = await mutex.lock();
           // Simulate critical section work
           await Promise.resolve();
           guard.release();
-        })());
-      }
-      
-      await Promise.all(tasks);
-    });
+        })()
+      );
+    }
+
+    await Promise.all(tasks);
+  });
 
   // High contention comparison
   bench

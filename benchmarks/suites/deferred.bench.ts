@@ -17,4 +17,4 @@ export function createDeferredBenchmarks(bench: Bench) {
         // Expected error
       }
     });
-} 
+}

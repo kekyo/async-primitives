@@ -17,4 +17,4 @@ export function createDeferBenchmarks(bench: Bench) {
         }, 0);
       });
     });
-} 
+}

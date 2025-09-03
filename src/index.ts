@@ -4,10 +4,10 @@
 // https://github.com/kekyo/async-primitives
 
 // Export all types
-export * from './types'
+export * from './types';
 
 // delay function export.
-export { delay } from "./primitives/delay";
+export { delay } from './primitives/delay';
 
 // defer function export.
 export { defer } from './primitives/defer';
@@ -25,10 +25,18 @@ export { createDeferred } from './primitives/deferred';
 export { createDeferredGenerator } from './primitives/deferred-generator';
 
 // Conditional exports
-export { createConditional, createManuallyConditional } from './primitives/conditional';
+export {
+  createConditional,
+  createManuallyConditional,
+} from './primitives/conditional';
 
 // Logical context exports
-export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContextId, runOnNewLogicalContext } from './primitives/logical-context';
+export {
+  setLogicalContextValue,
+  getLogicalContextValue,
+  getCurrentLogicalContextId,
+  runOnNewLogicalContext,
+} from './primitives/logical-context';
 
 // AsyncLocal exports
 export { createAsyncLocal } from './primitives/async-local';
@@ -43,14 +51,14 @@ export { createReaderWriterLock } from './primitives/reader-writer-lock';
 
 // Deprecated aliases for backward compatibility
 
-export { 
+export {
   /** @deprecated Use `createMutex` instead */
-  createMutex as createAsyncLock 
+  createMutex as createAsyncLock,
 } from './primitives/mutex';
 
-export { 
+export {
   /** @deprecated Use `createConditional` instead */
   createConditional as createSignal,
   /** @deprecated Use `createManuallyConditional` instead */
-  createManuallyConditional as createManuallySignal
+  createManuallyConditional as createManuallySignal,
 } from './primitives/conditional';

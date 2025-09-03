@@ -12,7 +12,7 @@ export interface SystemInfo {
 export function getSystemInfo(): SystemInfo {
   const cpuInfo = cpus();
   const cpu = cpuInfo.length > 0 ? cpuInfo[0].model : 'Unknown';
-  const memoryGB = Math.round(totalmem() / (1024 ** 3));
+  const memoryGB = Math.round(totalmem() / 1024 ** 3);
 
   return {
     nodeVersion: process.version,
@@ -20,6 +20,6 @@ export function getSystemInfo(): SystemInfo {
     arch: arch(),
     cpu,
     memory: `${memoryGB}GB`,
-    timestamp: new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+    timestamp: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
   };
-} 
+}

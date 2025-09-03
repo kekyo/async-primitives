@@ -28,7 +28,7 @@ describe('Integration Race Conditions', () => {
       };
 
       // Start multiple concurrent tasks
-      const tasks = Array.from({ length: 10 }, (_, i) => 
+      const tasks = Array.from({ length: 10 }, (_, i) =>
         lockAndWaitTask(`task-${i}`)
       );
 
@@ -38,7 +38,7 @@ describe('Integration Race Conditions', () => {
       await Promise.all(tasks);
 
       expect(results).toHaveLength(10);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toMatch(/^task-\d+: shared-result$/);
       });
     });
@@ -64,7 +64,7 @@ describe('Integration Race Conditions', () => {
       };
 
       // Start tasks that depend on deferred resolution
-      const tasks = Array.from({ length: 5 }, (_, i) => 
+      const tasks = Array.from({ length: 5 }, (_, i) =>
         conditionalLockTask(`task-${i}`)
       );
 
@@ -74,7 +74,7 @@ describe('Integration Race Conditions', () => {
       await Promise.all(tasks);
 
       expect(results).toHaveLength(5);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toMatch(/^task-\d+: acquired lock$/);
       });
     });
@@ -112,7 +112,7 @@ describe('Integration Race Conditions', () => {
       };
 
       // Start tasks
-      const tasks = Array.from({ length: 5 }, (_, i) => 
+      const tasks = Array.from({ length: 5 }, (_, i) =>
         complexTask(`task-${i}`)
       );
 
@@ -179,8 +179,13 @@ describe('Integration Race Conditions', () => {
   describe('All primitives interaction under stress', () => {
     it('should handle complex scenario with all primitives under concurrent load', async () => {
       const locker = createMutex(3); // Low maxConsecutiveCalls for testing
-      const controllers = Array.from({ length: 10 }, () => new AbortController());
-      const deferreds = Array.from({ length: 3 }, () => createDeferred<number>());
+      const controllers = Array.from(
+        { length: 10 },
+        () => new AbortController()
+      );
+      const deferreds = Array.from({ length: 3 }, () =>
+        createDeferred<number>()
+      );
       const results: string[] = [];
       const errors: Error[] = [];
 
@@ -199,11 +204,11 @@ describe('Integration Race Conditions', () => {
           const lockHandle = await locker.lock(controller.signal);
           try {
             results.push(`task-${id}: acquired lock`);
-            
+
             // Wait for deferred resolution
             const value = await deferred.promise;
             results.push(`task-${id}: got deferred value ${value}`);
-            
+
             // Simulate some work
             await delay(2);
             results.push(`task-${id}: completed work`);
@@ -237,43 +242,45 @@ describe('Integration Race Conditions', () => {
       // Verify that the system handled the complexity without deadlocks
       expect(locker.isLocked).toBe(false);
       expect(locker.pendingCount).toBe(0);
-      
+
       // Some tasks should have completed, some should have been aborted
-      const completedTasks = results.filter(r => r.includes('completed work')).length;
+      const completedTasks = results.filter((r) =>
+        r.includes('completed work')
+      ).length;
       const abortedTasks = errors.length;
-      
+
       expect(completedTasks + abortedTasks).toBeLessThanOrEqual(10);
       expect(results.length).toBeGreaterThan(0);
     });
 
-         it('should handle rapid primitive creation and destruction', async () => {
-       const operations: Promise<void>[] = [];
-       const results: string[] = [];
+    it('should handle rapid primitive creation and destruction', async () => {
+      const operations: Promise<void>[] = [];
+      const results: string[] = [];
 
-             // Rapidly create and use different primitives
-       for (let i = 0; i < 50; i++) {
-         const operation = (async () => {
-           const locker = createMutex();
-           const deferred = createDeferred<string>();
-           const controller = new AbortController();
+      // Rapidly create and use different primitives
+      for (let i = 0; i < 50; i++) {
+        const operation = (async () => {
+          const locker = createMutex();
+          const deferred = createDeferred<string>();
+          const controller = new AbortController();
 
-           const handle = await locker.lock();
-           try {
-             const abortHandle = onAbort(controller.signal, () => {
-               results.push(`operation-${i}: aborted`);
-             });
+          const handle = await locker.lock();
+          try {
+            const abortHandle = onAbort(controller.signal, () => {
+              results.push(`operation-${i}: aborted`);
+            });
 
-             deferred.resolve(`result-${i}`);
-             const result = await deferred.promise;
-             
-             results.push(`operation-${i}: ${result}`);
-             abortHandle.release();
-           } finally {
-             handle.release();
-           }
-         })();
-         operations.push(operation);
-       }
+            deferred.resolve(`result-${i}`);
+            const result = await deferred.promise;
+
+            results.push(`operation-${i}: ${result}`);
+            abortHandle.release();
+          } finally {
+            handle.release();
+          }
+        })();
+        operations.push(operation);
+      }
 
       await Promise.all(operations);
 
@@ -318,9 +325,9 @@ describe('Integration Race Conditions', () => {
       await Promise.all(tasks);
 
       expect(errors).toHaveLength(3);
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error.message).toContain('Deferred error');
       });
     });
   });
-}); 
+});

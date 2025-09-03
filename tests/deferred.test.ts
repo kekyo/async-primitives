@@ -64,12 +64,16 @@ describe('Deferred', () => {
   describe('Promise state behavior', () => {
     it('should remain pending until resolved or rejected', async () => {
       const deferred = createDeferred<string>();
-      
+
       // Promise should be pending initially
       let promiseSettled = false;
       deferred.promise
-        .then(() => { promiseSettled = true; })
-        .catch(() => { promiseSettled = true; });
+        .then(() => {
+          promiseSettled = true;
+        })
+        .catch(() => {
+          promiseSettled = true;
+        });
 
       // Wait a bit to ensure promise doesn't settle immediately
       await delay(10);
@@ -150,7 +154,7 @@ describe('Deferred', () => {
 
       // Multiple promises waiting for the same result
       const waiters = Array.from({ length: 5 }, (_, i) =>
-        deferred.promise.then(value => {
+        deferred.promise.then((value) => {
           results.push(value + i);
         })
       );
@@ -228,7 +232,7 @@ describe('Deferred', () => {
       const results = await Promise.all([
         deferred1.promise,
         deferred2.promise,
-        deferred3.promise
+        deferred3.promise,
       ]);
 
       expect(results).toEqual([1, 'two', true]);
@@ -242,10 +246,7 @@ describe('Deferred', () => {
       setTimeout(() => deferred1.resolve('winner'), 10);
       setTimeout(() => deferred2.resolve('loser'), 50);
 
-      const result = await Promise.race([
-        deferred1.promise,
-        deferred2.promise
-      ]);
+      const result = await Promise.race([deferred1.promise, deferred2.promise]);
 
       expect(result).toBe('winner');
     });
@@ -262,14 +263,18 @@ describe('Deferred', () => {
 
       const results = await Promise.allSettled([
         deferred1.promise,
-        deferred2.promise
+        deferred2.promise,
       ]);
 
       expect(results).toHaveLength(2);
       expect(results[0].status).toBe('fulfilled');
-      expect((results[0] as PromiseFulfilledResult<string>).value).toBe('success');
+      expect((results[0] as PromiseFulfilledResult<string>).value).toBe(
+        'success'
+      );
       expect(results[1].status).toBe('rejected');
-      expect((results[1] as PromiseRejectedResult).reason.message).toBe('failure');
+      expect((results[1] as PromiseRejectedResult).reason.message).toBe(
+        'failure'
+      );
     });
   });
 
@@ -293,8 +298,10 @@ describe('Deferred', () => {
     });
 
     it('should handle many concurrent deferreds efficiently', async () => {
-      const deferreds = Array.from({ length: 1000 }, () => createDeferred<number>());
-      
+      const deferreds = Array.from({ length: 1000 }, () =>
+        createDeferred<number>()
+      );
+
       const startTime = Date.now();
 
       // Resolve all deferreds
@@ -303,7 +310,7 @@ describe('Deferred', () => {
       });
 
       // Wait for all to complete
-      const results = await Promise.all(deferreds.map(d => d.promise));
+      const results = await Promise.all(deferreds.map((d) => d.promise));
 
       const endTime = Date.now();
 
@@ -329,13 +336,13 @@ describe('Deferred', () => {
       const testObject: TestInterface = {
         id: 1,
         name: 'test',
-        active: true
+        active: true,
       };
 
       deferred.resolve(testObject);
 
       const result = await deferred.promise;
-      
+
       // TypeScript should ensure type safety here
       expect(result.id).toBe(1);
       expect(result.name).toBe('test');
@@ -443,7 +450,7 @@ describe('Deferred', () => {
       // Create many concurrent waiters
       for (let i = 0; i < 100; i++) {
         waiters.push(
-          deferred.promise.then(value => {
+          deferred.promise.then((value) => {
             results.push(`waiter-${i}-got-${value}`);
             return value;
           })
@@ -459,18 +466,20 @@ describe('Deferred', () => {
 
       // All waiters should get the same result
       expect(waiterResults).toHaveLength(100);
-      waiterResults.forEach(result => {
+      waiterResults.forEach((result) => {
         expect(result).toBe('shared-result');
       });
       expect(results).toHaveLength(100);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toMatch(/^waiter-\d+-got-shared-result$/);
       });
     });
 
     it('should handle Promise.all with concurrent deferred resolution', async () => {
-      const deferreds = Array.from({ length: 50 }, () => createDeferred<number>());
-      
+      const deferreds = Array.from({ length: 50 }, () =>
+        createDeferred<number>()
+      );
+
       // Resolve all deferreds concurrently with random delays
       const resolvers = deferreds.map(async (deferred, index) => {
         await delay(Math.random() * 10);
@@ -479,8 +488,8 @@ describe('Deferred', () => {
 
       // Wait for all using Promise.all
       const [results] = await Promise.all([
-        Promise.all(deferreds.map(d => d.promise)),
-        Promise.all(resolvers)
+        Promise.all(deferreds.map((d) => d.promise)),
+        Promise.all(resolvers),
       ]);
 
       expect(results).toHaveLength(50);
@@ -490,8 +499,10 @@ describe('Deferred', () => {
     });
 
     it('should handle mixed resolve/reject scenarios with Promise.allSettled', async () => {
-      const deferreds = Array.from({ length: 20 }, () => createDeferred<number>());
-      
+      const deferreds = Array.from({ length: 20 }, () =>
+        createDeferred<number>()
+      );
+
       // Resolve some, reject others
       const operations = deferreds.map(async (deferred, index) => {
         await delay(Math.random() * 5);
@@ -503,23 +514,27 @@ describe('Deferred', () => {
       });
 
       const [results] = await Promise.all([
-        Promise.allSettled(deferreds.map(d => d.promise)),
-        Promise.all(operations)
+        Promise.allSettled(deferreds.map((d) => d.promise)),
+        Promise.all(operations),
       ]);
 
       expect(results).toHaveLength(20);
-      
-      const fulfilled = results.filter(r => r.status === 'fulfilled') as PromiseFulfilledResult<number>[];
-      const rejected = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
+
+      const fulfilled = results.filter(
+        (r) => r.status === 'fulfilled'
+      ) as PromiseFulfilledResult<number>[];
+      const rejected = results.filter(
+        (r) => r.status === 'rejected'
+      ) as PromiseRejectedResult[];
 
       expect(fulfilled).toHaveLength(10); // Even indices
-      expect(rejected).toHaveLength(10);  // Odd indices
+      expect(rejected).toHaveLength(10); // Odd indices
 
-      fulfilled.forEach(result => {
+      fulfilled.forEach((result) => {
         expect(result.value % 2).toBe(0);
       });
 
-      rejected.forEach(result => {
+      rejected.forEach((result) => {
         expect(result.reason.message).toMatch(/^error-\d+$/);
       });
     });
@@ -531,11 +546,11 @@ describe('Deferred', () => {
 
       // Chain deferreds where each depends on the previous
       const chainPromise = deferred1.promise
-        .then(value => {
+        .then((value) => {
           deferred2.resolve(value.length);
           return deferred2.promise;
         })
-        .then(length => {
+        .then((length) => {
           deferred3.resolve(length > 5);
           return deferred3.promise;
         });
@@ -566,11 +581,11 @@ describe('Deferred', () => {
       const results = await Promise.all(accessors);
 
       expect(results).toHaveLength(30);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toBe('shared-value');
       });
       expect(accessResults).toHaveLength(30);
-      accessResults.forEach(result => {
+      accessResults.forEach((result) => {
         expect(result).toMatch(/^accessor-\d+-shared-value$/);
       });
     });
@@ -642,12 +657,12 @@ describe('Deferred', () => {
       const controller = new AbortController();
       const deferred = createDeferred<string>(controller.signal);
 
-      controller.abort();   // First
+      controller.abort(); // First
       deferred.resolve('resolved');
 
       try {
         await deferred.promise;
-        expect(true).toBe(false);    // Will not reached
+        expect(true).toBe(false); // Will not reached
       } catch (error) {
         expect((error as Error).message).toBe('Deferred aborted');
       }
@@ -657,7 +672,7 @@ describe('Deferred', () => {
       const controller = new AbortController();
       const deferred = createDeferred<string>(controller.signal);
 
-      deferred.resolve('resolved');   // First
+      deferred.resolve('resolved'); // First
       controller.abort();
 
       const result = await deferred.promise;
@@ -685,4 +700,3 @@ describe('Deferred', () => {
     });
   });
 });
-

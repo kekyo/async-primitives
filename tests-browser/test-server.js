@@ -7,7 +7,10 @@ const path = require('path');
 const server = http.createServer((req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, OPTIONS'
+  );
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -55,7 +58,8 @@ const server = http.createServer((req, res) => {
     const filePath = path.join(__dirname, '..', url.pathname);
     if (fs.existsSync(filePath)) {
       const ext = path.extname(filePath);
-      const contentType = ext === '.js' ? 'application/javascript' : 'text/plain';
+      const contentType =
+        ext === '.js' ? 'application/javascript' : 'text/plain';
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(fs.readFileSync(filePath));
       return;
@@ -83,4 +87,4 @@ process.on('SIGINT', () => {
   server.close(() => {
     console.log('Test server stopped');
   });
-}); 
+});

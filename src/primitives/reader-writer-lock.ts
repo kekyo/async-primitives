@@ -3,9 +3,9 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { ReaderWriterLock, ReadLockHandle, WriteLockHandle } from "../types";
-import { onAbort } from "./abort-hook";
-import { defer } from "./defer";
+import { ReaderWriterLock, ReadLockHandle, WriteLockHandle } from '../types';
+import { onAbort } from './abort-hook';
+import { defer } from './defer';
 
 /**
  * Internal queue item for read lock requests
@@ -58,7 +58,7 @@ const createReadLockHandle = (releaseCallback: () => void): ReadLockHandle => {
       return isActive;
     },
     release,
-    [Symbol.dispose]: release
+    [Symbol.dispose]: release,
   };
 };
 
@@ -67,7 +67,9 @@ const createReadLockHandle = (releaseCallback: () => void): ReadLockHandle => {
  * @param releaseCallback Callback function to release the write lock
  * @returns A WriteLockHandle object with release and dispose functionality
  */
-const createWriteLockHandle = (releaseCallback: () => void): WriteLockHandle => {
+const createWriteLockHandle = (
+  releaseCallback: () => void
+): WriteLockHandle => {
   let isActive = true;
 
   const release = (): void => {
@@ -83,7 +85,7 @@ const createWriteLockHandle = (releaseCallback: () => void): WriteLockHandle => 
       return isActive;
     },
     release,
-    [Symbol.dispose]: release
+    [Symbol.dispose]: release,
   };
 };
 
@@ -92,7 +94,9 @@ const createWriteLockHandle = (releaseCallback: () => void): WriteLockHandle => 
  * @param maxConsecutiveCalls The maximum number of consecutive calls before yielding control
  * @returns A new ReaderWriterLock with write-preferring policy
  */
-export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): ReaderWriterLock => {
+export const createReaderWriterLock = (
+  maxConsecutiveCalls: number = 20
+): ReaderWriterLock => {
   let currentReaders = 0;
   let hasWriter = false;
   const readQueue: ReadQueueItem[] = [];
@@ -123,10 +127,10 @@ export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): Reader
     else if (!hasWriter && writeQueue.length === 0 && readQueue.length > 0) {
       // Process all available readers at once
       const readersToProcess: ReadQueueItem[] = [];
-      
+
       while (readQueue.length > 0) {
         const item = readQueue.shift()!;
-        
+
         // Check if the request was aborted
         if (item.signal?.aborted) {
           item.reject(ABORTED_ERROR());
@@ -146,7 +150,7 @@ export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): Reader
 
   const scheduleNextProcess = (): void => {
     consecutiveCallCount++;
-    
+
     // Yield control with defer delay every maxConsecutiveCalls consecutive executions
     if (consecutiveCallCount >= maxConsecutiveCalls) {
       consecutiveCallCount = 0;
@@ -206,7 +210,7 @@ export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): Reader
         const queueItem: ReadQueueItem = {
           resolve: undefined!,
           reject: undefined!,
-          signal
+          signal,
         };
 
         const abortHandle = onAbort(signal, () => {
@@ -238,7 +242,7 @@ export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): Reader
         // Handle case without AbortSignal
         readQueue.push({
           resolve,
-          reject
+          reject,
         });
         processQueues();
       });
@@ -263,7 +267,7 @@ export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): Reader
         const queueItem: WriteQueueItem = {
           resolve: undefined!,
           reject: undefined!,
-          signal
+          signal,
         };
 
         const abortHandle = onAbort(signal, () => {
@@ -295,14 +299,14 @@ export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): Reader
         // Handle case without AbortSignal
         writeQueue.push({
           resolve,
-          reject
+          reject,
         });
         processQueues();
       });
     }
   };
 
-  return ({
+  return {
     readLock,
     writeLock,
     get currentReaders() {
@@ -316,6 +320,6 @@ export const createReaderWriterLock = (maxConsecutiveCalls: number = 20): Reader
     },
     get pendingWritersCount() {
       return writeQueue.length;
-    }
-  });
-}
+    },
+  };
+};

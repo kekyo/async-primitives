@@ -3,15 +3,20 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Deferred, ManuallyConditional, Conditional, LockHandle } from "../types";
-import { onAbort } from "./abort-hook";
-import { createDeferred } from "./deferred";
-import { __NOOP_HANDLER } from "./internal/utils";
+import {
+  Deferred,
+  ManuallyConditional,
+  Conditional,
+  LockHandle,
+} from '../types';
+import { onAbort } from './abort-hook';
+import { createDeferred } from './deferred';
+import { __NOOP_HANDLER } from './internal/utils';
 
 const __NOOP_HANDLE: LockHandle = {
   isActive: false,
   release: __NOOP_HANDLER,
-  [Symbol.dispose]: __NOOP_HANDLER
+  [Symbol.dispose]: __NOOP_HANDLER,
 } as const;
 
 /**
@@ -28,13 +33,13 @@ export const createConditional = (): Conditional => {
     },
     wait: async (signal?: AbortSignal) => {
       if (signal?.aborted) {
-        throw new Error("Conditional aborted");
+        throw new Error('Conditional aborted');
       }
       const waiter = createDeferred<void>();
       waiters.push(waiter);
       const disposer = onAbort(signal, () => {
         waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.reject(new Error("Conditional aborted"));
+        waiter.reject(new Error('Conditional aborted'));
       });
       try {
         await waiter.promise;
@@ -51,7 +56,9 @@ export const createConditional = (): Conditional => {
  * @param initialState - Optional initial state of the conditional (Default: false, dropped)
  * @returns A conditional that can be manually set and reset
  */
-export const createManuallyConditional = (initialState?: boolean): ManuallyConditional => {
+export const createManuallyConditional = (
+  initialState?: boolean
+): ManuallyConditional => {
   const waiters: Deferred<void>[] = [];
   let raised = initialState ?? false;
   return {
@@ -78,13 +85,13 @@ export const createManuallyConditional = (initialState?: boolean): ManuallyCondi
         return __NOOP_HANDLE;
       }
       if (signal?.aborted) {
-        throw new Error("Conditional aborted");
+        throw new Error('Conditional aborted');
       }
       const waiter = createDeferred<void>();
       waiters.push(waiter);
       const disposer = onAbort(signal, () => {
         waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.reject(new Error("Conditional aborted"));
+        waiter.reject(new Error('Conditional aborted'));
       });
       try {
         await waiter.promise;

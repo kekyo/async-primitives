@@ -3,8 +3,8 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Releasable } from "../types";
-import { __NOOP_RELEASABLE } from "./internal/utils";
+import { Releasable } from '../types';
+import { __NOOP_RELEASABLE } from './internal/utils';
 
 /**
  * Hooks up an abort handler to an AbortSignal and returns a handle for early cleanup
@@ -12,7 +12,10 @@ import { __NOOP_RELEASABLE } from "./internal/utils";
  * @param callback - The callback to call when the signal is aborted
  * @returns A Releasable handle that can be used to remove the abort listener early
  */
-export const onAbort = (signal: AbortSignal | undefined, callback: () => void): Releasable => {
+export const onAbort = (
+  signal: AbortSignal | undefined,
+  callback: () => void
+): Releasable => {
   if (!signal) {
     return __NOOP_RELEASABLE;
   }
@@ -39,7 +42,7 @@ export const onAbort = (signal: AbortSignal | undefined, callback: () => void): 
       }
     }
   };
- 
+
   const release = (): void => {
     if (abortHandler) {
       signal.removeEventListener('abort', abortHandler);
@@ -52,7 +55,7 @@ export const onAbort = (signal: AbortSignal | undefined, callback: () => void): 
   // Create the releasable handle
   const handle: Releasable = {
     release,
-    [Symbol.dispose]: release
+    [Symbol.dispose]: release,
   };
- return handle;
+  return handle;
 };

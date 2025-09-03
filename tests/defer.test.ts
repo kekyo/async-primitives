@@ -3,43 +3,43 @@ import { defer } from '../src/primitives/defer';
 
 /**
  * Tests for defer() function.
- * 
+ *
  * Important Note: Error Handling Tests and Mock Interference
  * =========================================================
- * 
+ *
  * During development, we initially included tests that verified defer()'s behavior
  * with error-throwing callbacks. These tests failed due to several factors:
- * 
+ *
  * 1. Mock Interference:
  *    - Tests use different mocking strategies (setImmediate spy, setTimeout mock, etc.)
  *    - Mock cleanup between tests can be incomplete, affecting subsequent tests
  *    - Vitest's `vi.clearAllMocks()` and `vi.restoreAllMocks()` don't always prevent
  *      cross-test contamination in complex async scenarios
- * 
+ *
  * 2. Vitest's Unhandled Error Detection:
  *    - Vitest catches ALL unhandled errors during test execution
  *    - Errors thrown in setImmediate/setTimeout callbacks are detected as "unhandled"
  *    - Even when errors are intentionally thrown for testing, Vitest reports them
  *    - This creates false positives where tests pass but show error warnings
- * 
+ *
  * 3. Test Environment vs Production Environment:
  *    - In production: defer() errors are handled by global error handlers
  *    - In test environment: Vitest's error detection intercepts these errors
  *    - Process.on('uncaughtException') handlers don't prevent Vitest detection
- * 
+ *
  * 4. Module Caching and Pre-computed Handler:
  *    - The defer() implementation uses a pre-computed handler function for performance
  *    - This handler is determined once at module load time based on setImmediate availability
  *    - Tests that modify global functions (setImmediate/setTimeout) after module load
  *      won't affect the already-computed handler
  *    - Solution: Use vi.resetModules() and dynamic import to force re-evaluation
- * 
+ *
  * 5. Solution Approach:
  *    - Use vi.resetModules() to clear module cache before environment simulation
  *    - Dynamic import to get fresh defer function with re-evaluated handler function
  *    - Test error behavior indirectly to avoid Vitest unhandled error detection
  *    - Maintain test isolation through proper mock cleanup
- * 
+ *
  * The lesson: When testing modules with startup-time optimizations, consider module
  * caching behavior and use dynamic imports for environment simulation tests.
  */
@@ -57,19 +57,21 @@ describe('defer', () => {
       // Clear module cache to force re-evaluation of DEFER_HANDLER
       // This is necessary because defer.ts pre-computes the handler at module load time
       vi.resetModules();
-      
+
       const callback = vi.fn();
       // Mock setImmediate to execute synchronously for testing purposes
       // Note: This mock could interfere with other tests if not properly cleaned up
-      const setImmediateSpy = vi.spyOn(global, 'setImmediate').mockImplementation((cb) => {
-        cb();
-        return {} as NodeJS.Immediate;
-      });
+      const setImmediateSpy = vi
+        .spyOn(global, 'setImmediate')
+        .mockImplementation((cb) => {
+          cb();
+          return {} as NodeJS.Immediate;
+        });
 
       // Re-import defer to get the new DEFER_HANDLER with mocked setImmediate
       // Without this dynamic import, the pre-computed handler would still use the original setImmediate
       const { defer: freshDefer } = await import('../src/primitives/defer');
-      
+
       freshDefer(callback);
 
       expect(setImmediateSpy).toHaveBeenCalledWith(callback);
@@ -87,7 +89,7 @@ describe('defer', () => {
       executionOrder.push(1);
 
       // Wait for next tick
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
 
       expect(executionOrder).toEqual([1, 2]);
     });
@@ -115,17 +117,19 @@ describe('defer', () => {
       // Clear module cache to force re-evaluation of DEFER_HANDLER
       // This allows the defer module to re-check setImmediate availability
       vi.resetModules();
-      
+
       const callback = vi.fn();
-      const setTimeoutSpy = vi.spyOn(global, 'setTimeout').mockImplementation((cb) => {
-        (cb as () => void)();
-        return {} as NodeJS.Timeout;
-      });
+      const setTimeoutSpy = vi
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((cb) => {
+          (cb as () => void)();
+          return {} as NodeJS.Timeout;
+        });
 
       // Re-import defer to get the new DEFER_HANDLER with undefined setImmediate
       // The fresh import will detect that setImmediate is undefined and use setTimeout
       const { defer: freshDefer } = await import('../src/primitives/defer');
-      
+
       freshDefer(callback);
 
       expect(setTimeoutSpy).toHaveBeenCalledWith(callback, 0);
@@ -140,7 +144,7 @@ describe('defer', () => {
       executionOrder.push(1);
 
       // Wait for next tick
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(executionOrder).toEqual([1, 2]);
     });
@@ -151,21 +155,21 @@ describe('defer', () => {
       const context = { value: 'test' };
       let capturedContext: any;
 
-      const callback = function(this: any) {
+      const callback = function (this: any) {
         capturedContext = this;
       };
 
       defer(callback.bind(context));
 
       // Wait for callback execution
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
 
       expect(capturedContext).toBe(context);
     });
 
     it('should defer callback execution without immediate invocation', () => {
       let executed = false;
-      
+
       const callback = () => {
         executed = true;
       };
@@ -173,16 +177,16 @@ describe('defer', () => {
       // defer() should not execute callback immediately
       defer(callback);
       expect(executed).toBe(false);
-      
+
       // This verifies that defer() doesn't execute callbacks synchronously,
       // which is the core safety guarantee we wanted to test.
-      // 
+      //
       // Originally, we had a test that verified defer() wouldn't throw even
       // with error-throwing callbacks. However, that approach caused:
       // - Vitest to detect unhandled errors (even when intentional)
       // - False positive error reports in test output
       // - Potential mock interference between tests
-      // 
+      //
       // This indirect approach achieves the same verification goal:
       // If defer() executed callbacks synchronously, this test would fail.
       // Since it passes, we know defer() properly defers execution.
@@ -199,9 +203,9 @@ describe('defer', () => {
       defer(callback3);
 
       // Wait for all callbacks to execute
-      await new Promise(resolve => setImmediate(resolve));
-      await new Promise(resolve => setImmediate(resolve));
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
 
       expect(executionOrder).toEqual([1, 2, 3]);
     });
@@ -212,7 +216,7 @@ describe('defer', () => {
       const executionOrder: string[] = [];
 
       defer(() => executionOrder.push('deferred'));
-      
+
       executionOrder.push('sync1');
       executionOrder.push('sync2');
 
@@ -220,7 +224,7 @@ describe('defer', () => {
       expect(executionOrder).toEqual(['sync1', 'sync2']);
 
       // Wait for deferred callback
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
 
       expect(executionOrder).toEqual(['sync1', 'sync2', 'deferred']);
     });
@@ -237,10 +241,12 @@ describe('defer', () => {
       // Wait for all callbacks to complete
       // Using setTimeout instead of setImmediate to avoid potential mock interference
       // from previous tests that may have modified setImmediate behavior
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(executionOrder).toHaveLength(CALLBACK_COUNT);
-      expect(executionOrder).toEqual(Array.from({ length: CALLBACK_COUNT }, (_, i) => i));
+      expect(executionOrder).toEqual(
+        Array.from({ length: CALLBACK_COUNT }, (_, i) => i)
+      );
     });
   });
-}); 
+});

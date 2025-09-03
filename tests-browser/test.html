@@ -1,55 +1,60 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Logical Context Browser Tests</title>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Logical Context Browser Tests</h1>
     <div id="test-results"></div>
 
     <script type="module">
-        // Import the library - this should trigger the hooks setup
-        import { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContextId, runOnNewLogicalContext } from '/dist/index.js';
+      // Import the library - this should trigger the hooks setup
+      import {
+        setLogicalContextValue,
+        getLogicalContextValue,
+        getCurrentLogicalContextId,
+        runOnNewLogicalContext,
+      } from '/dist/index.js';
 
-        // Make functions available globally for tests
-        window.setLogicalContextValue = setLogicalContextValue;
-        window.getLogicalContextValue = getLogicalContextValue;
-        window.getCurrentLogicalContextId = getCurrentLogicalContextId;
-        window.runOnNewLogicalContext = runOnNewLogicalContext;
-        
-        // Trigger hooks initialization by calling a function
-        // This ensures the logical context system is properly initialized
-        const testKey = Symbol('init-test');
-        setLogicalContextValue(testKey, 'init');
-        getLogicalContextValue(testKey);
+      // Make functions available globally for tests
+      window.setLogicalContextValue = setLogicalContextValue;
+      window.getLogicalContextValue = getLogicalContextValue;
+      window.getCurrentLogicalContextId = getCurrentLogicalContextId;
+      window.runOnNewLogicalContext = runOnNewLogicalContext;
 
-        // Test utilities
-        window.createTestKey = () => Symbol('test-key');
-        
-        window.waitForAnimationFrame = () => {
-            return new Promise(resolve => {
-                requestAnimationFrame(resolve);
-            });
-        };
+      // Trigger hooks initialization by calling a function
+      // This ensures the logical context system is properly initialized
+      const testKey = Symbol('init-test');
+      setLogicalContextValue(testKey, 'init');
+      getLogicalContextValue(testKey);
 
-        window.waitForTimeout = (ms) => {
-            return new Promise(resolve => {
-                setTimeout(resolve, ms);
-            });
-        };
+      // Test utilities
+      window.createTestKey = () => Symbol('test-key');
 
-        // Test result collector
-        window.testResults = [];
-        window.addTestResult = (name, result, error) => {
-            window.testResults.push({ name, result, error });
-            console.log(`Test: ${name} - ${result ? 'PASS' : 'FAIL'}`, error || '');
-        };
+      window.waitForAnimationFrame = () => {
+        return new Promise((resolve) => {
+          requestAnimationFrame(resolve);
+        });
+      };
 
-        // Signal that the page is ready
-        window.pageReady = true;
-        console.log('Test page ready');
+      window.waitForTimeout = (ms) => {
+        return new Promise((resolve) => {
+          setTimeout(resolve, ms);
+        });
+      };
+
+      // Test result collector
+      window.testResults = [];
+      window.addTestResult = (name, result, error) => {
+        window.testResults.push({ name, result, error });
+        console.log(`Test: ${name} - ${result ? 'PASS' : 'FAIL'}`, error || '');
+      };
+
+      // Signal that the page is ready
+      window.pageReady = true;
+      console.log('Test page ready');
     </script>
-</body>
-</html> 
+  </body>
+</html>

@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { onAbort } from "./abort-hook";
+import { onAbort } from './abort-hook';
 
 /**
  * Helper function to create a delay
@@ -32,7 +32,7 @@ export const delay = (msec: number, signal?: AbortSignal): Promise<void> => {
     });
   } else {
     // Without aborting handler
-    return new Promise<void>(resolve => {
+    return new Promise<void>((resolve) => {
       setTimeout(resolve, msec);
     });
   }

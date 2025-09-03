@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  createAsyncLocal,
-  runOnNewLogicalContext,
-} from '../src';
+import { createAsyncLocal, runOnNewLogicalContext } from '../src';
 
 describe('LogicalContext Additional Hooks', () => {
   describe('Observer hooks', () => {
@@ -10,10 +7,14 @@ describe('LogicalContext Additional Hooks', () => {
       // Mock MutationObserver
       if (typeof globalThis.MutationObserver === 'undefined') {
         class MockMutationObserver {
-          constructor(public callback: (mutations: any[], observer: any) => void) {}
+          constructor(
+            public callback: (mutations: any[], observer: any) => void
+          ) {}
           observe() {}
           disconnect() {}
-          takeRecords() { return []; }
+          takeRecords() {
+            return [];
+          }
 
           _triggerCallback() {
             this.callback([], this);
@@ -25,7 +26,9 @@ describe('LogicalContext Additional Hooks', () => {
       // Mock ResizeObserver
       if (typeof globalThis.ResizeObserver === 'undefined') {
         class MockResizeObserver {
-          constructor(public callback: (entries: any[], observer: any) => void) {}
+          constructor(
+            public callback: (entries: any[], observer: any) => void
+          ) {}
           observe() {}
           unobserve() {}
           disconnect() {}
@@ -40,11 +43,16 @@ describe('LogicalContext Additional Hooks', () => {
       // Mock IntersectionObserver
       if (typeof globalThis.IntersectionObserver === 'undefined') {
         class MockIntersectionObserver {
-          constructor(public callback: (entries: any[], observer: any) => void, public options?: any) {}
+          constructor(
+            public callback: (entries: any[], observer: any) => void,
+            public options?: any
+          ) {}
           observe() {}
           unobserve() {}
           disconnect() {}
-          takeRecords() { return []; }
+          takeRecords() {
+            return [];
+          }
 
           _triggerCallback() {
             this.callback([], this);
@@ -59,7 +67,10 @@ describe('LogicalContext Additional Hooks', () => {
           public onmessage: ((event: any) => void) | null = null;
           public onerror: ((event: any) => void) | null = null;
 
-          constructor(public scriptURL: string | URL, public options?: any) {}
+          constructor(
+            public scriptURL: string | URL,
+            public options?: any
+          ) {}
 
           postMessage() {}
           terminate() {}
@@ -83,7 +94,11 @@ describe('LogicalContext Additional Hooks', () => {
           postMessage(data: any) {
             if (this.otherPort && this.otherPort.onmessage) {
               setTimeout(() => {
-                this.otherPort.onmessage({ type: 'message', data, currentTarget: this.otherPort });
+                this.otherPort.onmessage({
+                  type: 'message',
+                  data,
+                  currentTarget: this.otherPort,
+                });
               }, 1);
             }
           }
@@ -145,10 +160,13 @@ describe('LogicalContext Additional Hooks', () => {
         const asyncLocal = createAsyncLocal<string>();
         asyncLocal.setValue('intersection-context');
 
-        const observer = new (globalThis as any).IntersectionObserver(() => {
-          expect(asyncLocal.getValue()).toBe('intersection-context');
-          resolve();
-        }, { threshold: 0.5 });
+        const observer = new (globalThis as any).IntersectionObserver(
+          () => {
+            expect(asyncLocal.getValue()).toBe('intersection-context');
+            resolve();
+          },
+          { threshold: 0.5 }
+        );
 
         // Trigger the callback
         observer._triggerCallback();
@@ -266,7 +284,7 @@ describe('LogicalContext Additional Hooks', () => {
           expect(asyncLocal.getValue()).toBe('promise-observer-context');
           resolve();
         });
-        
+
         observer._triggerCallback();
       });
 
@@ -281,7 +299,7 @@ describe('LogicalContext Additional Hooks', () => {
 
         const observer = new (globalThis as any).MutationObserver(() => {
           expect(asyncLocal.getValue()).toBe('combined-context');
-          
+
           setTimeout(() => {
             expect(asyncLocal.getValue()).toBe('combined-context');
             resolve();
@@ -292,4 +310,4 @@ describe('LogicalContext Additional Hooks', () => {
       });
     });
   });
-}); 
+});

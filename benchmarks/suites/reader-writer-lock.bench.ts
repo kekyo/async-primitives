@@ -54,152 +54,172 @@ export function createReaderWriterLockBenchmarks(bench: Bench) {
     });
 
   // Read-heavy workload (90% reads, 10% writes)
-  bench
-    .add('ReaderWriterLock read-heavy (100 ops)', async () => {
-      const lock = createReaderWriterLock();
-      const operations: Promise<void>[] = [];
-      
-      for (let i = 0; i < 100; i++) {
-        if (i % 10 === 0) {
-          // 10% writes
-          operations.push((async () => {
+  bench.add('ReaderWriterLock read-heavy (100 ops)', async () => {
+    const lock = createReaderWriterLock();
+    const operations: Promise<void>[] = [];
+
+    for (let i = 0; i < 100; i++) {
+      if (i % 10 === 0) {
+        // 10% writes
+        operations.push(
+          (async () => {
             const handle = await lock.writeLock();
             await Promise.resolve();
             handle.release();
-          })());
-        } else {
-          // 90% reads
-          operations.push((async () => {
+          })()
+        );
+      } else {
+        // 90% reads
+        operations.push(
+          (async () => {
             const handle = await lock.readLock();
             await Promise.resolve();
             handle.release();
-          })());
-        }
+          })()
+        );
       }
-      
-      await Promise.all(operations);
-    });
+    }
+
+    await Promise.all(operations);
+  });
 
   // Write-heavy workload (10% reads, 90% writes)
-  bench
-    .add('ReaderWriterLock write-heavy (100 ops)', async () => {
-      const lock = createReaderWriterLock();
-      const operations: Promise<void>[] = [];
-      
-      for (let i = 0; i < 100; i++) {
-        if (i % 10 === 0) {
-          // 10% reads
-          operations.push((async () => {
+  bench.add('ReaderWriterLock write-heavy (100 ops)', async () => {
+    const lock = createReaderWriterLock();
+    const operations: Promise<void>[] = [];
+
+    for (let i = 0; i < 100; i++) {
+      if (i % 10 === 0) {
+        // 10% reads
+        operations.push(
+          (async () => {
             const handle = await lock.readLock();
             await Promise.resolve();
             handle.release();
-          })());
-        } else {
-          // 90% writes
-          operations.push((async () => {
+          })()
+        );
+      } else {
+        // 90% writes
+        operations.push(
+          (async () => {
             const handle = await lock.writeLock();
             await Promise.resolve();
             handle.release();
-          })());
-        }
+          })()
+        );
       }
-      
-      await Promise.all(operations);
-    });
+    }
+
+    await Promise.all(operations);
+  });
 
   // Balanced workload (50% reads, 50% writes)
-  bench
-    .add('ReaderWriterLock balanced (100 ops)', async () => {
-      const lock = createReaderWriterLock();
-      const operations: Promise<void>[] = [];
-      
-      for (let i = 0; i < 100; i++) {
-        if (i % 2 === 0) {
-          // 50% reads
-          operations.push((async () => {
+  bench.add('ReaderWriterLock balanced (100 ops)', async () => {
+    const lock = createReaderWriterLock();
+    const operations: Promise<void>[] = [];
+
+    for (let i = 0; i < 100; i++) {
+      if (i % 2 === 0) {
+        // 50% reads
+        operations.push(
+          (async () => {
             const handle = await lock.readLock();
             await Promise.resolve();
             handle.release();
-          })());
-        } else {
-          // 50% writes
-          operations.push((async () => {
+          })()
+        );
+      } else {
+        // 50% writes
+        operations.push(
+          (async () => {
             const handle = await lock.writeLock();
             await Promise.resolve();
             handle.release();
-          })());
-        }
+          })()
+        );
       }
-      
-      await Promise.all(operations);
-    });
+    }
+
+    await Promise.all(operations);
+  });
 
   // Different maxConsecutiveCalls values
   bench
     .add('ReaderWriterLock maxCalls=10 mixed (100 ops)', async () => {
       const lock = createReaderWriterLock(10);
       const operations: Promise<void>[] = [];
-      
+
       for (let i = 0; i < 100; i++) {
         if (i % 3 === 0) {
-          operations.push((async () => {
-            const handle = await lock.writeLock();
-            handle.release();
-          })());
+          operations.push(
+            (async () => {
+              const handle = await lock.writeLock();
+              handle.release();
+            })()
+          );
         } else {
-          operations.push((async () => {
-            const handle = await lock.readLock();
-            handle.release();
-          })());
+          operations.push(
+            (async () => {
+              const handle = await lock.readLock();
+              handle.release();
+            })()
+          );
         }
       }
-      
+
       await Promise.all(operations);
     })
     .add('ReaderWriterLock maxCalls=50 mixed (100 ops)', async () => {
       const lock = createReaderWriterLock(50);
       const operations: Promise<void>[] = [];
-      
+
       for (let i = 0; i < 100; i++) {
         if (i % 3 === 0) {
-          operations.push((async () => {
-            const handle = await lock.writeLock();
-            handle.release();
-          })());
+          operations.push(
+            (async () => {
+              const handle = await lock.writeLock();
+              handle.release();
+            })()
+          );
         } else {
-          operations.push((async () => {
-            const handle = await lock.readLock();
-            handle.release();
-          })());
+          operations.push(
+            (async () => {
+              const handle = await lock.readLock();
+              handle.release();
+            })()
+          );
         }
       }
-      
+
       await Promise.all(operations);
     });
 
   // Write-preferring policy test
-  bench
-    .add('ReaderWriterLock write-preference test (50 ops)', async () => {
-      const lock = createReaderWriterLock();
-      const operations: Promise<void>[] = [];
-      
-      // Start with some readers, then add writers to test preference
-      for (let i = 0; i < 25; i++) {
-        operations.push((async () => {
+  bench.add('ReaderWriterLock write-preference test (50 ops)', async () => {
+    const lock = createReaderWriterLock();
+    const operations: Promise<void>[] = [];
+
+    // Start with some readers, then add writers to test preference
+    for (let i = 0; i < 25; i++) {
+      operations.push(
+        (async () => {
           const handle = await lock.readLock();
           await Promise.resolve();
           handle.release();
-        })());
-      }
-      
-      for (let i = 0; i < 25; i++) {
-        operations.push((async () => {
+        })()
+      );
+    }
+
+    for (let i = 0; i < 25; i++) {
+      operations.push(
+        (async () => {
           const handle = await lock.writeLock();
           await Promise.resolve();
           handle.release();
-        })());
-      }
-      
-      await Promise.all(operations);
-    });
+        })()
+      );
+    }
+
+    await Promise.all(operations);
+  });
 }

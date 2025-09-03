@@ -71,7 +71,7 @@ describe('ReaderWriterLock', () => {
       // Second writer should now acquire
       await writePromise;
       expect(secondWriterAcquired).toBe(true);
-      
+
       // After second writer releases, lock should be free
       expect(rwLock.hasWriter).toBe(false);
       expect(rwLock.currentReaders).toBe(0);
@@ -190,7 +190,7 @@ describe('ReaderWriterLock', () => {
         'reader: requesting',
         'writer: released',
         'reader: acquired',
-        'reader: released'
+        'reader: released',
       ]);
     });
 
@@ -238,7 +238,7 @@ describe('ReaderWriterLock', () => {
         'reader1: released',
         'reader2: released',
         'writer: acquired',
-        'writer: released'
+        'writer: released',
       ]);
     });
   });
@@ -292,7 +292,7 @@ describe('ReaderWriterLock', () => {
         'writer: acquired',
         'writer: released',
         'reader2: acquired',
-        'reader2: released'
+        'reader2: released',
       ]);
     });
 
@@ -321,15 +321,19 @@ describe('ReaderWriterLock', () => {
       await Promise.all(readerPromises);
 
       // All readers should have acquired at roughly the same time
-      const acquiredLines = readerResults.filter(r => r.includes('acquired'));
-      const releasedLines = readerResults.filter(r => r.includes('released'));
-      
+      const acquiredLines = readerResults.filter((r) => r.includes('acquired'));
+      const releasedLines = readerResults.filter((r) => r.includes('released'));
+
       expect(acquiredLines).toHaveLength(3);
       expect(releasedLines).toHaveLength(3);
-      
+
       // All acquisitions should come before any releases (proving concurrent access)
-      const firstReleaseIndex = readerResults.findIndex(r => r.includes('released'));
-      const lastAcquireIndex = readerResults.lastIndexOf(readerResults.find(r => r.includes('acquired'))!);
+      const firstReleaseIndex = readerResults.findIndex((r) =>
+        r.includes('released')
+      );
+      const lastAcquireIndex = readerResults.lastIndexOf(
+        readerResults.find((r) => r.includes('acquired'))!
+      );
       expect(lastAcquireIndex).toBeLessThan(firstReleaseIndex);
     });
   });
@@ -427,7 +431,10 @@ describe('ReaderWriterLock', () => {
 
     it('should handle multiple simultaneous AbortSignal cancellations', async () => {
       const rwLock = createReaderWriterLock();
-      const controllers = Array.from({ length: 5 }, () => new AbortController());
+      const controllers = Array.from(
+        { length: 5 },
+        () => new AbortController()
+      );
 
       // Hold a write lock
       const writeHandle = await rwLock.writeLock();
@@ -446,12 +453,12 @@ describe('ReaderWriterLock', () => {
       expect(rwLock.pendingReadersCount).toBe(5);
 
       // Abort all signals
-      controllers.forEach(controller => controller.abort());
+      controllers.forEach((controller) => controller.abort());
 
       await Promise.all(promises);
 
       expect(errors).toHaveLength(5);
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error.message).toContain('aborted');
       });
 
@@ -542,12 +549,10 @@ describe('ReaderWriterLock', () => {
           // Both locks are held
           expect(readHandle1.isActive).toBe(true);
           expect(writeHandle2.isActive).toBe(true);
-
         } finally {
           writeHandle2.release();
         }
         expect(rwLock2.hasWriter).toBe(false);
-
       } finally {
         readHandle1.release();
       }
@@ -675,7 +680,7 @@ describe('ReaderWriterLock', () => {
       const writeHandle = await rwLock.writeLock();
 
       const errors: Error[] = [];
-      
+
       const readPromise1 = (async () => {
         try {
           const handle = await rwLock.readLock(readController1.signal);
@@ -723,7 +728,12 @@ describe('ReaderWriterLock', () => {
       // Release the write lock
       writeHandle.release();
 
-      await Promise.all([readPromise1, readPromise2, readPromise3, writePromise]);
+      await Promise.all([
+        readPromise1,
+        readPromise2,
+        readPromise3,
+        writePromise,
+      ]);
 
       expect(errors).toHaveLength(2);
       expect(rwLock.currentReaders).toBe(0);
@@ -734,18 +744,18 @@ describe('ReaderWriterLock', () => {
 
     it('should deadlock when attempting to upgrade read lock to write lock', async () => {
       const rwLock = createReaderWriterLock();
-      
+
       // Acquire a read lock
       const readHandle = await rwLock.readLock();
       expect(rwLock.currentReaders).toBe(1);
-      
+
       // Attempt to acquire write lock while holding read lock (will deadlock)
       let error: Error | null = null;
       try {
         // Use AbortSignal.timeout for 500ms timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 500);
-        
+
         try {
           const writeHandle = await rwLock.writeLock(controller.signal);
           // Should never reach here
@@ -756,11 +766,11 @@ describe('ReaderWriterLock', () => {
       } catch (e) {
         error = e as Error;
       }
-      
+
       // Should have been aborted due to deadlock
       expect(error).toBeTruthy();
       expect(error!.message).toContain('aborted');
-      
+
       // Clean up
       readHandle.release();
       expect(rwLock.currentReaders).toBe(0);
@@ -768,18 +778,18 @@ describe('ReaderWriterLock', () => {
 
     it('should deadlock when attempting to acquire read lock while holding write lock', async () => {
       const rwLock = createReaderWriterLock();
-      
+
       // Acquire a write lock
       const writeHandle = await rwLock.writeLock();
       expect(rwLock.hasWriter).toBe(true);
-      
+
       // Attempt to acquire read lock while holding write lock (will deadlock)
       let error: Error | null = null;
       try {
         // Use AbortSignal.timeout for 500ms timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 500);
-        
+
         try {
           const readHandle = await rwLock.readLock(controller.signal);
           // Should never reach here
@@ -790,11 +800,11 @@ describe('ReaderWriterLock', () => {
       } catch (e) {
         error = e as Error;
       }
-      
+
       // Should have been aborted due to deadlock
       expect(error).toBeTruthy();
       expect(error!.message).toContain('aborted');
-      
+
       // Clean up
       writeHandle.release();
       expect(rwLock.hasWriter).toBe(false);
@@ -802,18 +812,18 @@ describe('ReaderWriterLock', () => {
 
     it('should deadlock when attempting to upgrade while holding multiple read locks', async () => {
       const rwLock = createReaderWriterLock();
-      
+
       // Acquire multiple read locks from same context
       const readHandle1 = await rwLock.readLock();
       const readHandle2 = await rwLock.readLock();
       expect(rwLock.currentReaders).toBe(2);
-      
+
       // Attempt to acquire write lock (will deadlock waiting for own read locks)
       let error: Error | null = null;
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 500);
-        
+
         try {
           const writeHandle = await rwLock.writeLock(controller.signal);
           // Should never reach here
@@ -824,11 +834,11 @@ describe('ReaderWriterLock', () => {
       } catch (e) {
         error = e as Error;
       }
-      
+
       // Should have been aborted due to deadlock
       expect(error).toBeTruthy();
       expect(error!.message).toContain('aborted');
-      
+
       // Clean up
       readHandle1.release();
       readHandle2.release();
@@ -837,11 +847,11 @@ describe('ReaderWriterLock', () => {
 
     it('should NOT support reentrant write locking (documents current limitation)', async () => {
       const rwLock = createReaderWriterLock();
-      
+
       // Acquire a write lock
       const handle1 = await rwLock.writeLock();
       expect(rwLock.hasWriter).toBe(true);
-      
+
       // Try to acquire another write lock from same context (will block)
       let secondAcquired = false;
       const promise = (async () => {
@@ -849,17 +859,17 @@ describe('ReaderWriterLock', () => {
         secondAcquired = true;
         handle2.release();
       })();
-      
+
       // Give time for the second acquisition to try
       await delay(10);
-      
+
       // Second acquisition should be blocked (not reentrant)
       expect(secondAcquired).toBe(false);
       expect(rwLock.pendingWritersCount).toBe(1);
-      
+
       // Release first lock
       handle1.release();
-      
+
       // Now second acquisition should complete
       await promise;
       expect(secondAcquired).toBe(true);
@@ -869,24 +879,24 @@ describe('ReaderWriterLock', () => {
 
     it('should allow multiple read locks from same context (not tracked separately)', async () => {
       const rwLock = createReaderWriterLock();
-      
+
       // Can acquire multiple read locks from same context
       const handle1 = await rwLock.readLock();
       const handle2 = await rwLock.readLock();
       const handle3 = await rwLock.readLock();
-      
+
       expect(rwLock.currentReaders).toBe(3);
-      
+
       // Each needs to be released separately
       handle1.release();
       expect(rwLock.currentReaders).toBe(2);
-      
+
       handle2.release();
       expect(rwLock.currentReaders).toBe(1);
-      
+
       handle3.release();
       expect(rwLock.currentReaders).toBe(0);
-      
+
       // This documents that the lock doesn't track "who" holds it
       // Multiple reads from same context are allowed and counted separately
     });

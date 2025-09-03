@@ -3,7 +3,10 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { getLogicalContextValue, setLogicalContextValue } from './logical-context';
+import {
+  getLogicalContextValue,
+  setLogicalContextValue,
+} from './logical-context';
 
 /**
  * AsyncLocal instance interface
@@ -37,6 +40,6 @@ export const createAsyncLocal = <T>(): AsyncLocal<T> => {
     },
     getValue: () => {
       return getLogicalContextValue<T>(key);
-    }
+    },
   };
 };

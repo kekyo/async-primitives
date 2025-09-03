@@ -3,9 +3,9 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Mutex, LockHandle } from "../types";
-import { onAbort } from "./abort-hook";
-import { defer } from "./defer";
+import { Mutex, LockHandle } from '../types';
+import { onAbort } from './abort-hook';
+import { defer } from './defer';
 
 /**
  * Internal queue item for lock requests
@@ -44,7 +44,7 @@ const createLockHandle = (releaseCallback: () => void): LockHandle => {
       return isActive;
     },
     release,
-    [Symbol.dispose]: release
+    [Symbol.dispose]: release,
   };
 };
 
@@ -82,7 +82,7 @@ export const createMutex = (maxConsecutiveCalls: number = 20): Mutex => {
 
   const scheduleNextProcess = (): void => {
     count++;
-    
+
     // Yield control with defer delay every maxConsecutiveCalls consecutive executions
     if (count >= maxConsecutiveCalls) {
       count = 0;
@@ -122,7 +122,7 @@ export const createMutex = (maxConsecutiveCalls: number = 20): Mutex => {
         const queueItem: QueueItem = {
           resolve: undefined!,
           reject: undefined!,
-          signal
+          signal,
         };
 
         const abortHandle = onAbort(signal, () => {
@@ -148,20 +148,20 @@ export const createMutex = (maxConsecutiveCalls: number = 20): Mutex => {
         // Handle case without AbortSignal
         queue.push({
           resolve,
-          reject
+          reject,
         });
         processQueue();
       });
     }
   };
 
-  return ({
+  return {
     lock,
     get isLocked() {
       return isLocked;
     },
     get pendingCount() {
       return queue.length;
-    }
-  });
-}
+    },
+  };
+};

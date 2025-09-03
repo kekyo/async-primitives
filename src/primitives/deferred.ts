@@ -3,8 +3,8 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Deferred } from "../types";
-import { onAbort } from "./abort-hook";
+import { Deferred } from '../types';
+import { onAbort } from './abort-hook';
 
 /**
  * Creates a new deferred object
@@ -33,7 +33,7 @@ export const createDeferred = <T>(signal?: AbortSignal): Deferred<T> => {
       reject = undefined;
 
       // Reject the promise with an error
-      _reject(new Error("Deferred aborted"));
+      _reject(new Error('Deferred aborted'));
     }
   });
 
@@ -71,6 +71,6 @@ export const createDeferred = <T>(signal?: AbortSignal): Deferred<T> => {
         // Reject the promise with an error
         _reject(error);
       }
-    }
+    },
   };
 };

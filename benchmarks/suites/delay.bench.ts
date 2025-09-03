@@ -9,4 +9,4 @@ export function createDelayBenchmarks(bench: Bench) {
     .add('delay(1)', async () => {
       await delay(1);
     });
-} 
+}
