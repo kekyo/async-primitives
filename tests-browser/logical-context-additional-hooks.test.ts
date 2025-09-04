@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { TestServerManager, waitForPageReady, runBrowserTest } from './test-helpers';
+import {
+  TestServerManager,
+  waitForPageReady,
+  runBrowserTest,
+} from './test-helpers';
 
 test.describe('Browser Additional Hooks - LogicalContext', () => {
   let serverManager: TestServerManager;
@@ -11,9 +15,9 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
     await serverManager.start();
 
     // Enable console logging
-    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
-    page.on('pageerror', error => console.log('PAGE ERROR:', error));
-    
+    page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
+    page.on('pageerror', (error) => console.log('PAGE ERROR:', error));
+
     // Wait for page to be ready
     await waitForPageReady(page, serverManager.getBaseUrl());
   });
@@ -26,7 +30,9 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
   });
 
   test('MutationObserver should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'mutation-observer-context';
       let capturedValue;
@@ -69,7 +75,8 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -78,7 +85,9 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
   });
 
   test('ResizeObserver should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'resize-observer-context';
       let capturedValue;
@@ -121,7 +130,8 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -129,8 +139,12 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
     }
   });
 
-  test('IntersectionObserver should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('IntersectionObserver should maintain logical context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'intersection-observer-context';
       let capturedValue;
@@ -177,7 +191,8 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -185,8 +200,12 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
     }
   });
 
-  test('WebSocket should maintain logical context in event handlers', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('WebSocket should maintain logical context in event handlers', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'websocket-context';
       let capturedOpenValue;
@@ -249,7 +268,8 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedMessageValue !== testValue) {
         throw new Error(\`onmessage: Expected '\${testValue}', got '\${capturedMessageValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -257,8 +277,12 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
     }
   });
 
-  test('Worker should maintain logical context in message handlers', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('Worker should maintain logical context in message handlers', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'worker-context';
       let capturedValue;
@@ -313,7 +337,8 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -321,8 +346,12 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
     }
   });
 
-  test('MessageChannel should maintain logical context in port handlers', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('MessageChannel should maintain logical context in port handlers', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'message-channel-context';
       let capturedValue;
@@ -365,7 +394,8 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -373,8 +403,12 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
     }
   });
 
-  test('MessageChannel with addEventListener should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('MessageChannel with addEventListener should maintain logical context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'message-channel-listener-context';
       let capturedValue;
@@ -417,16 +451,24 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
-      console.error('MessageChannel addEventListener test failed:', result.error);
+      console.error(
+        'MessageChannel addEventListener test failed:',
+        result.error
+      );
     }
   });
 
-  test('Context isolation across different Observer instances', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('Context isolation across different Observer instances', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const value1 = 'observer-context-1';
       const value2 = 'observer-context-2';
@@ -483,7 +525,8 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue2 !== value2) {
         throw new Error(\`Observer2: Expected '\${value2}', got '\${capturedValue2}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -491,8 +534,12 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
     }
   });
 
-  test('Integration: setTimeout + MutationObserver should maintain context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('Integration: setTimeout + MutationObserver should maintain context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'integration-context';
       let capturedValue1;
@@ -540,11 +587,12 @@ test.describe('Browser Additional Hooks - LogicalContext', () => {
       if (capturedValue2 !== testValue) {
         throw new Error(\`MutationObserver: Expected '\${testValue}', got '\${capturedValue2}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
       console.error('Integration test failed:', result.error);
     }
   });
-}); 
+});

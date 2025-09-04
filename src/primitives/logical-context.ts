@@ -3,21 +3,29 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { createLogicalContext, currentLogicalContext, prepare, setCurrentLogicalContext } from "./internal/logical-context";
+import {
+  createLogicalContext,
+  currentLogicalContext,
+  prepare,
+  setCurrentLogicalContext,
+} from './internal/logical-context';
 
 /**
  * Set a value in the current logical context
  * @param key The symbol key for the value
  * @param value The value to store
  */
-export const setLogicalContextValue = <T>(key: symbol, value: T | undefined) => {
+export const setLogicalContextValue = <T>(
+  key: symbol,
+  value: T | undefined
+) => {
   prepare();
   if (value !== undefined) {
     currentLogicalContext.data.set(key, value);
   } else {
     currentLogicalContext.data.delete(key);
   }
-}
+};
 
 /**
  * Get a value from the current logical context
@@ -27,7 +35,7 @@ export const setLogicalContextValue = <T>(key: symbol, value: T | undefined) => 
 export const getLogicalContextValue = <T>(key: symbol) => {
   prepare();
   return currentLogicalContext.data.get(key) as T | undefined;
-}
+};
 
 /**
  * Run a handler on a new logical context
@@ -37,7 +45,9 @@ export const getLogicalContextValue = <T>(key: symbol) => {
  */
 export const runOnNewLogicalContext = <T>(prefix: string, handler: () => T) => {
   const previousLogicalContext = currentLogicalContext;
-  setCurrentLogicalContext(createLogicalContext(Symbol(`${prefix}-${crypto.randomUUID()}`)));
+  setCurrentLogicalContext(
+    createLogicalContext(Symbol(`${prefix}-${crypto.randomUUID()}`))
+  );
   try {
     return handler();
   } finally {
@@ -50,7 +60,9 @@ export const runOnNewLogicalContext = <T>(prefix: string, handler: () => T) => {
  * @param idPrefix The prefix for the new logical context id
  */
 export const switchToNewLogicalContext = (idPrefix: string): void => {
-  setCurrentLogicalContext(createLogicalContext(Symbol(`${idPrefix}-${crypto.randomUUID()}`)));
+  setCurrentLogicalContext(
+    createLogicalContext(Symbol(`${idPrefix}-${crypto.randomUUID()}`))
+  );
 };
 
 /**

@@ -4,10 +4,10 @@
 // https://github.com/kekyo/async-primitives
 
 // Export all types
-export * from './types'
+export * from './types';
 
 // delay function export.
-export { delay } from "./primitives/delay";
+export { delay } from './primitives/delay';
 
 // defer function export.
 export { defer } from './primitives/defer';
@@ -17,11 +17,6 @@ export { onAbort } from './primitives/abort-hook';
 
 // Mutex exports - only the create function, not the interface
 export { createMutex } from './primitives/mutex';
-// Deprecated alias for backward compatibility
-export { 
-  /** @deprecated Use `createMutex` instead */
-  createMutex as createAsyncLock 
-} from './primitives/mutex';
 
 // Deferred exports - only the create function, not the interface
 export { createDeferred } from './primitives/deferred';
@@ -30,17 +25,18 @@ export { createDeferred } from './primitives/deferred';
 export { createDeferredGenerator } from './primitives/deferred-generator';
 
 // Conditional exports
-export { createConditional, createManuallyConditional } from './primitives/conditional';
-// Deprecated aliases for backward compatibility
-export { 
-  /** @deprecated Use `createConditional` instead */
-  createConditional as createSignal,
-  /** @deprecated Use `createManuallyConditional` instead */
-  createManuallyConditional as createManuallySignal
+export {
+  createConditional,
+  createManuallyConditional,
 } from './primitives/conditional';
 
 // Logical context exports
-export { setLogicalContextValue, getLogicalContextValue, getCurrentLogicalContextId, runOnNewLogicalContext } from './primitives/logical-context';
+export {
+  setLogicalContextValue,
+  getLogicalContextValue,
+  getCurrentLogicalContextId,
+  runOnNewLogicalContext,
+} from './primitives/logical-context';
 
 // AsyncLocal exports
 export { createAsyncLocal } from './primitives/async-local';
@@ -50,3 +46,19 @@ export { createSemaphore } from './primitives/semaphore';
 
 // ReaderWriterLock exports - only the create function, not the interface
 export { createReaderWriterLock } from './primitives/reader-writer-lock';
+
+/////////////////////////////////////////////////////////////
+
+// Deprecated aliases for backward compatibility
+
+export {
+  /** @deprecated Use `createMutex` instead */
+  createMutex as createAsyncLock,
+} from './primitives/mutex';
+
+export {
+  /** @deprecated Use `createConditional` instead */
+  createConditional as createSignal,
+  /** @deprecated Use `createManuallyConditional` instead */
+  createManuallyConditional as createManuallySignal,
+} from './primitives/conditional';

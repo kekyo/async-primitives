@@ -16,7 +16,7 @@ export class TestServerManager {
     this.config = {
       port: TestServerManager.portCounter++,
       timeout: 10000,
-      ...config
+      ...config,
     };
   }
 
@@ -26,27 +26,33 @@ export class TestServerManager {
     }
 
     const serverPath = path.join(__dirname, 'test-server.js');
-    
+
     return new Promise((resolve, reject) => {
       // Set the port via environment variable
       const env = { ...process.env, PORT: this.config.port.toString() };
-      
+
       this.serverProcess = spawn('node', [serverPath], {
         env,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
 
       let serverReady = false;
       const timeout = setTimeout(() => {
         if (!serverReady) {
           this.stop();
-          reject(new Error(`Test server failed to start within ${this.config.timeout}ms`));
+          reject(
+            new Error(
+              `Test server failed to start within ${this.config.timeout}ms`
+            )
+          );
         }
       }, this.config.timeout);
 
       this.serverProcess.stdout?.on('data', (data) => {
         const output = data.toString();
-        if (output.includes(`Test server running on port ${this.config.port}`)) {
+        if (
+          output.includes(`Test server running on port ${this.config.port}`)
+        ) {
           serverReady = true;
           clearTimeout(timeout);
           resolve();
@@ -104,29 +110,39 @@ export class TestServerManager {
 // Helper to wait for page to be ready
 export async function waitForPageReady(page: Page, baseUrl: string) {
   await page.goto(`${baseUrl}/test.html`);
-  
+
   try {
-    await page.waitForFunction(() => {
-      return (window as any).setLogicalContextValue && 
-             (window as any).getLogicalContextValue && 
-             (window as any).getCurrentLogicalContextId &&
-             (window as any).runOnNewLogicalContext;
-    }, { timeout: 10000 });
+    await page.waitForFunction(
+      () => {
+        return (
+          (window as any).setLogicalContextValue &&
+          (window as any).getLogicalContextValue &&
+          (window as any).getCurrentLogicalContextId &&
+          (window as any).runOnNewLogicalContext
+        );
+      },
+      { timeout: 10000 }
+    );
   } catch (error) {
     const pageContent = await page.content();
     console.log('Page content length:', pageContent.length);
-    
+
     // Check if library loaded
-    const libraryLoaded = await page.evaluate('typeof window.setLogicalContextValue');
+    const libraryLoaded = await page.evaluate(
+      'typeof window.setLogicalContextValue'
+    );
     console.log('Library loaded:', libraryLoaded);
-    
+
     throw error;
   }
 }
 
 // Helper to run test in browser context
-export async function runBrowserTest(page: Page, testFn: string): Promise<{ success: boolean; error?: string }> {
-  const result = await page.evaluate(`
+export async function runBrowserTest(
+  page: Page,
+  testFn: string
+): Promise<{ success: boolean; error?: string }> {
+  const result = (await page.evaluate(`
     (async () => {
       try {
         ${testFn}
@@ -135,6 +151,6 @@ export async function runBrowserTest(page: Page, testFn: string): Promise<{ succ
         return { success: false, error: error.message };
       }
     })()
-  `) as { success: boolean; error?: string };
+  `)) as { success: boolean; error?: string };
   return result;
-} 
+}

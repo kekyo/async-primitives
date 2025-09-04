@@ -15,8 +15,10 @@ import { createConditionalBenchmarks } from './suites/conditional.bench.js';
 import { createComparisonBenchmarks } from './suites/comparison.bench.js';
 
 async function main() {
-  const outputFormat = process.argv.includes('--output=json') ? 'json' : 'markdown';
-  
+  const outputFormat = process.argv.includes('--output=json')
+    ? 'json'
+    : 'markdown';
+
   console.log('🚀 Starting async-primitives benchmarks...\n');
 
   const bench = new Bench({ time: 1000, iterations: 10 });
@@ -40,8 +42,8 @@ async function main() {
 
   const systemInfo = getSystemInfo();
   const results = formatResults(bench.tasks, systemInfo, outputFormat);
-  
+
   console.log(results);
 }
 
-main().catch(console.error); 
+main().catch(console.error);

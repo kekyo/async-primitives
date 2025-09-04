@@ -3,9 +3,9 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Semaphore, SemaphoreHandle } from "../types";
-import { onAbort } from "./abort-hook";
-import { defer } from "./defer";
+import { LockHandle, Semaphore } from '../types';
+import { onAbort } from './abort-hook';
+import { defer } from './defer';
 
 /**
  * Internal queue item for semaphore acquisition requests
@@ -13,7 +13,7 @@ import { defer } from "./defer";
 interface QueueItem {
   /** Promise resolver for the semaphore acquisition */
   // eslint-disable-next-line no-unused-vars
-  resolve: (handle: SemaphoreHandle) => void;
+  resolve: (handle: LockHandle) => void;
   /** Promise rejecter for the semaphore acquisition */
   // eslint-disable-next-line no-unused-vars
   reject: (error: Error) => void;
@@ -22,14 +22,15 @@ interface QueueItem {
 }
 
 const ABORTED_ERROR = () => new Error('Semaphore acquisition was aborted');
-const INVALID_COUNT_ERROR = () => new Error('Semaphore count must be greater than 0');
+const INVALID_COUNT_ERROR = () =>
+  new Error('Semaphore count must be greater than 0');
 
 /**
  * Creates a new SemaphoreHandle instance
  * @param releaseCallback Callback function to release the semaphore resource
  * @returns A SemaphoreHandle object with release and dispose functionality
  */
-const createSemaphoreHandle = (releaseCallback: () => void): SemaphoreHandle => {
+const createSemaphoreHandle = (releaseCallback: () => void): LockHandle => {
   let isActive = true;
 
   const release = (): void => {
@@ -45,7 +46,7 @@ const createSemaphoreHandle = (releaseCallback: () => void): SemaphoreHandle => 
       return isActive;
     },
     release,
-    [Symbol.dispose]: release
+    [Symbol.dispose]: release,
   };
 };
 
@@ -55,7 +56,10 @@ const createSemaphoreHandle = (releaseCallback: () => void): SemaphoreHandle => 
  * @param maxConsecutiveCalls The maximum number of consecutive calls before yielding control
  * @returns A new Semaphore for managing concurrent resource access
  */
-export const createSemaphore = (count: number, maxConsecutiveCalls: number = 20): Semaphore => {
+export const createSemaphore = (
+  count: number,
+  maxConsecutiveCalls: number = 20
+): Semaphore => {
   if (count < 1) {
     throw INVALID_COUNT_ERROR();
   }
@@ -86,7 +90,7 @@ export const createSemaphore = (count: number, maxConsecutiveCalls: number = 20)
 
   const scheduleNextProcess = (): void => {
     consecutiveCallCount++;
-    
+
     // Yield control with defer delay every maxConsecutiveCalls consecutive executions
     if (consecutiveCallCount >= maxConsecutiveCalls) {
       consecutiveCallCount = 0;
@@ -110,7 +114,7 @@ export const createSemaphore = (count: number, maxConsecutiveCalls: number = 20)
     }
   };
 
-  const acquire = async (signal?: AbortSignal): Promise<SemaphoreHandle> => {
+  const acquire = async (signal?: AbortSignal): Promise<LockHandle> => {
     if (signal) {
       // Check if already aborted
       if (signal.aborted) {
@@ -123,12 +127,12 @@ export const createSemaphore = (count: number, maxConsecutiveCalls: number = 20)
         return createSemaphoreHandle(releaseSemaphore);
       }
 
-      return new Promise<SemaphoreHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case with AbortSignal
         const queueItem: QueueItem = {
           resolve: undefined!,
           reject: undefined!,
-          signal
+          signal,
         };
 
         const abortHandle = onAbort(signal, () => {
@@ -137,7 +141,7 @@ export const createSemaphore = (count: number, maxConsecutiveCalls: number = 20)
         });
 
         // Wrap to clean up
-        queueItem.resolve = (handle: SemaphoreHandle) => {
+        queueItem.resolve = (handle: LockHandle) => {
           abortHandle.release();
           resolve(handle);
         };
@@ -156,24 +160,29 @@ export const createSemaphore = (count: number, maxConsecutiveCalls: number = 20)
         return createSemaphoreHandle(releaseSemaphore);
       }
 
-      return new Promise<SemaphoreHandle>((resolve, reject) => {
+      return new Promise<LockHandle>((resolve, reject) => {
         // Handle case without AbortSignal
         queue.push({
           resolve,
-          reject
+          reject,
         });
         processQueue();
       });
     }
   };
 
-  return ({
+  const result: Semaphore = {
     acquire,
+    waiter: {
+      wait: acquire,
+    },
     get availableCount() {
       return availableCount;
     },
     get pendingCount() {
       return queue.length;
-    }
-  });
-}
+    },
+  };
+
+  return result;
+};

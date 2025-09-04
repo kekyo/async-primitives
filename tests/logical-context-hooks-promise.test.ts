@@ -5,7 +5,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { setLogicalContextValue, getLogicalContextValue, switchToNewLogicalContext, runOnNewLogicalContext } from '../src/primitives/logical-context';
+import {
+  setLogicalContextValue,
+  getLogicalContextValue,
+  switchToNewLogicalContext,
+  runOnNewLogicalContext,
+} from '../src/primitives/logical-context';
 
 describe('Logical Context Promise Hooks', () => {
   beforeEach(() => {
@@ -155,8 +160,7 @@ describe('Logical Context Promise Hooks', () => {
       try {
         await p0;
         expect.fail('Promise should have been rejected');
-      } catch {
-      }
+      } catch {}
 
       expect(called).toBe(true);
       expect(getLogicalContextValue(key)).toBe(value);
@@ -332,7 +336,7 @@ describe('Logical Context Promise Hooks', () => {
       });
 
       const allResult = await Promise.all([p1, p2]);
-      
+
       // After Promise.all, should maintain original context
       expect(getLogicalContextValue(key)).toBe('root-value');
       expect(promise1Called).toBe(true);
@@ -345,7 +349,9 @@ describe('Logical Context Promise Hooks', () => {
 
       setLogicalContextValue(key, 'race-root-value');
 
-      const p1 = new Promise((resolve) => setTimeout(() => resolve('result1'), 10))
+      const p1 = new Promise((resolve) =>
+        setTimeout(() => resolve('result1'), 10)
+      )
         .then((result) => {
           // Continue with original context
           expect(getLogicalContextValue(key)).toBe('race-root-value');
@@ -360,7 +366,9 @@ describe('Logical Context Promise Hooks', () => {
           return result;
         });
 
-      const p2 = new Promise((resolve) => setTimeout(() => resolve('result2'), 20))
+      const p2 = new Promise((resolve) =>
+        setTimeout(() => resolve('result2'), 20)
+      )
         .then((result) => {
           // Continue with original context
           expect(getLogicalContextValue(key)).toBe('race-root-value');
@@ -385,7 +393,7 @@ describe('Logical Context Promise Hooks', () => {
       vi.advanceTimersByTime(15);
 
       const raceResult = await racePromise;
-      
+
       // After race completion, should maintain original context
       expect(getLogicalContextValue(key)).toBe('race-root-value');
       expect(raceResult).toBe('result1');
@@ -400,11 +408,11 @@ describe('Logical Context Promise Hooks', () => {
         Promise.resolve(i).then((index) => {
           // Each promise should start with the original context
           expect(getLogicalContextValue(key)).toBe('main-value');
-          
+
           // Switch to a unique context in each promise
           switchToNewLogicalContext(`parallel-${index}`);
           setLogicalContextValue(key, `parallel-value-${index}`);
-          
+
           return index;
         })
       );
@@ -426,7 +434,7 @@ describe('Logical Context Promise Hooks', () => {
       let loser2Called = false;
 
       // Winner promise (fastest)
-      const winner = new Promise((resolve) => 
+      const winner = new Promise((resolve) =>
         setTimeout(() => resolve('winner'), 5)
       ).then((result) => {
         expect(getLogicalContextValue(key)).toBe('race-root-value');
@@ -437,7 +445,7 @@ describe('Logical Context Promise Hooks', () => {
       });
 
       // Loser promises (slower)
-      const loser1 = new Promise((resolve) => 
+      const loser1 = new Promise((resolve) =>
         setTimeout(() => resolve('loser1'), 10)
       ).then((result) => {
         expect(getLogicalContextValue(key)).toBe('race-root-value');
@@ -447,7 +455,7 @@ describe('Logical Context Promise Hooks', () => {
         return result;
       });
 
-      const loser2 = new Promise((resolve) => 
+      const loser2 = new Promise((resolve) =>
         setTimeout(() => resolve('loser2'), 15)
       ).then((result) => {
         expect(getLogicalContextValue(key)).toBe('race-root-value');
@@ -483,23 +491,25 @@ describe('Logical Context Promise Hooks', () => {
       const asyncFunction = async () => {
         // Start with original context
         expect(getLogicalContextValue(key)).toBe('async-root-value');
-        
+
         await Promise.resolve();
         // After await, should continue with original context (ConfigureAwait(true) behavior)
         expect(getLogicalContextValue(key)).toBe('async-root-value');
-        
+
         // Switch context in async function
         switchToNewLogicalContext('async-ctx1');
         setLogicalContextValue(key, 'async-switched-value');
-        
-        const delayedPromise = new Promise(resolve => setTimeout(() => resolve('delayed'), 10));
+
+        const delayedPromise = new Promise((resolve) =>
+          setTimeout(() => resolve('delayed'), 10)
+        );
         vi.advanceTimersByTime(15);
         await delayedPromise;
-        
+
         // After second await, the switched context persists within the async function execution
         // This is because the context switch affects the current execution context globally
         expect(getLogicalContextValue(key)).toBe('async-switched-value');
-        
+
         return 'async result';
       };
 
@@ -543,17 +553,16 @@ describe('Logical Context Promise Hooks', () => {
           expect(getLogicalContextValue(key)).toBe('nested-root-value');
           expect(data).toBe('level1');
           level2Called = true;
-          return Promise.resolve('level2')
-            .then((nestedData) => {
-              // Nested promise continues with original context
-              expect(getLogicalContextValue(key)).toBe('nested-root-value');
-              expect(nestedData).toBe('level2');
-              // Switch to level3 context in nested promise
-              switchToNewLogicalContext('nested-level3');
-              setLogicalContextValue(key, 'level3-value');
-              level3Called = true;
-              return Promise.resolve('level3');
-            });
+          return Promise.resolve('level2').then((nestedData) => {
+            // Nested promise continues with original context
+            expect(getLogicalContextValue(key)).toBe('nested-root-value');
+            expect(nestedData).toBe('level2');
+            // Switch to level3 context in nested promise
+            switchToNewLogicalContext('nested-level3');
+            setLogicalContextValue(key, 'level3-value');
+            level3Called = true;
+            return Promise.resolve('level3');
+          });
         })
         .then((data) => {
           // Continue with original context
@@ -590,17 +599,15 @@ describe('Logical Context Promise Hooks', () => {
           callCount++;
           switchToNewLogicalContext('deep-level1');
           setLogicalContextValue(key, 'level1-value');
-          return Promise.resolve(n + 1)
-            .then((n2) => {
+          return Promise.resolve(n + 1).then((n2) => {
+            expect(getLogicalContextValue(key)).toBe('level1-value');
+            callCount++;
+            return Promise.resolve(n2 + 1).then((n3) => {
               expect(getLogicalContextValue(key)).toBe('level1-value');
               callCount++;
-              return Promise.resolve(n2 + 1)
-                .then((n3) => {
-                  expect(getLogicalContextValue(key)).toBe('level1-value');
-                  callCount++;
-                  return n3 + 1;
-                });
+              return n3 + 1;
             });
+          });
         })
         .then((n) => {
           expect(getLogicalContextValue(key)).toBe('deep-root-value');
@@ -688,7 +695,7 @@ describe('Logical Context Promise Hooks', () => {
 
       // Create already resolved promise
       const resolvedPromise = Promise.resolve('already-resolved');
-      
+
       let thenCalled = false;
       const result1 = await resolvedPromise.then((value) => {
         expect(getLogicalContextValue(key)).toBe('resolved-value');
@@ -701,7 +708,7 @@ describe('Logical Context Promise Hooks', () => {
 
       // Create already rejected promise
       const rejectedPromise = Promise.reject('already-rejected');
-      
+
       let catchCalled = false;
       const result2 = await rejectedPromise.catch((error) => {
         expect(getLogicalContextValue(key)).toBe('resolved-value');
@@ -727,11 +734,13 @@ describe('Logical Context Promise Hooks', () => {
         insideCalled = true;
 
         // Create promise inside the new context
-        promiseCreatedInside = Promise.resolve('created-inside').then((value) => {
-          // When this promise executes, it should use the context captured when the promise was created (inside context)
-          expect(getLogicalContextValue(key)).toBe('inside-value');
-          return value;
-        });
+        promiseCreatedInside = Promise.resolve('created-inside').then(
+          (value) => {
+            // When this promise executes, it should use the context captured when the promise was created (inside context)
+            expect(getLogicalContextValue(key)).toBe('inside-value');
+            return value;
+          }
+        );
       });
 
       // Now execute the promise outside the context
@@ -754,14 +763,14 @@ describe('Logical Context Promise Hooks', () => {
       for (let i = 0; i < 3; i++) {
         runOnNewLogicalContext(`context-${i}`, () => {
           setLogicalContextValue(key, `context-${i}-value`);
-          
+
           // Create promise that will be executed later
           const promise = Promise.resolve(`promise-${i}`).then((value) => {
             // Should execute with the context captured when promise was created (context-i context)
             expect(getLogicalContextValue(key)).toBe(`context-${i}-value`);
             return value;
           });
-          
+
           promises.push(promise);
         });
       }

@@ -41,9 +41,15 @@ describe('Semaphore', () => {
     });
 
     it('should throw error for invalid initial count', () => {
-      expect(() => createSemaphore(0)).toThrow('Semaphore count must be greater than 0');
-      expect(() => createSemaphore(-1)).toThrow('Semaphore count must be greater than 0');
-      expect(() => createSemaphore(-100)).toThrow('Semaphore count must be greater than 0');
+      expect(() => createSemaphore(0)).toThrow(
+        'Semaphore count must be greater than 0'
+      );
+      expect(() => createSemaphore(-1)).toThrow(
+        'Semaphore count must be greater than 0'
+      );
+      expect(() => createSemaphore(-100)).toThrow(
+        'Semaphore count must be greater than 0'
+      );
     });
 
     it('should handle multiple releases safely (idempotent)', async () => {
@@ -124,8 +130,8 @@ describe('Semaphore', () => {
       await Promise.all([task('A'), task('B'), task('C')]);
 
       // Should have processed all tasks
-      expect(results.filter(r => r.includes('acquired')).length).toBe(3);
-      expect(results.filter(r => r.includes('released')).length).toBe(3);
+      expect(results.filter((r) => r.includes('acquired')).length).toBe(3);
+      expect(results.filter((r) => r.includes('released')).length).toBe(3);
 
       // Verify final state
       expect(semaphore.availableCount).toBe(2);
@@ -149,11 +155,7 @@ describe('Semaphore', () => {
         }
       };
 
-      const promises = [
-        task('First'),
-        task('Second'),
-        task('Third')
-      ];
+      const promises = [task('First'), task('Second'), task('Third')];
 
       // Give time for all to queue
       await delay(10);
@@ -194,7 +196,7 @@ describe('Semaphore', () => {
       await acquirePromise;
 
       expect(caughtError).toBeTruthy();
-      expect((caughtError as Error).message).toContain('aborted');
+      expect((caughtError! as Error).message).toContain('aborted');
       expect(semaphore.pendingCount).toBe(0);
 
       handle1.release();
@@ -221,7 +223,10 @@ describe('Semaphore', () => {
 
     it('should handle multiple simultaneous AbortSignal cancellations', async () => {
       const semaphore = createSemaphore(1);
-      const controllers = Array.from({ length: 5 }, () => new AbortController());
+      const controllers = Array.from(
+        { length: 5 },
+        () => new AbortController()
+      );
 
       // Hold the semaphore
       const handle1 = await semaphore.acquire();
@@ -241,13 +246,13 @@ describe('Semaphore', () => {
       expect(semaphore.pendingCount).toBe(5);
 
       // Abort all signals
-      controllers.forEach(controller => controller.abort());
+      controllers.forEach((controller) => controller.abort());
 
       await Promise.all(promises);
 
       // All should have been aborted
       expect(errors).toHaveLength(5);
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error.message).toContain('aborted');
       });
 
@@ -319,12 +324,10 @@ describe('Semaphore', () => {
           // Both semaphores are held
           expect(handle1.isActive).toBe(true);
           expect(handle2.isActive).toBe(true);
-
         } finally {
           handle2.release();
         }
         expect(semaphore2.availableCount).toBe(2);
-
       } finally {
         handle1.release();
       }
@@ -384,7 +387,7 @@ describe('Semaphore', () => {
 
       // Should either succeed or be aborted, but not hang
       if (caughtError) {
-        expect(caughtError.message).toContain('aborted');
+        expect((caughtError as Error).message).toContain('aborted');
       }
 
       // Clean up
@@ -429,7 +432,7 @@ describe('Semaphore', () => {
       const handle1 = await semaphore.acquire();
 
       const errors: Error[] = [];
-      
+
       const promise1 = (async () => {
         try {
           const handle = await semaphore.acquire(controller1.signal);

@@ -1,5 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { setLogicalContextValue, getLogicalContextValue, runOnNewLogicalContext, switchToNewLogicalContext, getCurrentLogicalContextId } from '../src/primitives/logical-context';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  setLogicalContextValue,
+  getLogicalContextValue,
+  runOnNewLogicalContext,
+  switchToNewLogicalContext,
+  getCurrentLogicalContextId,
+} from '../src/primitives/logical-context';
 
 describe('LogicalContext', () => {
   beforeEach(() => {
@@ -11,7 +17,7 @@ describe('LogicalContext', () => {
   });
 
   it('should get root context id', () => {
-    expect(getCurrentLogicalContextId().toString()).toContain("[root]");
+    expect(getCurrentLogicalContextId().toString()).toContain('[root]');
   });
 
   it('should get new context id (1)', () => {
@@ -38,12 +44,10 @@ describe('LogicalContext', () => {
     expect(getLogicalContextValue(key)).toBeUndefined();
   });
 
-
-
   it('should isolate context with new context', () => {
     const key = Symbol('test');
     const value = 'async test value';
-    
+
     setLogicalContextValue(key, value);
 
     switchToNewLogicalContext('test2');
@@ -55,11 +59,11 @@ describe('LogicalContext', () => {
     const key = Symbol('test');
 
     setLogicalContextValue(key, 'value1');
-    
+
     let called = false;
     runOnNewLogicalContext('test', () => {
       setLogicalContextValue(key, 'value2');
-      
+
       setTimeout(() => {
         expect(getLogicalContextValue(key)).toBe('value2');
         called = true;
@@ -114,8 +118,4 @@ describe('Corner Cases', () => {
     expect(level2Called).toBe(true);
     expect(level3Called).toBe(true);
   });
-
-
-
-
 });

@@ -13,24 +13,24 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       expect(callback).not.toHaveBeenCalled();
       expect(handle).toBeDefined();
       expect(typeof handle.release).toBe('function');
-      
+
       controller.abort();
-      
+
       expect(callback).toHaveBeenCalledOnce();
     });
 
     it('should call callback immediately if signal is already aborted', () => {
       const controller = new AbortController();
       controller.abort(); // Abort before setting up the hook
-      
+
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       expect(callback).toHaveBeenCalledOnce();
       expect(handle).toBeDefined();
       expect(typeof handle.release).toBe('function');
@@ -40,7 +40,7 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(undefined, callback);
-      
+
       expect(callback).not.toHaveBeenCalled();
       expect(handle).toBeDefined();
       expect(typeof handle.release).toBe('function');
@@ -51,7 +51,7 @@ describe('onAbort', () => {
 
       // @ts-expect-error Testing null value
       const handle = onAbort(null, callback);
-      
+
       expect(callback).not.toHaveBeenCalled();
     });
   });
@@ -62,15 +62,15 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       expect(callback).not.toHaveBeenCalled();
-      
+
       // Release the handle before abort
       handle.release();
-      
+
       // Abort should not call the callback now
       controller.abort();
-      
+
       expect(callback).not.toHaveBeenCalled();
     });
 
@@ -79,14 +79,14 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       // Release multiple times
       handle.release();
       handle.release();
       handle.release();
-      
+
       controller.abort();
-      
+
       expect(callback).not.toHaveBeenCalled();
     });
 
@@ -95,15 +95,15 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       expect(handle[Symbol.dispose]).toBeDefined();
       expect(typeof handle[Symbol.dispose]).toBe('function');
-      
+
       // Use Symbol.dispose
       handle[Symbol.dispose]();
-      
+
       controller.abort();
-      
+
       expect(callback).not.toHaveBeenCalled();
     });
 
@@ -113,12 +113,12 @@ describe('onAbort', () => {
 
       const handle = onAbort(controller.signal, callback);
       expect(handle).toBeDefined();
-      
+
       // Manually call Symbol.dispose to simulate using declaration behavior
       handle[Symbol.dispose]();
-      
+
       controller.abort();
-      
+
       expect(callback).not.toHaveBeenCalled();
     });
   });
@@ -127,21 +127,31 @@ describe('onAbort', () => {
     it('should remove event listener after callback is called', () => {
       const controller = new AbortController();
       const callback = vi.fn();
-      
+
       // Spy on addEventListener and removeEventListener
-      const addEventListenerSpy = vi.spyOn(controller.signal, 'addEventListener');
-      const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+      const addEventListenerSpy = vi.spyOn(
+        controller.signal,
+        'addEventListener'
+      );
+      const removeEventListenerSpy = vi.spyOn(
+        controller.signal,
+        'removeEventListener'
+      );
 
       const handle = onAbort(controller.signal, callback);
-      
+
       expect(addEventListenerSpy).toHaveBeenCalledOnce();
-      expect(addEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function), { once: true });
-      
+      expect(addEventListenerSpy).toHaveBeenCalledWith(
+        'abort',
+        expect.any(Function),
+        { once: true }
+      );
+
       controller.abort();
-      
+
       expect(callback).toHaveBeenCalledOnce();
       expect(removeEventListenerSpy).toHaveBeenCalledOnce();
-      
+
       addEventListenerSpy.mockRestore();
       removeEventListenerSpy.mockRestore();
     });
@@ -155,13 +165,13 @@ describe('onAbort', () => {
       const handle1 = onAbort(controller.signal, callback1);
       const handle2 = onAbort(controller.signal, callback2);
       const handle3 = onAbort(controller.signal, callback3);
-      
+
       expect(callback1).not.toHaveBeenCalled();
       expect(callback2).not.toHaveBeenCalled();
       expect(callback3).not.toHaveBeenCalled();
-      
+
       controller.abort();
-      
+
       expect(callback1).toHaveBeenCalledOnce();
       expect(callback2).toHaveBeenCalledOnce();
       expect(callback3).toHaveBeenCalledOnce();
@@ -172,10 +182,10 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       controller.abort();
       expect(callback).toHaveBeenCalledOnce();
-      
+
       // Try to abort again (should have no effect)
       controller.abort();
       expect(callback).toHaveBeenCalledOnce(); // Still only called once
@@ -192,29 +202,31 @@ describe('onAbort', () => {
 
       // Should not throw when setting up the hook
       let handle: any;
-      expect(() => { handle = onAbort(controller.signal, callback); }).not.toThrow();
-      
+      expect(() => {
+        handle = onAbort(controller.signal, callback);
+      }).not.toThrow();
+
       // Should not throw when aborting, even though callback throws
       expect(() => controller.abort()).not.toThrow();
-      
+
       expect(callback).toHaveBeenCalledOnce();
     });
 
     it('should handle async callback functions', async () => {
       const controller = new AbortController();
       const callback = vi.fn(async () => {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         return 'async result';
       });
 
       const handle = onAbort(controller.signal, callback);
-      
+
       controller.abort();
-      
+
       expect(callback).toHaveBeenCalledOnce();
-      
+
       // Wait a bit to ensure the async callback completes
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 20));
     });
   });
 
@@ -229,17 +241,17 @@ describe('onAbort', () => {
         dispatchEvent: vi.fn(),
         throwIfAborted: vi.fn(),
         onabort: null,
-        [Symbol.toStringTag]: 'AbortSignal'
+        [Symbol.toStringTag]: 'AbortSignal',
       } as unknown as AbortSignal;
 
       const callback = vi.fn();
 
       const handle = onAbort(customSignal, callback);
-      
+
       expect(customSignal.addEventListener).toHaveBeenCalledOnce();
       expect(customSignal.addEventListener).toHaveBeenCalledWith(
-        'abort', 
-        expect.any(Function), 
+        'abort',
+        expect.any(Function),
         { once: true }
       );
     });
@@ -249,10 +261,10 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       // Simulate a race condition by aborting immediately
       setTimeout(() => controller.abort(), 0);
-      
+
       return new Promise<void>((resolve) => {
         setTimeout(() => {
           expect(callback).toHaveBeenCalledOnce();
@@ -267,9 +279,9 @@ describe('onAbort', () => {
 
       const handle1 = onAbort(controller.signal, callback);
       const handle2 = onAbort(controller.signal, callback); // Same callback, same signal
-      
+
       controller.abort();
-      
+
       // The callback should be called twice (once for each registration)
       expect(callback).toHaveBeenCalledTimes(2);
     });
@@ -282,12 +294,12 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       // After abort, the event listener should be removed
       controller.abort();
-      
+
       expect(callback).toHaveBeenCalledOnce();
-      
+
       // The signal should be able to be garbage collected now
       // (though we can't test this directly in this environment)
     });
@@ -295,18 +307,24 @@ describe('onAbort', () => {
     it('should clean up properly when signal is already aborted during setup', () => {
       const controller = new AbortController();
       controller.abort();
-      
+
       const callback = vi.fn();
-      const addEventListenerSpy = vi.spyOn(controller.signal, 'addEventListener');
-      const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+      const addEventListenerSpy = vi.spyOn(
+        controller.signal,
+        'addEventListener'
+      );
+      const removeEventListenerSpy = vi.spyOn(
+        controller.signal,
+        'removeEventListener'
+      );
 
       const handle = onAbort(controller.signal, callback);
-      
+
       expect(callback).toHaveBeenCalledOnce();
       // For already-aborted signals, no event listener should be added
       expect(addEventListenerSpy).not.toHaveBeenCalled();
       expect(removeEventListenerSpy).not.toHaveBeenCalled();
-      
+
       addEventListenerSpy.mockRestore();
       removeEventListenerSpy.mockRestore();
     });
@@ -318,11 +336,11 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       // Race condition: abort and release at the same time
       setTimeout(() => controller.abort(), 0);
       setTimeout(() => handle.release(), 0);
-      
+
       return new Promise<void>((resolve) => {
         setTimeout(() => {
           // Callback should either be called or not called, but no error should occur
@@ -337,15 +355,15 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       // Multiple concurrent release calls
-      const releasePromises = Array.from({ length: 10 }, () => 
+      const releasePromises = Array.from({ length: 10 }, () =>
         Promise.resolve().then(() => handle.release())
       );
-      
+
       return Promise.all(releasePromises).then(() => {
         controller.abort();
-        
+
         // Callback should not be called since handle was released
         expect(callback).not.toHaveBeenCalled();
       });
@@ -354,19 +372,21 @@ describe('onAbort', () => {
     it('should handle rapid setup and teardown cycles', () => {
       const controller = new AbortController();
       const callbacks = Array.from({ length: 20 }, () => vi.fn());
-      
+
       // Rapidly create and release handles
-      const handles = callbacks.map(callback => onAbort(controller.signal, callback));
-      
+      const handles = callbacks.map((callback) =>
+        onAbort(controller.signal, callback)
+      );
+
       // Release every other handle
       handles.forEach((handle, index) => {
         if (index % 2 === 0) {
           handle.release();
         }
       });
-      
+
       controller.abort();
-      
+
       // Only non-released callbacks should be called
       callbacks.forEach((callback, index) => {
         if (index % 2 === 0) {
@@ -382,12 +402,12 @@ describe('onAbort', () => {
       const callback = vi.fn();
 
       const handle = onAbort(controller.signal, callback);
-      
+
       // Multiple concurrent abort calls
-      const abortPromises = Array.from({ length: 5 }, () => 
+      const abortPromises = Array.from({ length: 5 }, () =>
         Promise.resolve().then(() => controller.abort())
       );
-      
+
       return Promise.all(abortPromises).then(() => {
         // Callback should only be called once despite multiple aborts
         expect(callback).toHaveBeenCalledOnce();
@@ -403,57 +423,63 @@ describe('onAbort', () => {
 
       const handle1 = onAbort(controller.signal, errorCallback);
       const handle2 = onAbort(controller.signal, normalCallback);
-      
+
       // Should not throw despite error in callback
       expect(() => controller.abort()).not.toThrow();
-      
+
       expect(errorCallback).toHaveBeenCalledOnce();
       expect(normalCallback).toHaveBeenCalledOnce();
     });
 
     it('should handle signals from different controllers simultaneously', () => {
-      const controllers = Array.from({ length: 10 }, () => new AbortController());
+      const controllers = Array.from(
+        { length: 10 },
+        () => new AbortController()
+      );
       const callbacks = Array.from({ length: 10 }, () => vi.fn());
-      
+
       // Set up handlers for all controllers
-      const handles = controllers.map((controller, index) => 
+      const handles = controllers.map((controller, index) =>
         onAbort(controller.signal, callbacks[index])
       );
-      
+
       // Abort all controllers simultaneously
-      controllers.forEach(controller => controller.abort());
-      
+      controllers.forEach((controller) => controller.abort());
+
       // All callbacks should be called
-      callbacks.forEach(callback => {
+      callbacks.forEach((callback) => {
         expect(callback).toHaveBeenCalledOnce();
       });
     });
 
     it('should handle mixed already-aborted and non-aborted signals', () => {
-      const controllers = Array.from({ length: 10 }, () => new AbortController());
+      const controllers = Array.from(
+        { length: 10 },
+        () => new AbortController()
+      );
       const callbacks = Array.from({ length: 10 }, () => vi.fn());
-      
+
       // Abort half of the controllers before setting up handlers
       controllers.forEach((controller, index) => {
         if (index % 2 === 0) {
           controller.abort();
         }
       });
-      
+
       // Set up handlers for all controllers
-      const handles = controllers.map((controller, index) => 
+      const handles = controllers.map((controller, index) =>
         onAbort(controller.signal, callbacks[index])
       );
-      
+
       // Abort the remaining controllers
       controllers.forEach((controller, index) => {
         if (index % 2 === 1) {
           controller.abort();
         }
       });
-      
+
       // All callbacks should be called
-      callbacks.forEach(callback => {
+      callbacks.forEach((callback) => {
         expect(callback).toHaveBeenCalledOnce();
       });
     });
@@ -462,7 +488,7 @@ describe('onAbort', () => {
       const controller1 = new AbortController();
       const controller2 = new AbortController();
       const callback2 = vi.fn();
-      
+
       let handle2: any;
       const callback1 = vi.fn(() => {
         // Callback modifies another controller
@@ -471,11 +497,11 @@ describe('onAbort', () => {
       });
 
       const handle1 = onAbort(controller1.signal, callback1);
-      
+
       controller1.abort();
-      
+
       expect(callback1).toHaveBeenCalledOnce();
       expect(callback2).toHaveBeenCalledOnce();
     });
   });
-}); 
+});

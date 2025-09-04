@@ -5,7 +5,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { setLogicalContextValue, getLogicalContextValue } from '../src/primitives/logical-context';
+import {
+  setLogicalContextValue,
+  getLogicalContextValue,
+} from '../src/primitives/logical-context';
 
 const TEST_KEY = Symbol('test-key');
 
@@ -22,14 +25,18 @@ describe('Advanced Logical Context Hooks', () => {
     it('should maintain logical context across requestAnimationFrame boundary', async () => {
       // Skip test if requestAnimationFrame is not available
       if (typeof globalThis.requestAnimationFrame === 'undefined') {
-        console.log('Skipping requestAnimationFrame test - not available in this environment');
+        console.log(
+          'Skipping requestAnimationFrame test - not available in this environment'
+        );
         return;
       }
 
       vi.resetModules();
-      
-      const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-        await import('../src/primitives/logical-context');
+
+      const {
+        setLogicalContextValue: freshSetValue,
+        getLogicalContextValue: freshGetValue,
+      } = await import('../src/primitives/logical-context');
 
       const testValue = 'raf-context-value';
       let capturedValue: string | undefined;
@@ -56,7 +63,7 @@ describe('Advanced Logical Context Hooks', () => {
       freshSetValue(TEST_KEY, 'changed-value');
 
       // Wait for animation frame to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(rafCalled).toBe(true);
       expect(capturedValue).toBe(testValue);
@@ -69,9 +76,11 @@ describe('Advanced Logical Context Hooks', () => {
 
       try {
         vi.resetModules();
-        
-        const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-          await import('../src/primitives/logical-context');
+
+        const {
+          setLogicalContextValue: freshSetValue,
+          getLogicalContextValue: freshGetValue,
+        } = await import('../src/primitives/logical-context');
 
         const testValue = 'no-raf-value';
         freshSetValue(TEST_KEY, testValue);
@@ -89,14 +98,18 @@ describe('Advanced Logical Context Hooks', () => {
     it('should maintain logical context in XMLHttpRequest event handlers', async () => {
       // Skip test if XMLHttpRequest is not available
       if (typeof globalThis.XMLHttpRequest === 'undefined') {
-        console.log('Skipping XMLHttpRequest test - not available in this environment');
+        console.log(
+          'Skipping XMLHttpRequest test - not available in this environment'
+        );
         return;
       }
 
       vi.resetModules();
-      
-      const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-        await import('../src/primitives/logical-context');
+
+      const {
+        setLogicalContextValue: freshSetValue,
+        getLogicalContextValue: freshGetValue,
+      } = await import('../src/primitives/logical-context');
 
       const testValue = 'xhr-context-value';
       let capturedValue: string | undefined;
@@ -108,7 +121,7 @@ describe('Advanced Logical Context Hooks', () => {
       const xhr = new XMLHttpRequest();
 
       // Set onreadystatechange handler
-      xhr.onreadystatechange = function() {
+      xhr.onreadystatechange = function () {
         if (this.readyState === 4) {
           capturedValue = freshGetValue(TEST_KEY);
         }
@@ -120,7 +133,10 @@ describe('Advanced Logical Context Hooks', () => {
       // Mock the response
       Object.defineProperty(xhr, 'readyState', { value: 4, writable: true });
       Object.defineProperty(xhr, 'status', { value: 200, writable: true });
-      Object.defineProperty(xhr, 'responseText', { value: '{"success": true}', writable: true });
+      Object.defineProperty(xhr, 'responseText', {
+        value: '{"success": true}',
+        writable: true,
+      });
 
       // Trigger the event
       if (xhr.onreadystatechange) {
@@ -133,14 +149,18 @@ describe('Advanced Logical Context Hooks', () => {
 
     it('should maintain logical context with XMLHttpRequest addEventListener', async () => {
       if (typeof globalThis.XMLHttpRequest === 'undefined') {
-        console.log('Skipping XMLHttpRequest addEventListener test - not available in this environment');
+        console.log(
+          'Skipping XMLHttpRequest addEventListener test - not available in this environment'
+        );
         return;
       }
 
       vi.resetModules();
-      
-      const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-        await import('../src/primitives/logical-context');
+
+      const {
+        setLogicalContextValue: freshSetValue,
+        getLogicalContextValue: freshGetValue,
+      } = await import('../src/primitives/logical-context');
 
       const testValue = 'xhr-listener-value';
       let capturedValue: string | undefined;
@@ -174,9 +194,11 @@ describe('Advanced Logical Context Hooks', () => {
 
       try {
         vi.resetModules();
-        
-        const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-          await import('../src/primitives/logical-context');
+
+        const {
+          setLogicalContextValue: freshSetValue,
+          getLogicalContextValue: freshGetValue,
+        } = await import('../src/primitives/logical-context');
 
         const testValue = 'no-xhr-value';
         freshSetValue(TEST_KEY, testValue);
@@ -199,19 +221,21 @@ describe('Advanced Logical Context Hooks', () => {
       }
 
       vi.resetModules();
-      
-      const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-        await import('../src/primitives/logical-context');
+
+      const {
+        setLogicalContextValue: freshSetValue,
+        getLogicalContextValue: freshGetValue,
+      } = await import('../src/primitives/logical-context');
 
       const testValue = 'fetch-context-value';
       let capturedValue: string | undefined;
 
       // Mock fetch
-      const mockFetch = vi.fn(() => 
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({ success: true })
+          json: () => Promise.resolve({ success: true }),
         } as Response)
       );
       globalThis.fetch = mockFetch;
@@ -220,11 +244,10 @@ describe('Advanced Logical Context Hooks', () => {
       freshSetValue(TEST_KEY, testValue);
 
       // Use fetch with promise handlers - these handlers are automatically wrapped by Promise hooks
-      await fetch('/api/test')
-        .then(response => {
-          capturedValue = freshGetValue(TEST_KEY);
-          return response.json();
-        });
+      await fetch('/api/test').then((response) => {
+        capturedValue = freshGetValue(TEST_KEY);
+        return response.json();
+      });
 
       // Should capture the initial value due to existing Promise hooks (not fetch-specific hooks)
       expect(capturedValue).toBe(testValue);
@@ -233,14 +256,18 @@ describe('Advanced Logical Context Hooks', () => {
 
     it('should maintain logical context in fetch error handlers via existing Promise hooks', async () => {
       if (typeof globalThis.fetch === 'undefined') {
-        console.log('Skipping fetch error test - not available in this environment');
+        console.log(
+          'Skipping fetch error test - not available in this environment'
+        );
         return;
       }
 
       vi.resetModules();
-      
-      const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-        await import('../src/primitives/logical-context');
+
+      const {
+        setLogicalContextValue: freshSetValue,
+        getLogicalContextValue: freshGetValue,
+      } = await import('../src/primitives/logical-context');
 
       const testValue = 'fetch-error-value';
       let capturedValue: string | undefined;
@@ -254,11 +281,10 @@ describe('Advanced Logical Context Hooks', () => {
 
       // Use fetch with error handler - this handler is automatically wrapped by Promise hooks
       try {
-        await fetch('/api/error')
-          .catch(error => {
-            capturedValue = freshGetValue(TEST_KEY);
-            throw error;
-          });
+        await fetch('/api/error').catch((error) => {
+          capturedValue = freshGetValue(TEST_KEY);
+          throw error;
+        });
       } catch (error) {
         // Expected to throw
       }
@@ -275,9 +301,11 @@ describe('Advanced Logical Context Hooks', () => {
 
       try {
         vi.resetModules();
-        
-        const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-          await import('../src/primitives/logical-context');
+
+        const {
+          setLogicalContextValue: freshSetValue,
+          getLogicalContextValue: freshGetValue,
+        } = await import('../src/primitives/logical-context');
 
         const testValue = 'no-fetch-value';
         freshSetValue(TEST_KEY, testValue);
@@ -294,16 +322,22 @@ describe('Advanced Logical Context Hooks', () => {
   describe('Integration with existing hooks', () => {
     it('should work together with setTimeout and Promise hooks', async () => {
       // Skip this complex integration test in environments without full API support
-      if (typeof globalThis.requestAnimationFrame === 'undefined' || 
-          typeof globalThis.fetch === 'undefined') {
-        console.log('Skipping integration test - APIs not available in this environment');
+      if (
+        typeof globalThis.requestAnimationFrame === 'undefined' ||
+        typeof globalThis.fetch === 'undefined'
+      ) {
+        console.log(
+          'Skipping integration test - APIs not available in this environment'
+        );
         return;
       }
 
       vi.resetModules();
-      
-      const { setLogicalContextValue: freshSetValue, getLogicalContextValue: freshGetValue } = 
-        await import('../src/primitives/logical-context');
+
+      const {
+        setLogicalContextValue: freshSetValue,
+        getLogicalContextValue: freshGetValue,
+      } = await import('../src/primitives/logical-context');
 
       const testValue = 'integration-value';
       const results: string[] = [];
@@ -312,10 +346,10 @@ describe('Advanced Logical Context Hooks', () => {
       freshSetValue(TEST_KEY, testValue);
 
       // Mock fetch
-      const mockFetch = vi.fn(() => 
+      const mockFetch = vi.fn(() =>
         Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ data: 'test' })
+          json: () => Promise.resolve({ data: 'test' }),
         } as Response)
       );
       globalThis.fetch = mockFetch;
@@ -323,13 +357,13 @@ describe('Advanced Logical Context Hooks', () => {
       // Test setTimeout and Promise integration (simpler test)
       setTimeout(() => {
         results.push(freshGetValue(TEST_KEY) as string);
-        
+
         fetch('/api/data')
-          .then(response => {
+          .then((response) => {
             results.push(freshGetValue(TEST_KEY) as string);
             return response.json();
           })
-          .then(data => {
+          .then((data) => {
             results.push(freshGetValue(TEST_KEY) as string);
           });
       }, 10);
@@ -338,7 +372,7 @@ describe('Advanced Logical Context Hooks', () => {
       freshSetValue(TEST_KEY, 'different-value');
 
       // Wait for all operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // All should capture the original value
       expect(results).toEqual([testValue, testValue, testValue]);

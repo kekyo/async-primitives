@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { TestServerManager, waitForPageReady, runBrowserTest } from './test-helpers';
+import {
+  TestServerManager,
+  waitForPageReady,
+  runBrowserTest,
+} from './test-helpers';
 
 test.describe('Browser Logical Context Hooks', () => {
   let serverManager: TestServerManager;
@@ -11,9 +15,9 @@ test.describe('Browser Logical Context Hooks', () => {
     await serverManager.start();
 
     // Enable console logging
-    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
-    page.on('pageerror', error => console.log('PAGE ERROR:', error));
-    
+    page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
+    page.on('pageerror', (error) => console.log('PAGE ERROR:', error));
+
     // Wait for page to be ready
     await waitForPageReady(page, serverManager.getBaseUrl());
   });
@@ -25,8 +29,12 @@ test.describe('Browser Logical Context Hooks', () => {
     }
   });
 
-  test('requestAnimationFrame should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('requestAnimationFrame should maintain logical context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'raf-context-value';
       let capturedValue;
@@ -51,7 +59,8 @@ test.describe('Browser Logical Context Hooks', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -60,7 +69,9 @@ test.describe('Browser Logical Context Hooks', () => {
   });
 
   test('addEventListener should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'event-context-value';
       let capturedValue;
@@ -91,7 +102,8 @@ test.describe('Browser Logical Context Hooks', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     if (!result.success) {
       console.error('addEventListener test failed:', result.error);
@@ -99,8 +111,12 @@ test.describe('Browser Logical Context Hooks', () => {
     expect(result.success).toBe(true);
   });
 
-  test('addEventListener with event listener object should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('addEventListener with event listener object should maintain logical context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'event-object-context-value';
       let capturedValue;
@@ -135,7 +151,8 @@ test.describe('Browser Logical Context Hooks', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     if (!result.success) {
       console.error('addEventListener with object test failed:', result.error);
@@ -143,8 +160,12 @@ test.describe('Browser Logical Context Hooks', () => {
     expect(result.success).toBe(true);
   });
 
-  test('XMLHttpRequest should maintain logical context in event handlers', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('XMLHttpRequest should maintain logical context in event handlers', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'xhr-context-value';
       let capturedValue;
@@ -180,7 +201,8 @@ test.describe('Browser Logical Context Hooks', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -188,8 +210,12 @@ test.describe('Browser Logical Context Hooks', () => {
     }
   });
 
-  test('XMLHttpRequest with addEventListener should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('XMLHttpRequest with addEventListener should maintain logical context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'xhr-listener-context-value';
       let capturedValue;
@@ -223,16 +249,24 @@ test.describe('Browser Logical Context Hooks', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
-      console.error('XMLHttpRequest addEventListener test failed:', result.error);
+      console.error(
+        'XMLHttpRequest addEventListener test failed:',
+        result.error
+      );
     }
   });
 
-  test('fetch should maintain logical context via Promise hooks', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('fetch should maintain logical context via Promise hooks', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'fetch-context-value';
       let capturedValue;
@@ -256,7 +290,8 @@ test.describe('Browser Logical Context Hooks', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -264,8 +299,12 @@ test.describe('Browser Logical Context Hooks', () => {
     }
   });
 
-  test('fetch error handling should maintain logical context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('fetch error handling should maintain logical context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'fetch-error-context-value';
       let capturedValue;
@@ -299,7 +338,8 @@ test.describe('Browser Logical Context Hooks', () => {
       if (capturedValue !== testValue) {
         throw new Error(\`Expected '\${testValue}', got '\${capturedValue}'\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
@@ -307,8 +347,12 @@ test.describe('Browser Logical Context Hooks', () => {
     }
   });
 
-  test('complex integration: multiple async operations should maintain context', async ({ page }) => {
-    const result = await runBrowserTest(page, `
+  test('complex integration: multiple async operations should maintain context', async ({
+    page,
+  }) => {
+    const result = await runBrowserTest(
+      page,
+      `
       const testKey = window.createTestKey();
       const testValue = 'integration-context-value';
       const results = [];
@@ -348,11 +392,12 @@ test.describe('Browser Logical Context Hooks', () => {
       if (JSON.stringify(results) !== JSON.stringify(expectedResults)) {
         throw new Error(\`Expected \${JSON.stringify(expectedResults)}, got \${JSON.stringify(results)}\`);
       }
-    `);
+    `
+    );
 
     expect(result.success).toBe(true);
     if (!result.success) {
       console.error('complex integration test failed:', result.error);
     }
   });
-}); 
+});

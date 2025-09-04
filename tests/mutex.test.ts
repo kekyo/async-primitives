@@ -69,7 +69,7 @@ describe('Mutex', () => {
       const task = async (id: string) => {
         results.push(`${id}: requesting`);
         const handle = await locker.lock();
-        try{
+        try {
           results.push(`${id}: acquired`);
           await delay(10);
           results.push(`${id}: working`);
@@ -90,7 +90,7 @@ describe('Mutex', () => {
         'A: released',
         'B: acquired',
         'B: working',
-        'B: released'
+        'B: released',
       ];
 
       expect(results).toEqual(expected);
@@ -199,7 +199,10 @@ describe('Mutex', () => {
 
       const results: string[] = [];
 
-      const task = async (lockName: string, asyncLock: ReturnType<typeof createAsyncLock>) => {
+      const task = async (
+        lockName: string,
+        asyncLock: ReturnType<typeof createAsyncLock>
+      ) => {
         results.push(`${lockName}: requesting`);
         const handle = await asyncLock.lock();
         try {
@@ -213,15 +216,12 @@ describe('Mutex', () => {
       };
 
       // Both locks should be able to work concurrently
-      await Promise.all([
-        task('Lock1', locker1),
-        task('Lock2', locker2)
-      ]);
+      await Promise.all([task('Lock1', locker1), task('Lock2', locker2)]);
 
       // Both should have completed
       expect(results).toContain('Lock1: released');
       expect(results).toContain('Lock2: released');
-      expect(results.filter(r => r.includes('acquired')).length).toBe(2);
+      expect(results.filter((r) => r.includes('acquired')).length).toBe(2);
     });
 
     it('should handle nested lock acquisition with proper cleanup order', async () => {
@@ -241,24 +241,24 @@ describe('Mutex', () => {
           // Both locks are held here
           expect(locker1.isLocked).toBe(true);
           expect(locker2.isLocked).toBe(true);
-
-        } finally { // Lock 2 is released first (reverse order)
+        } finally {
+          // Lock 2 is released first (reverse order)
           handle2.release();
         }
         results.push('Lock2 released');
         expect(locker2.isLocked).toBe(false);
         expect(locker1.isLocked).toBe(true);
-
-      } finally { // Lock 1 is released second
+      } finally {
+        // Lock 1 is released second
         handle1.release();
       }
       results.push('Lock1 released');
 
       expect(results).toEqual([
         'Lock1 acquired',
-        'Lock2 acquired', 
+        'Lock2 acquired',
         'Lock2 released',
-        'Lock1 released'
+        'Lock1 released',
       ]);
 
       expect(locker1.isLocked).toBe(false);
@@ -346,7 +346,10 @@ describe('Mutex', () => {
 
     it('should handle multiple simultaneous AbortSignal cancellations', async () => {
       const locker = createMutex();
-      const controllers = Array.from({ length: 10 }, () => new AbortController());
+      const controllers = Array.from(
+        { length: 10 },
+        () => new AbortController()
+      );
 
       // Hold the lock to force queuing
       const firstHandle = await locker.lock();
@@ -363,7 +366,7 @@ describe('Mutex', () => {
 
       // Abort all signals simultaneously
       await delay(10);
-      controllers.forEach(controller => controller.abort());
+      controllers.forEach((controller) => controller.abort());
 
       // Release the first lock
       firstHandle.release();
@@ -372,7 +375,7 @@ describe('Mutex', () => {
 
       // All operations should have been aborted
       expect(errors).toHaveLength(10);
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error.message).toContain('aborted');
       });
       expect(locker.isLocked).toBe(false);
@@ -384,7 +387,7 @@ describe('Mutex', () => {
       const handle = await locker.lock();
 
       // Call release multiple times concurrently
-      const releasePromises = Array.from({ length: 5 }, () => 
+      const releasePromises = Array.from({ length: 5 }, () =>
         Promise.resolve().then(() => handle.release())
       );
 
@@ -419,14 +422,14 @@ describe('Mutex', () => {
       await delay(10);
 
       // Race condition: abort and release at exactly the same time
-      const abortPromise = new Promise(resolve => {
+      const abortPromise = new Promise((resolve) => {
         setTimeout(() => {
           controller.abort();
           resolve(undefined);
         }, 0);
       });
 
-      const releasePromise = new Promise(resolve => {
+      const releasePromise = new Promise((resolve) => {
         setTimeout(() => {
           firstHandle.release();
           resolve(undefined);
@@ -472,7 +475,7 @@ describe('Mutex', () => {
       const firstHandle = await locker.lock();
 
       const errors: Error[] = [];
-      
+
       // Queue multiple items
       const promise1 = (async () => {
         try {
@@ -523,13 +526,13 @@ describe('Mutex', () => {
     it('should support deprecated createAsyncLock function', async () => {
       // Should be able to use deprecated name without errors
       const locker = createAsyncLock();
-      
+
       expect(locker.isLocked).toBe(false);
-      
+
       const handle = await locker.lock();
       expect(locker.isLocked).toBe(true);
       handle.release();
-      
+
       expect(locker.isLocked).toBe(false);
     });
   });

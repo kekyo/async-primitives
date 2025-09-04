@@ -24,9 +24,32 @@ export interface LockHandle extends Releasable {
 }
 
 /**
+ * Waiter object
+ */
+export interface Waiter {
+  /**
+   * Wait to be triggered
+   * @param signal Optional AbortSignal for cancelling the wait
+   * @returns Promise that resolves when triggered, returns lock handle
+   */
+  readonly wait: (signal?: AbortSignal) => Promise<LockHandle>;
+}
+
+/**
+ * Waitable object
+ */
+export interface Waitable {
+  /**
+   * Get waiter object
+   * @returns Waiter object
+   */
+  readonly waiter: Waiter;
+}
+
+/**
  * Mutex interface for promise-based mutex operations
  */
-export interface Mutex {
+export interface Mutex extends Waitable {
   /**
    * Acquires the lock asynchronously
    * @param signal Optional AbortSignal for cancelling the lock acquisition
@@ -43,6 +66,112 @@ export interface Mutex {
    * Number of pending lock requests
    */
   readonly pendingCount: number;
+}
+
+/**
+ * Conditional interface that can be automatically triggered
+ */
+export interface Conditional extends Waitable {
+  /**
+   * Trigger the conditional
+   * @remarks This will resolve only one waiter
+   */
+  readonly trigger: () => void;
+
+  /**
+   * Wait to be triggered
+   * @param signal Optional AbortSignal for cancelling the wait
+   * @returns Promise that resolves when triggered, returns dummy lock handle
+   */
+  readonly wait: (signal?: AbortSignal) => Promise<void>;
+}
+
+/**
+ * Conditional interface that can be manually raise and drop
+ */
+export interface ManuallyConditional extends Conditional {
+  /**
+   * Raise the conditional
+   * @remarks This will resolve all waiters
+   */
+  readonly raise: () => void;
+
+  /**
+   * Drop the conditional
+   * @remarks This will drop the conditional, all waiters will be blocked until the conditional is raised again
+   */
+  readonly drop: () => void;
+}
+
+/**
+ * Semaphore interface for managing limited concurrent access
+ */
+export interface Semaphore extends Waitable {
+  /**
+   * Acquires a semaphore resource asynchronously
+   * @param signal Optional AbortSignal for cancelling the acquisition
+   * @returns Promise that resolves to a disposable semaphore handle
+   */
+  readonly acquire: (signal?: AbortSignal) => Promise<LockHandle>;
+
+  /**
+   * Number of currently available resources
+   */
+  readonly availableCount: number;
+
+  /**
+   * Number of pending acquisition requests
+   */
+  readonly pendingCount: number;
+}
+
+/**
+ * Reader-Writer lock interface for managing concurrent read and exclusive write access
+ */
+export interface ReaderWriterLock {
+  /**
+   * Acquires a read lock asynchronously
+   * @param signal Optional AbortSignal for cancelling the lock acquisition
+   * @returns Promise that resolves to a disposable read lock handle
+   */
+  readonly readLock: (signal?: AbortSignal) => Promise<LockHandle>;
+
+  /**
+   * Acquires a write lock asynchronously
+   * @param signal Optional AbortSignal for cancelling the lock acquisition
+   * @returns Promise that resolves to a disposable write lock handle
+   */
+  readonly writeLock: (signal?: AbortSignal) => Promise<LockHandle>;
+
+  /**
+   * Waiter object for reader
+   */
+  readonly readWaiter: Waiter;
+
+  /**
+   * Waiter object for writer
+   */
+  readonly writeWaiter: Waiter;
+
+  /**
+   * Number of currently active readers
+   */
+  readonly currentReaders: number;
+
+  /**
+   * Indicates if a writer currently holds the lock
+   */
+  readonly hasWriter: boolean;
+
+  /**
+   * Number of pending read lock requests
+   */
+  readonly pendingReadersCount: number;
+
+  /**
+   * Number of pending write lock requests
+   */
+  readonly pendingWritersCount: number;
 }
 
 /**
@@ -111,131 +240,7 @@ export interface DeferredGenerator<T> {
   readonly throw: (error: any, signal?: AbortSignal) => Promise<void>;
 }
 
-/**
- * Conditional interface that can be automatically triggered
- */
-export interface Conditional {
-  /**
-   * Trigger the conditional
-   * @remarks This will resolve only one waiter
-   */
-  readonly trigger: () => void;
-
-  /**
-   * Wait to be signaled
-   * @param signal Optional AbortSignal for cancelling the wait
-   * @returns Promise that resolves when signaled
-   */
-  readonly wait: (signal?: AbortSignal) => Promise<void>;
-}
-
-/**
- * Conditional interface that can be manually raise and drop
- */
-export interface ManuallyConditional extends Conditional {
-  /**
-   * Raise the conditional
-   * @remarks This will resolve all waiters
-   */
-  readonly raise: () => void;
-
-  /**
-   * Drop the conditional
-   * @remarks This will drop the conditional, all waiters will be blocked until the conditional is raised again
-   */
-  readonly drop: () => void;
-}
-
-/**
- * Semaphore handle for managing acquired semaphore resources
- */
-export interface SemaphoreHandle extends Releasable {
-  /**
-   * Indicates if the handle is still active
-   */
-  readonly isActive: boolean;
-}
-
-/**
- * Semaphore interface for managing limited concurrent access
- */
-export interface Semaphore {
-  /**
-   * Acquires a semaphore resource asynchronously
-   * @param signal Optional AbortSignal for cancelling the acquisition
-   * @returns Promise that resolves to a disposable semaphore handle
-   */
-  readonly acquire: (signal?: AbortSignal) => Promise<SemaphoreHandle>;
-
-  /**
-   * Number of currently available resources
-   */
-  readonly availableCount: number;
-
-  /**
-   * Number of pending acquisition requests
-   */
-  readonly pendingCount: number;
-}
-
-/**
- * Read lock handle for managing acquired read locks
- */
-export interface ReadLockHandle extends Releasable {
-  /**
-   * Indicates if the handle is still active
-   */
-  readonly isActive: boolean;
-}
-
-/**
- * Write lock handle for managing acquired write locks
- */
-export interface WriteLockHandle extends Releasable {
-  /**
-   * Indicates if the handle is still active
-   */
-  readonly isActive: boolean;
-}
-
-/**
- * Reader-Writer lock interface for managing concurrent read and exclusive write access
- */
-export interface ReaderWriterLock {
-  /**
-   * Acquires a read lock asynchronously
-   * @param signal Optional AbortSignal for cancelling the lock acquisition
-   * @returns Promise that resolves to a disposable read lock handle
-   */
-  readonly readLock: (signal?: AbortSignal) => Promise<ReadLockHandle>;
-
-  /**
-   * Acquires a write lock asynchronously
-   * @param signal Optional AbortSignal for cancelling the lock acquisition
-   * @returns Promise that resolves to a disposable write lock handle
-   */
-  readonly writeLock: (signal?: AbortSignal) => Promise<WriteLockHandle>;
-
-  /**
-   * Number of currently active readers
-   */
-  readonly currentReaders: number;
-
-  /**
-   * Indicates if a writer currently holds the lock
-   */
-  readonly hasWriter: boolean;
-
-  /**
-   * Number of pending read lock requests
-   */
-  readonly pendingReadersCount: number;
-
-  /**
-   * Number of pending write lock requests
-   */
-  readonly pendingWritersCount: number;
-}
+/////////////////////////////////////////////////////////////
 
 // Deprecated type aliases for backward compatibility
 
@@ -247,3 +252,12 @@ export type Signal = Conditional;
 
 /** @deprecated Use `ManuallyConditional` instead */
 export type ManuallySignal = ManuallyConditional;
+
+/** @deprecated Use `LockHandle` instead */
+export type SemaphoreHandle = LockHandle;
+
+/** @deprecated Use `LockHandle` instead */
+export type ReadLockHandle = LockHandle;
+
+/** @deprecated Use `LockHandle` instead */
+export type WriteLockHandle = LockHandle;
