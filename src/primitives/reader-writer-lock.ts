@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { LockHandle, ReaderWriterLock } from '../types';
+import { LockHandle, ReaderWriterLock, Waiter } from '../types';
 import { onAbort } from './abort-hook';
 import { defer } from './defer';
 
@@ -304,9 +304,20 @@ export const createReaderWriterLock = (
     }
   };
 
+  // Create waiter objects
+  const readWaiter: Waiter = {
+    wait: readLock,
+  };
+
+  const writeWaiter: Waiter = {
+    wait: writeLock,
+  };
+
   return {
     readLock,
     writeLock,
+    readWaiter,
+    writeWaiter,
     get currentReaders() {
       return currentReaders;
     },

@@ -155,9 +155,11 @@ export const createMutex = (maxConsecutiveCalls: number = 20): Mutex => {
     }
   };
 
-  return {
+  const result: Mutex = {
     lock,
-    waitable: () => lock,
+    waiter: {
+      wait: lock,
+    },
     get isLocked() {
       return isLocked;
     },
@@ -165,4 +167,6 @@ export const createMutex = (maxConsecutiveCalls: number = 20): Mutex => {
       return queue.length;
     },
   };
+
+  return result;
 };

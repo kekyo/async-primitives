@@ -24,15 +24,26 @@ export interface LockHandle extends Releasable {
 }
 
 /**
+ * Waiter object
+ */
+export interface Waiter {
+  /**
+   * Wait to be triggered
+   * @param signal Optional AbortSignal for cancelling the wait
+   * @returns Promise that resolves when triggered, returns lock handle
+   */
+  readonly wait: (signal?: AbortSignal) => Promise<LockHandle>;
+}
+
+/**
  * Waitable object
  */
 export interface Waitable {
   /**
-   * Get waiting changed object conditionality function
-   * @param signal Optional AbortSignal for cancelling the lock acquisition
-   * @returns Waiting changed object conditionality function
+   * Get waiter object
+   * @returns Waiter object
    */
-  readonly waitable: () => ((signal?: AbortSignal) => Promise<LockHandle>);
+  readonly waiter: Waiter;
 }
 
 /**
@@ -68,9 +79,9 @@ export interface Conditional extends Waitable {
   readonly trigger: () => void;
 
   /**
-   * Wait to be signaled
+   * Wait to be triggered
    * @param signal Optional AbortSignal for cancelling the wait
-   * @returns Promise that resolves when signaled, returns dummy lock handle
+   * @returns Promise that resolves when triggered, returns dummy lock handle
    */
   readonly wait: (signal?: AbortSignal) => Promise<LockHandle>;
 }
@@ -131,6 +142,16 @@ export interface ReaderWriterLock {
    * @returns Promise that resolves to a disposable write lock handle
    */
   readonly writeLock: (signal?: AbortSignal) => Promise<LockHandle>;
+
+  /**
+   * Waiter object for reader
+   */
+  readonly readWaiter: Waiter;
+
+  /**
+   * Waiter object for writer
+   */
+  readonly writeWaiter: Waiter;
 
   /**
    * Number of currently active readers

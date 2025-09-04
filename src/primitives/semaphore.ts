@@ -171,9 +171,11 @@ export const createSemaphore = (
     }
   };
 
-  return {
+  const result: Semaphore = {
     acquire,
-    waitable: () => acquire,
+    waiter: {
+      wait: acquire,
+    },
     get availableCount() {
       return availableCount;
     },
@@ -181,4 +183,6 @@ export const createSemaphore = (
       return queue.length;
     },
   };
+
+  return result;
 };

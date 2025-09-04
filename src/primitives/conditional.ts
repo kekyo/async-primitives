@@ -8,6 +8,7 @@ import {
   ManuallyConditional,
   Conditional,
   LockHandle,
+  Waiter,
 } from '../types';
 import { onAbort } from './abort-hook';
 import { createDeferred } from './deferred';
@@ -52,11 +53,15 @@ export const createConditional = (): Conditional => {
     return __NOOP_DUMMY_HANDLE;
   };
 
-  return {
+  const result: Conditional = {
     trigger,
     wait,
-    waitable: () => wait,
+    waiter: {
+      wait,
+    },
   };
+
+  return result;
 };
 
 /**
@@ -112,11 +117,15 @@ export const createManuallyConditional = (
     return __NOOP_DUMMY_HANDLE;
   };
 
-  return {
+  const result: ManuallyConditional = {
     trigger,
     raise,
     drop,
     wait,
-    waitable: () => wait,
+    waiter: {
+      wait,
+    },
   };
+
+  return result;
 };
