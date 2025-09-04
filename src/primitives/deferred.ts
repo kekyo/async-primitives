@@ -13,9 +13,7 @@ import { onAbort } from './abort-hook';
  * @returns A deferred object with a promise, resolve, and reject methods
  */
 export const createDeferred = <T>(signal?: AbortSignal): Deferred<T> => {
-  // eslint-disable-next-line no-unused-vars
   let resolve: ((value: T) => void) | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-unused-vars
   let reject: ((error: any) => void) | undefined;
 
   // Allocate the promise
@@ -57,7 +55,6 @@ export const createDeferred = <T>(signal?: AbortSignal): Deferred<T> => {
       }
     },
     // Reject the promise with an error
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     reject: (error: any) => {
       const _reject = reject;
       if (_reject) {

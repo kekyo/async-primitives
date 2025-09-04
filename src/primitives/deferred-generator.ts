@@ -17,7 +17,6 @@ interface QueuedCompletion {
 
 interface QueuedError {
   readonly kind: 'error';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly error: any;
 }
 
@@ -132,7 +131,6 @@ export const createDeferredGenerator = <T>(
     // Complete the generator (equivalent to return)
     return: (signal?: AbortSignal) => enqueue({ kind: 'completed' }, signal),
     // Throw an error to the generator
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     throw: (error: any, signal?: AbortSignal) =>
       enqueue({ kind: 'error', error }, signal),
   };

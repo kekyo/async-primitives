@@ -18,10 +18,8 @@ import { defer } from './defer';
  */
 interface ReadQueueItem {
   /** Promise resolver for the read lock acquisition */
-  // eslint-disable-next-line no-unused-vars
   resolve: (handle: LockHandle) => void;
   /** Promise rejecter for the read lock acquisition */
-  // eslint-disable-next-line no-unused-vars
   reject: (error: Error) => void;
   /** Optional AbortSignal for cancelling the request */
   signal?: AbortSignal | undefined;
@@ -32,10 +30,8 @@ interface ReadQueueItem {
  */
 interface WriteQueueItem {
   /** Promise resolver for the write lock acquisition */
-  // eslint-disable-next-line no-unused-vars
   resolve: (handle: LockHandle) => void;
   /** Promise rejecter for the write lock acquisition */
-  // eslint-disable-next-line no-unused-vars
   reject: (error: Error) => void;
   /** Optional AbortSignal for cancelling the request */
   signal?: AbortSignal | undefined;
