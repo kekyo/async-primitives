@@ -338,6 +338,230 @@ describe('ReaderWriterLock', () => {
     });
   });
 
+  describe('Read-preferring policy', () => {
+    it('should allow new readers even when writer is waiting', async () => {
+      const rwLock = createReaderWriterLock({ policy: 'read-preferring' });
+      const results: string[] = [];
+
+      // Acquire a read lock
+      const readHandle1 = await rwLock.readLock();
+      results.push('reader1: acquired');
+
+      // Queue a writer
+      const writePromise = (async () => {
+        results.push('writer: requesting');
+        const handle = await rwLock.writeLock();
+        results.push('writer: acquired');
+        await delay(20);
+        handle.release();
+        results.push('writer: released');
+      })();
+
+      await delay(10);
+
+      // Try to acquire another read lock (should succeed immediately with read-preferring)
+      const readHandle2 = await rwLock.readLock();
+      results.push('reader2: acquired');
+
+      await delay(10);
+
+      // Verify that reader2 acquired immediately even though writer is waiting
+      expect(results).toEqual([
+        'reader1: acquired',
+        'writer: requesting',
+        'reader2: acquired',
+      ]);
+
+      // Release readers
+      readHandle1.release();
+      results.push('reader1: released');
+      readHandle2.release();
+      results.push('reader2: released');
+
+      // Writer should now acquire
+      await writePromise;
+
+      expect(results).toEqual([
+        'reader1: acquired',
+        'writer: requesting',
+        'reader2: acquired',
+        'reader1: released',
+        'reader2: released',
+        'writer: acquired',
+        'writer: released',
+      ]);
+    });
+
+    it('should prioritize readers over writers', async () => {
+      const rwLock = createReaderWriterLock({ policy: 'read-preferring' });
+
+      // Hold a write lock
+      const writeHandle = await rwLock.writeLock();
+
+      // Queue a writer and multiple readers
+      const results: string[] = [];
+
+      const writerPromise = (async () => {
+        const handle = await rwLock.writeLock();
+        results.push('writer');
+        handle.release();
+      })();
+
+      await delay(5);
+
+      const readerPromises = Array.from({ length: 3 }, async (_, i) => {
+        const handle = await rwLock.readLock();
+        results.push(`reader${i}`);
+        handle.release();
+      });
+
+      await delay(10);
+      expect(rwLock.pendingWritersCount).toBe(1);
+      expect(rwLock.pendingReadersCount).toBe(3);
+
+      // Release the initial writer
+      writeHandle.release();
+
+      // Wait for all operations
+      await Promise.all([writerPromise, ...readerPromises]);
+
+      // With read-preferring, readers should be processed first
+      expect(results.slice(0, 3).every((r) => r.startsWith('reader'))).toBe(
+        true
+      );
+      expect(results[3]).toBe('writer');
+    });
+
+    it('should handle mixed read/write operations with read-preferring policy', async () => {
+      const rwLock = createReaderWriterLock({ policy: 'read-preferring' });
+      const operations: string[] = [];
+
+      // Start with a reader
+      const reader1 = await rwLock.readLock();
+      operations.push('R1 acquired');
+
+      // Queue writer (will wait)
+      const writer1Promise = (async () => {
+        const handle = await rwLock.writeLock();
+        operations.push('W1 acquired');
+        await delay(10);
+        handle.release();
+        operations.push('W1 released');
+      })();
+
+      await delay(5);
+
+      // Add more readers (should acquire immediately in read-preferring)
+      const reader2 = await rwLock.readLock();
+      operations.push('R2 acquired');
+
+      const reader3 = await rwLock.readLock();
+      operations.push('R3 acquired');
+
+      // Verify readers acquired even with writer waiting
+      expect(operations).toEqual(['R1 acquired', 'R2 acquired', 'R3 acquired']);
+
+      // Release all readers
+      reader1.release();
+      operations.push('R1 released');
+      reader2.release();
+      operations.push('R2 released');
+      reader3.release();
+      operations.push('R3 released');
+
+      // Writer should now proceed
+      await writer1Promise;
+
+      expect(operations).toEqual([
+        'R1 acquired',
+        'R2 acquired',
+        'R3 acquired',
+        'R1 released',
+        'R2 released',
+        'R3 released',
+        'W1 acquired',
+        'W1 released',
+      ]);
+    });
+  });
+
+  describe('Backward compatibility', () => {
+    it('should work with legacy number parameter', async () => {
+      // Test with number parameter (backward compatibility)
+      const rwLock = createReaderWriterLock(10);
+
+      // Should default to write-preferring policy
+      const readHandle = await rwLock.readLock();
+      expect(rwLock.currentReaders).toBe(1);
+
+      // Queue a writer
+      let writerAcquired = false;
+      const writePromise = (async () => {
+        const handle = await rwLock.writeLock();
+        writerAcquired = true;
+        handle.release();
+      })();
+
+      await delay(10);
+
+      // Try to acquire another reader (should be blocked by pending writer in write-preferring)
+      let reader2Acquired = false;
+      const readPromise = (async () => {
+        const handle = await rwLock.readLock();
+        reader2Acquired = true;
+        handle.release();
+      })();
+
+      await delay(10);
+      expect(reader2Acquired).toBe(false);
+      expect(rwLock.pendingWritersCount).toBe(1);
+      expect(rwLock.pendingReadersCount).toBe(1);
+
+      readHandle.release();
+      await Promise.all([writePromise, readPromise]);
+
+      expect(writerAcquired).toBe(true);
+      expect(reader2Acquired).toBe(true);
+    });
+
+    it('should work with no parameters', async () => {
+      // Test with no parameters
+      const rwLock = createReaderWriterLock();
+
+      // Should default to write-preferring policy
+      const handle = await rwLock.writeLock();
+      expect(rwLock.hasWriter).toBe(true);
+
+      handle.release();
+      expect(rwLock.hasWriter).toBe(false);
+    });
+
+    it('should work with options object', async () => {
+      // Test with options object specifying maxConsecutiveCalls
+      const rwLock = createReaderWriterLock({ maxConsecutiveCalls: 5 });
+
+      const handle = await rwLock.readLock();
+      expect(rwLock.currentReaders).toBe(1);
+
+      handle.release();
+      expect(rwLock.currentReaders).toBe(0);
+    });
+
+    it('should work with full options including policy', async () => {
+      // Test with full options
+      const rwLock = createReaderWriterLock({
+        policy: 'write-preferring',
+        maxConsecutiveCalls: 15,
+      });
+
+      const handle = await rwLock.writeLock();
+      expect(rwLock.hasWriter).toBe(true);
+
+      handle.release();
+      expect(rwLock.hasWriter).toBe(false);
+    });
+  });
+
   describe('AbortSignal support', () => {
     it('should handle AbortSignal cancellation for read locks', async () => {
       const rwLock = createReaderWriterLock();

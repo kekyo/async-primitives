@@ -3,7 +3,13 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { LockHandle, ReaderWriterLock, Waiter } from '../types';
+import {
+  LockHandle,
+  ReaderWriterLock,
+  ReaderWriterLockOptions,
+  ReaderWriterLockPolicy,
+  Waiter,
+} from '../types';
 import { onAbort } from './abort-hook';
 import { defer } from './defer';
 
@@ -89,12 +95,40 @@ const createWriteLockHandle = (releaseCallback: () => void): LockHandle => {
 
 /**
  * Creates a new ReaderWriterLock instance for managing concurrent read and exclusive write access
+ * @returns A new ReaderWriterLock with default write-preferring policy
+ */
+export function createReaderWriterLock(): ReaderWriterLock;
+/**
+ * Creates a new ReaderWriterLock instance for managing concurrent read and exclusive write access
  * @param maxConsecutiveCalls The maximum number of consecutive calls before yielding control
  * @returns A new ReaderWriterLock with write-preferring policy
  */
-export const createReaderWriterLock = (
-  maxConsecutiveCalls: number = 20
-): ReaderWriterLock => {
+export function createReaderWriterLock(
+  maxConsecutiveCalls: number
+): ReaderWriterLock;
+/**
+ * Creates a new ReaderWriterLock instance for managing concurrent read and exclusive write access
+ * @param options Options for configuring the ReaderWriterLock
+ * @returns A new ReaderWriterLock with specified options
+ */
+export function createReaderWriterLock(
+  options: ReaderWriterLockOptions
+): ReaderWriterLock;
+export function createReaderWriterLock(
+  optionsOrMaxCalls?: number | ReaderWriterLockOptions
+): ReaderWriterLock {
+  // Parse parameters for backward compatibility
+  let policy: ReaderWriterLockPolicy = 'write-preferring';
+  let maxConsecutiveCalls = 20;
+
+  if (typeof optionsOrMaxCalls === 'number') {
+    // Legacy API: number parameter
+    maxConsecutiveCalls = optionsOrMaxCalls;
+  } else if (optionsOrMaxCalls) {
+    // New API: options object
+    policy = optionsOrMaxCalls.policy ?? 'write-preferring';
+    maxConsecutiveCalls = optionsOrMaxCalls.maxConsecutiveCalls ?? 20;
+  }
   let currentReaders = 0;
   let hasWriter = false;
   const readQueue: ReadQueueItem[] = [];
@@ -102,46 +136,91 @@ export const createReaderWriterLock = (
   let consecutiveCallCount = 0;
 
   const processQueues = (): void => {
-    // Write-preferring policy: process writers first
-    if (!hasWriter && currentReaders === 0 && writeQueue.length > 0) {
-      const item = writeQueue.shift()!;
-
-      // Check if the request was aborted
-      if (item.signal?.aborted) {
-        item.reject(ABORTED_ERROR());
-        // Continue processing
-        scheduleNextProcess();
-        return;
-      }
-
-      // Acquire write lock
-      hasWriter = true;
-
-      // Continue to awaiter with writeLockHandle
-      const writeLockHandle = createWriteLockHandle(releaseWriteLock);
-      item.resolve(writeLockHandle);
-    }
-    // Process readers only if no writer is active and no writers are waiting
-    else if (!hasWriter && writeQueue.length === 0 && readQueue.length > 0) {
-      // Process all available readers at once
-      const readersToProcess: ReadQueueItem[] = [];
-
-      while (readQueue.length > 0) {
-        const item = readQueue.shift()!;
+    if (policy === 'write-preferring') {
+      // Write-preferring policy: process writers first
+      if (!hasWriter && currentReaders === 0 && writeQueue.length > 0) {
+        const item = writeQueue.shift()!;
 
         // Check if the request was aborted
         if (item.signal?.aborted) {
           item.reject(ABORTED_ERROR());
-        } else {
-          readersToProcess.push(item);
+          // Continue processing
+          scheduleNextProcess();
+          return;
+        }
+
+        // Acquire write lock
+        hasWriter = true;
+
+        // Continue to awaiter with writeLockHandle
+        const writeLockHandle = createWriteLockHandle(releaseWriteLock);
+        item.resolve(writeLockHandle);
+      }
+      // Process readers only if no writer is active and no writers are waiting
+      else if (!hasWriter && writeQueue.length === 0 && readQueue.length > 0) {
+        // Process all available readers at once
+        const readersToProcess: ReadQueueItem[] = [];
+
+        while (readQueue.length > 0) {
+          const item = readQueue.shift()!;
+
+          // Check if the request was aborted
+          if (item.signal?.aborted) {
+            item.reject(ABORTED_ERROR());
+          } else {
+            readersToProcess.push(item);
+          }
+        }
+
+        // Grant read locks to all non-aborted readers
+        for (const item of readersToProcess) {
+          currentReaders++;
+          const readLockHandle = createReadLockHandle(releaseReadLock);
+          item.resolve(readLockHandle);
         }
       }
+    } else {
+      // Read-preferring policy: process readers first
+      if (!hasWriter && readQueue.length > 0) {
+        // Process all available readers at once
+        const readersToProcess: ReadQueueItem[] = [];
 
-      // Grant read locks to all non-aborted readers
-      for (const item of readersToProcess) {
-        currentReaders++;
-        const readLockHandle = createReadLockHandle(releaseReadLock);
-        item.resolve(readLockHandle);
+        while (readQueue.length > 0) {
+          const item = readQueue.shift()!;
+
+          // Check if the request was aborted
+          if (item.signal?.aborted) {
+            item.reject(ABORTED_ERROR());
+          } else {
+            readersToProcess.push(item);
+          }
+        }
+
+        // Grant read locks to all non-aborted readers
+        for (const item of readersToProcess) {
+          currentReaders++;
+          const readLockHandle = createReadLockHandle(releaseReadLock);
+          item.resolve(readLockHandle);
+        }
+      }
+      // Process writer only if no readers are active
+      else if (!hasWriter && currentReaders === 0 && writeQueue.length > 0) {
+        const item = writeQueue.shift()!;
+
+        // Check if the request was aborted
+        if (item.signal?.aborted) {
+          item.reject(ABORTED_ERROR());
+          // Continue processing
+          scheduleNextProcess();
+          return;
+        }
+
+        // Acquire write lock
+        hasWriter = true;
+
+        // Continue to awaiter with writeLockHandle
+        const writeLockHandle = createWriteLockHandle(releaseWriteLock);
+        item.resolve(writeLockHandle);
       }
     }
   };
@@ -197,8 +276,13 @@ export const createReaderWriterLock = (
         throw ABORTED_ERROR();
       }
 
-      // Can acquire immediately if no writer is active and no writers are waiting
-      if (!hasWriter && writeQueue.length === 0) {
+      // Can acquire immediately based on policy
+      const canAcquireImmediately =
+        policy === 'read-preferring'
+          ? !hasWriter // Read-preferring: acquire if no active writer
+          : !hasWriter && writeQueue.length === 0; // Write-preferring: also check no writers waiting
+
+      if (canAcquireImmediately) {
         currentReaders++;
         return createReadLockHandle(releaseReadLock);
       }
@@ -230,8 +314,13 @@ export const createReaderWriterLock = (
         processQueues();
       });
     } else {
-      // Can acquire immediately if no writer is active and no writers are waiting
-      if (!hasWriter && writeQueue.length === 0) {
+      // Can acquire immediately based on policy
+      const canAcquireImmediately =
+        policy === 'read-preferring'
+          ? !hasWriter // Read-preferring: acquire if no active writer
+          : !hasWriter && writeQueue.length === 0; // Write-preferring: also check no writers waiting
+
+      if (canAcquireImmediately) {
         currentReaders++;
         return createReadLockHandle(releaseReadLock);
       }
@@ -331,4 +420,4 @@ export const createReaderWriterLock = (
       return writeQueue.length;
     },
   };
-};
+}
