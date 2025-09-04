@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { Mutex, LockHandle } from '../types';
+import { Mutex, LockHandle, PrepareWaitResult } from '../types';
 import { onAbort } from './abort-hook';
 import { defer } from './defer';
 
@@ -155,10 +155,88 @@ export const createMutex = (maxConsecutiveCalls: number = 20): Mutex => {
     }
   };
 
+  // Internal method for atomic operations
+  const prepareWait = (
+    signal?: AbortSignal
+  ): { execute: () => Promise<LockHandle>; cleanup: () => void } | null => {
+    if (signal?.aborted) {
+      return null;
+    }
+
+    // If lock is available immediately
+    if (!isLocked) {
+      // Acquire lock immediately
+      isLocked = true;
+      const lockHandle = createLockHandle(releaseLock);
+
+      return {
+        execute: () => Promise.resolve(lockHandle),
+        cleanup: () => {
+          // Release the lock if not yet released
+          if (isLocked && lockHandle.isActive) {
+            lockHandle.release();
+          }
+        },
+      };
+    }
+
+    // Need to queue for lock
+    let queueItem: QueueItem | null = null;
+    let abortHandle: any = null;
+
+    const promise = new Promise<LockHandle>((resolve, reject) => {
+      queueItem = {
+        resolve: undefined!,
+        reject: undefined!,
+        signal,
+      };
+
+      if (signal) {
+        abortHandle = onAbort(signal, () => {
+          if (queueItem) {
+            removeFromQueue(queueItem);
+          }
+          reject(ABORTED_ERROR());
+        });
+
+        // Wrap resolve to clean up abort handler
+        const originalResolve = resolve;
+        queueItem.resolve = (handle: LockHandle) => {
+          abortHandle?.release();
+          originalResolve(handle);
+        };
+        queueItem.reject = (error: Error) => {
+          abortHandle?.release();
+          reject(error);
+        };
+      } else {
+        queueItem.resolve = resolve;
+        queueItem.reject = reject;
+      }
+
+      queue.push(queueItem);
+    });
+
+    return {
+      execute: () => {
+        // Process queue when executing
+        processQueue();
+        return promise;
+      },
+      cleanup: () => {
+        if (queueItem) {
+          removeFromQueue(queueItem);
+        }
+        abortHandle?.release();
+      },
+    };
+  };
+
   const result: Mutex = {
     lock,
     waiter: {
       wait: lock,
+      prepareWait,
     },
     get isLocked() {
       return isLocked;

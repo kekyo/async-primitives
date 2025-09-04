@@ -363,7 +363,7 @@ describe('ReaderWriterLock', () => {
       await readPromise;
 
       expect(caughtError).toBeTruthy();
-      expect((caughtError as Error).message).toContain('aborted');
+      expect((caughtError! as Error).message).toContain('aborted');
       expect(rwLock.pendingReadersCount).toBe(0);
 
       writeHandle.release();
@@ -393,7 +393,7 @@ describe('ReaderWriterLock', () => {
       await writePromise;
 
       expect(caughtError).toBeTruthy();
-      expect((caughtError as Error).message).toContain('aborted');
+      expect((caughtError! as Error).message).toContain('aborted');
       expect(rwLock.pendingWritersCount).toBe(0);
 
       readHandle.release();

@@ -24,6 +24,22 @@ export interface LockHandle extends Releasable {
 }
 
 /**
+ * Result of prepareWait method for atomic operations
+ */
+export interface PrepareWaitResult {
+  /**
+   * Execute the prepared wait operation
+   * @returns Promise that resolves to a lock handle
+   */
+  readonly execute: () => Promise<LockHandle>;
+
+  /**
+   * Cleanup any prepared state if the operation fails
+   */
+  readonly cleanup: () => void;
+}
+
+/**
  * Waiter object
  */
 export interface Waiter {
@@ -33,6 +49,14 @@ export interface Waiter {
    * @returns Promise that resolves when triggered, returns lock handle
    */
   readonly wait: (signal?: AbortSignal) => Promise<LockHandle>;
+
+  /**
+   * Prepare for an atomic wait operation (internal protocol)
+   * @param signal Optional AbortSignal for cancelling the wait
+   * @returns PrepareWaitResult for two-phase commit, or null if cannot prepare
+   * @remarks This method is used internally for atomic triggerAndWait operations
+   */
+  readonly prepareWait: (signal?: AbortSignal) => PrepareWaitResult | null;
 }
 
 /**
@@ -84,6 +108,17 @@ export interface Conditional extends Waitable {
    * @returns Promise that resolves when triggered, returns dummy lock handle
    */
   readonly wait: (signal?: AbortSignal) => Promise<void>;
+
+  /**
+   * Trigger the conditional and atomically wait on another waiter
+   * @param waiter The waiter object to wait on after triggering
+   * @param signal Optional AbortSignal for cancelling the wait
+   * @returns Promise that resolves to a lock handle from the waited object
+   */
+  readonly triggerAndWait: (
+    waiter: Waiter,
+    signal?: AbortSignal
+  ) => Promise<LockHandle>;
 }
 
 /**

@@ -3,7 +3,7 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { LockHandle, Semaphore } from '../types';
+import { LockHandle, PrepareWaitResult, Semaphore } from '../types';
 import { onAbort } from './abort-hook';
 import { defer } from './defer';
 
@@ -171,10 +171,86 @@ export const createSemaphore = (
     }
   };
 
+  // Internal method for atomic operations
+  const prepareWait = (signal?: AbortSignal): PrepareWaitResult | null => {
+    if (signal?.aborted) {
+      return null;
+    }
+
+    // If resource is available immediately
+    if (availableCount > 0) {
+      // Acquire resource immediately
+      availableCount--;
+      const semaphoreHandle = createSemaphoreHandle(releaseSemaphore);
+
+      return {
+        execute: () => Promise.resolve(semaphoreHandle),
+        cleanup: () => {
+          // Release the resource if not yet released
+          if (semaphoreHandle.isActive) {
+            semaphoreHandle.release();
+          }
+        },
+      };
+    }
+
+    // Need to queue for resource
+    let queueItem: QueueItem | null = null;
+    let abortHandle: any = null;
+
+    const promise = new Promise<LockHandle>((resolve, reject) => {
+      queueItem = {
+        resolve: undefined!,
+        reject: undefined!,
+        signal,
+      };
+
+      if (signal) {
+        abortHandle = onAbort(signal, () => {
+          if (queueItem) {
+            removeFromQueue(queueItem);
+          }
+          reject(ABORTED_ERROR());
+        });
+
+        // Wrap resolve to clean up abort handler
+        const originalResolve = resolve;
+        queueItem.resolve = (handle: LockHandle) => {
+          abortHandle?.release();
+          originalResolve(handle);
+        };
+        queueItem.reject = (error: Error) => {
+          abortHandle?.release();
+          reject(error);
+        };
+      } else {
+        queueItem.resolve = resolve;
+        queueItem.reject = reject;
+      }
+
+      queue.push(queueItem);
+    });
+
+    return {
+      execute: () => {
+        // Process queue when executing
+        processQueue();
+        return promise;
+      },
+      cleanup: () => {
+        if (queueItem) {
+          removeFromQueue(queueItem);
+        }
+        abortHandle?.release();
+      },
+    };
+  };
+
   const result: Semaphore = {
     acquire,
     waiter: {
       wait: acquire,
+      prepareWait,
     },
     get availableCount() {
       return availableCount;

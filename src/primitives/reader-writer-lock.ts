@@ -3,7 +3,12 @@
 // Under MIT.
 // https://github.com/kekyo/async-primitives
 
-import { LockHandle, ReaderWriterLock, Waiter } from '../types';
+import {
+  LockHandle,
+  PrepareWaitResult,
+  ReaderWriterLock,
+  Waiter,
+} from '../types';
 import { onAbort } from './abort-hook';
 import { defer } from './defer';
 
@@ -304,13 +309,160 @@ export const createReaderWriterLock = (
     }
   };
 
-  // Create waiter objects
+  // Create Waitable objects for read and write locks
+  // We need to declare prepareWait functions first to avoid circular reference issues
+
+  // Add prepareWait for read lock
+  const prepareReadWait = (signal?: AbortSignal): PrepareWaitResult | null => {
+    if (signal?.aborted) {
+      return null;
+    }
+
+    // Can acquire immediately if no writer is active and no writers are waiting
+    if (!hasWriter && writeQueue.length === 0) {
+      currentReaders++;
+      const handle = createReadLockHandle(releaseReadLock);
+
+      return {
+        execute: () => Promise.resolve(handle),
+        cleanup: () => {
+          if (handle.isActive) {
+            handle.release();
+          }
+        },
+      };
+    }
+
+    // Need to queue
+    let queueItem: ReadQueueItem | null = null;
+    let abortHandle: any = null;
+
+    const promise = new Promise<LockHandle>((resolve, reject) => {
+      queueItem = {
+        resolve: undefined!,
+        reject: undefined!,
+        signal,
+      };
+
+      if (signal) {
+        abortHandle = onAbort(signal, () => {
+          if (queueItem) {
+            removeFromReadQueue(queueItem);
+          }
+          reject(ABORTED_ERROR());
+        });
+
+        const originalResolve = resolve;
+        queueItem.resolve = (handle: LockHandle) => {
+          abortHandle?.release();
+          originalResolve(handle);
+        };
+        queueItem.reject = (error: Error) => {
+          abortHandle?.release();
+          reject(error);
+        };
+      } else {
+        queueItem.resolve = resolve;
+        queueItem.reject = reject;
+      }
+
+      readQueue.push(queueItem);
+    });
+
+    return {
+      execute: () => {
+        processQueues();
+        return promise;
+      },
+      cleanup: () => {
+        if (queueItem) {
+          removeFromReadQueue(queueItem);
+        }
+        abortHandle?.release();
+      },
+    };
+  };
+
+  // Add prepareWait for write lock
+  const prepareWriteWait = (signal?: AbortSignal): PrepareWaitResult | null => {
+    if (signal?.aborted) {
+      return null;
+    }
+
+    // Can acquire immediately if no readers and no writer
+    if (!hasWriter && currentReaders === 0) {
+      hasWriter = true;
+      const handle = createWriteLockHandle(releaseWriteLock);
+
+      return {
+        execute: () => Promise.resolve(handle),
+        cleanup: () => {
+          if (handle.isActive) {
+            handle.release();
+          }
+        },
+      };
+    }
+
+    // Need to queue
+    let queueItem: WriteQueueItem | null = null;
+    let abortHandle: any = null;
+
+    const promise = new Promise<LockHandle>((resolve, reject) => {
+      queueItem = {
+        resolve: undefined!,
+        reject: undefined!,
+        signal,
+      };
+
+      if (signal) {
+        abortHandle = onAbort(signal, () => {
+          if (queueItem) {
+            removeFromWriteQueue(queueItem);
+          }
+          reject(ABORTED_ERROR());
+        });
+
+        const originalResolve = resolve;
+        queueItem.resolve = (handle: LockHandle) => {
+          abortHandle?.release();
+          originalResolve(handle);
+        };
+        queueItem.reject = (error: Error) => {
+          abortHandle?.release();
+          reject(error);
+        };
+      } else {
+        queueItem.resolve = resolve;
+        queueItem.reject = reject;
+      }
+
+      writeQueue.push(queueItem);
+    });
+
+    return {
+      execute: () => {
+        processQueues();
+        return promise;
+      },
+      cleanup: () => {
+        if (queueItem) {
+          removeFromWriteQueue(queueItem);
+        }
+        abortHandle?.release();
+      },
+    };
+  };
+
+  // Create waiter objects with prepareWait methods
   const readWaiter: Waiter = {
     wait: readLock,
+    prepareWait: prepareReadWait,
   };
 
   const writeWaiter: Waiter = {
     wait: writeLock,
+    prepareWait: prepareWriteWait,
   };
 
   return {
