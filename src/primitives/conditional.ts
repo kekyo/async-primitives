@@ -8,7 +8,6 @@ import {
   ManuallyConditional,
   Conditional,
   LockHandle,
-  Waiter,
 } from '../types';
 import { onAbort } from './abort-hook';
 import { createDeferred } from './deferred';
@@ -55,7 +54,7 @@ export const createConditional = (): Conditional => {
 
   const result: Conditional = {
     trigger,
-    wait,
+    wait: wait as any,
     waiter: {
       wait,
     },
@@ -121,7 +120,7 @@ export const createManuallyConditional = (
     trigger,
     raise,
     drop,
-    wait,
+    wait: wait as any,
     waiter: {
       wait,
     },

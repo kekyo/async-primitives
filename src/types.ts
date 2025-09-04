@@ -83,7 +83,7 @@ export interface Conditional extends Waitable {
    * @param signal Optional AbortSignal for cancelling the wait
    * @returns Promise that resolves when triggered, returns dummy lock handle
    */
-  readonly wait: (signal?: AbortSignal) => Promise<LockHandle>;
+  readonly wait: (signal?: AbortSignal) => Promise<void>;
 }
 
 /**
