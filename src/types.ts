@@ -126,6 +126,25 @@ export interface Semaphore extends Waitable {
 }
 
 /**
+ * Lock policy for ReaderWriterLock
+ */
+export type ReaderWriterLockPolicy = 'read-preferring' | 'write-preferring';
+
+/**
+ * Options for creating a ReaderWriterLock
+ */
+export interface ReaderWriterLockOptions {
+  /**
+   * Lock policy (default: 'write-preferring'
+   */
+  policy?: ReaderWriterLockPolicy;
+  /**
+   * Maximum consecutive calls before yielding control (default: 20)
+   */
+  maxConsecutiveCalls?: number;
+}
+
+/**
  * Reader-Writer lock interface for managing concurrent read and exclusive write access
  */
 export interface ReaderWriterLock {

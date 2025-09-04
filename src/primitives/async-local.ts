@@ -17,7 +17,6 @@ export interface AsyncLocal<T> {
    * Sets the value in the current async context
    * @param value The value to set
    */
-  // eslint-disable-next-line no-unused-vars
   setValue(value: T | undefined): void;
 
   /**

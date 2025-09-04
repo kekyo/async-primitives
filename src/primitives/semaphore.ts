@@ -12,10 +12,8 @@ import { defer } from './defer';
  */
 interface QueueItem {
   /** Promise resolver for the semaphore acquisition */
-  // eslint-disable-next-line no-unused-vars
   resolve: (handle: LockHandle) => void;
   /** Promise rejecter for the semaphore acquisition */
-  // eslint-disable-next-line no-unused-vars
   reject: (error: Error) => void;
   /** Optional AbortSignal for cancelling the request */
   signal?: AbortSignal | undefined;
