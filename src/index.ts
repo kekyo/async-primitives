@@ -51,14 +51,11 @@ export { createReaderWriterLock } from './primitives/reader-writer-lock';
 
 // Deprecated aliases for backward compatibility
 
-export {
-  /** @deprecated Use `createMutex` instead */
-  createMutex as createAsyncLock,
-} from './primitives/mutex';
+/** @deprecated Use `createMutex` instead */
+export { createMutex as createAsyncLock } from './primitives/mutex';
 
+/** @deprecated Use `createConditional`, `createManuallyConditional` instead */
 export {
-  /** @deprecated Use `createConditional` instead */
   createConditional as createSignal,
-  /** @deprecated Use `createManuallyConditional` instead */
   createManuallyConditional as createManuallySignal,
 } from './primitives/conditional';
