@@ -1,8 +1,9 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// __dirname is automatically available in CommonJS
+const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const server = http.createServer((req, res) => {
   // CORS headers
@@ -45,7 +46,7 @@ const server = http.createServer((req, res) => {
 
   // Serve test files
   if (url.pathname === '/test.html') {
-    const htmlPath = path.join(__dirname, 'test.html');
+    const htmlPath = path.join(dirname, 'test.html');
     if (fs.existsSync(htmlPath)) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(fs.readFileSync(htmlPath));
@@ -55,11 +56,18 @@ const server = http.createServer((req, res) => {
 
   // Serve built library files
   if (url.pathname.startsWith('/dist/')) {
-    const filePath = path.join(__dirname, '..', url.pathname);
+    const distRelativePath = url.pathname.slice(1); // remove leading slash
+    const filePath = path.join(dirname, '..', distRelativePath);
     if (fs.existsSync(filePath)) {
       const ext = path.extname(filePath);
-      const contentType =
-        ext === '.js' ? 'application/javascript' : 'text/plain';
+      let contentType = 'text/plain';
+      if (ext === '.js' || ext === '.mjs') {
+        contentType = 'application/javascript';
+      } else if (ext === '.css') {
+        contentType = 'text/css';
+      } else if (ext === '.json') {
+        contentType = 'application/json';
+      }
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(fs.readFileSync(filePath));
       return;
@@ -71,9 +79,15 @@ const server = http.createServer((req, res) => {
   res.end('Not found');
 });
 
-const port = parseInt(process.env.PORT) || 3000;
-server.listen(port, () => {
-  console.log(`Test server running on port ${port}`);
+const envPort = process.env.PORT;
+const parsedPort = envPort !== undefined ? parseInt(envPort, 10) : NaN;
+const listenPort = Number.isNaN(parsedPort) ? 0 : parsedPort;
+
+server.listen(listenPort, () => {
+  const address = server.address();
+  const actualPort =
+    typeof address === 'object' && address !== null ? address.port : listenPort;
+  console.log(`Test server running on port ${actualPort}`);
 });
 
 // Graceful shutdown

@@ -1,20 +1,21 @@
 import { spawn, ChildProcess } from 'child_process';
 import { Page } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 export interface TestServerConfig {
-  port: number;
+  port?: number;
   timeout?: number;
 }
 
 export class TestServerManager {
   private serverProcess: ChildProcess | null = null;
   private config: TestServerConfig;
-  private static portCounter = 3001;
+  private resolvedPort?: number;
 
   constructor(config?: Partial<TestServerConfig>) {
     this.config = {
-      port: TestServerManager.portCounter++,
+      port: config?.port ?? 0,
       timeout: 10000,
       ...config,
     };
@@ -25,11 +26,13 @@ export class TestServerManager {
       throw new Error('Test server is already running');
     }
 
-    const serverPath = path.join(__dirname, 'test-server.js');
+    const dirname = path.dirname(fileURLToPath(import.meta.url));
+    const serverPath = path.join(dirname, 'test-server.js');
 
     return new Promise((resolve, reject) => {
       // Set the port via environment variable
-      const env = { ...process.env, PORT: this.config.port.toString() };
+      const requestedPort = this.config.port ?? 0;
+      const env = { ...process.env, PORT: requestedPort.toString() };
 
       this.serverProcess = spawn('node', [serverPath], {
         env,
@@ -50,9 +53,9 @@ export class TestServerManager {
 
       this.serverProcess.stdout?.on('data', (data) => {
         const output = data.toString();
-        if (
-          output.includes(`Test server running on port ${this.config.port}`)
-        ) {
+        const match = output.match(/Test server running on port (\d+)/);
+        if (match) {
+          this.resolvedPort = parseInt(match[1], 10);
           serverReady = true;
           clearTimeout(timeout);
           resolve();
@@ -85,6 +88,7 @@ export class TestServerManager {
     return new Promise((resolve) => {
       const process = this.serverProcess!;
       this.serverProcess = null;
+      this.resolvedPort = undefined;
 
       process.on('exit', () => {
         resolve();
@@ -103,7 +107,11 @@ export class TestServerManager {
   }
 
   getBaseUrl(): string {
-    return `http://localhost:${this.config.port}`;
+    const port = this.resolvedPort ?? this.config.port;
+    if (!port || port <= 0) {
+      throw new Error('Test server port has not been resolved');
+    }
+    return `http://localhost:${port}`;
   }
 }
 
