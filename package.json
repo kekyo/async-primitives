@@ -45,7 +45,7 @@
     "@types/node": ">=20.10.0",
     "@vitest/coverage-v8": ">=1.0.0",
     "playwright": ">=1.53.1",
-    "prettier-max": ">=1.10.0",
+    "prettier-max": ">=1.11.0",
     "screw-up": ">=1.13.0",
     "tinybench": ">=4.0.1",
     "tsx": ">=4.19.0",
