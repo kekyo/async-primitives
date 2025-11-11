@@ -92,12 +92,12 @@ import { onAbort } from 'async-primitives';
 // Use onAbort (Abort signal hooking)
 const controller = new AbortController();
 
-const releaseHandle = onAbort(controller.signal, () => {
+const releaseHandle = onAbort(controller.signal, (error: Error) => {
   console.log('Operation was aborted!');
   // (Will automatically cleanup when exit)
 });
 
-// Cleanup early if needed
+// (Cleanup early if needed)
 releaseHandle.release();
 ```
 
