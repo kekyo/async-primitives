@@ -6,6 +6,16 @@
 import { Releasable } from '../types';
 import { __NOOP_RELEASABLE } from './internal/utils';
 
+const toAbortError = (reason: unknown): Error => {
+  if (reason instanceof Error) {
+    return reason;
+  }
+  if (typeof reason === 'string') {
+    return new Error(reason);
+  }
+  return new Error('Operation aborted');
+};
+
 /**
  * Hooks up an abort handler to an AbortSignal and returns a handle for early cleanup
  * @param signal - The AbortSignal to hook up to
@@ -14,7 +24,7 @@ import { __NOOP_RELEASABLE } from './internal/utils';
  */
 export const onAbort = (
   signal: AbortSignal | undefined,
-  callback: () => void
+  callback: (error: Error) => void
 ): Releasable => {
   if (!signal) {
     return __NOOP_RELEASABLE;
@@ -22,7 +32,7 @@ export const onAbort = (
 
   if (signal.aborted) {
     try {
-      callback();
+      callback(toAbortError(signal.reason));
     } catch (error: unknown) {
       console.warn('AbortHook callback error: ', error);
     }
@@ -32,11 +42,12 @@ export const onAbort = (
   let abortHandler: (() => void) | undefined;
   abortHandler = () => {
     if (abortHandler) {
+      const reason = signal.reason;
       signal.removeEventListener('abort', abortHandler);
       abortHandler = undefined;
 
       try {
-        callback();
+        callback(toAbortError(reason));
       } catch (error: unknown) {
         console.warn('AbortHook callback error: ', error);
       }

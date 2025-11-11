@@ -230,6 +230,48 @@ describe('onAbort', () => {
     });
   });
 
+  describe('Abort reason propagation', () => {
+    it('should forward Error reasons to the callback', () => {
+      const controller = new AbortController();
+      const reason = new Error('Abort went boom');
+      const callback = vi.fn();
+
+      onAbort(controller.signal, callback);
+      controller.abort(reason);
+
+      expect(callback).toHaveBeenCalledOnce();
+      expect(callback).toHaveBeenCalledWith(reason);
+    });
+
+    it('should convert string reasons to Error instances', () => {
+      const controller = new AbortController();
+      const reason = 'Aborted because of string reason';
+      const callback = vi.fn();
+
+      onAbort(controller.signal, callback);
+      controller.abort(reason);
+
+      expect(callback).toHaveBeenCalledOnce();
+      const [errorArg] = callback.mock.calls[0];
+      expect(errorArg).toBeInstanceOf(Error);
+      expect(errorArg.message).toBe(reason);
+    });
+
+    it('should provide a default Error for non-Error objects', () => {
+      const controller = new AbortController();
+      const reason = { foo: 'bar' };
+      const callback = vi.fn();
+
+      onAbort(controller.signal, callback);
+      controller.abort(reason);
+
+      expect(callback).toHaveBeenCalledOnce();
+      const [errorArg] = callback.mock.calls[0];
+      expect(errorArg).toBeInstanceOf(Error);
+      expect(errorArg.message).toBe('Operation aborted');
+    });
+  });
+
   describe('Edge cases', () => {
     it('should work with custom AbortSignal-like objects', () => {
       // Create a custom object that implements the AbortSignal interface
