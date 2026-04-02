@@ -29,6 +29,12 @@ Mutex, producer-consumer separation (side-effect operation), signaling (flag con
 | `createConditional()`         | Automatic conditional trigger (one-waiter per trigger)    |
 | `createManuallyConditional()` | Manual conditional control (raise/drop state)             |
 
+Iterator operations:
+
+| Function | Description                                   |
+| :------- | :-------------------------------------------- |
+| `from()` | Chainable operators for iterable async values |
+
 Advanced features:
 
 | Function             | Description                                  |
@@ -462,6 +468,106 @@ try {
 }
 ```
 
+### from()
+
+Creates an `AsyncOperator<T>` from an `Iterable` or `AsyncIterable` of values or promises, allowing lazy and sequential operator chaining.
+
+```typescript
+import { from } from 'async-primitives';
+
+const values = await from([Promise.resolve(1), 2, Promise.resolve(3)])
+  .map(async (value) => value * 2)
+  .filter((value) => value > 2)
+  .flatMap((value) => [value, value + 100])
+  .toArray();
+
+console.log(values); // [4, 104, 6, 106]
+```
+
+`AsyncOperator<T>` is also an `AsyncIterable<T>`, so it can be consumed directly with `for await`.
+
+```typescript
+// Consume directly as AsyncIterable<T>
+for await (const value of from(iterable).map((value) => value * 2)) {
+  console.log(value);
+}
+```
+
+```typescript
+// AsyncIterable<T> sources are also supported
+const values = await from(asyncIterable).toArray();
+```
+
+Some sources are one-shot, such as async generator instances.
+If the same source cannot be enumerated again, calling multiple terminal operations on the same `AsyncOperator`
+may produce different results on the second and later enumerations.
+
+Intermediate operators:
+
+| Operator        | Description                                                                |
+| :-------------- | :------------------------------------------------------------------------- |
+| `map()`         | Projects each resolved value into another value                            |
+| `flatMap()`     | Projects each resolved value into an iterable and flattens it by one level |
+| `filter()`      | Keeps only values whose predicate result is truthy                         |
+| `concat()`      | Appends values from additional iterables or async iterables                |
+| `choose()`      | Projects each resolved value and omits `null` and `undefined` results      |
+| `slice()`       | Returns a subrange using `Array.prototype.slice()` semantics               |
+| `distinct()`    | Removes duplicate values                                                   |
+| `distinctBy()`  | Removes duplicate values by projected key                                  |
+| `skip()`        | Skips the specified number of values                                       |
+| `skipWhile()`   | Skips values while the predicate returns true                              |
+| `take()`        | Takes the specified number of values                                       |
+| `takeWhile()`   | Takes values while the predicate returns true                              |
+| `pairwise()`    | Produces adjacent pairs                                                    |
+| `zip()`         | Combines values with another iterable element by element                   |
+| `scan()`        | Produces intermediate accumulator states, including the initial value      |
+| `union()`       | Produces distinct values from this sequence followed by another sequence   |
+| `unionBy()`     | Produces distinct values by projected key across two sequences             |
+| `intersect()`   | Produces distinct values that appear in both sequences                     |
+| `intersectBy()` | Produces distinct values by projected key that appear in both sequences    |
+| `except()`      | Produces distinct values that do not appear in another sequence            |
+| `exceptBy()`    | Produces distinct values by projected key not found in another sequence    |
+| `chunkBySize()` | Groups values into arrays of a fixed maximum size                          |
+| `windowed()`    | Produces sliding windows of a fixed size                                   |
+| `flat()`        | Flattens nested arrays using `Array.prototype.flat()` semantics            |
+| `reverse()`     | Returns the sequence in reverse order                                      |
+| `toReversed()`  | Returns a reversed copy of the sequence                                    |
+| `sort()`        | Returns the sequence sorted with `Array.prototype.sort()` semantics        |
+| `toSorted()`    | Returns a sorted copy with `Array.prototype.toSorted()` semantics          |
+
+Terminal operators:
+
+| Operator          | Description                                                                            |
+| :---------------- | :------------------------------------------------------------------------------------- |
+| `forEach()`       | Executes an action for each value                                                      |
+| `reduce()`        | Reduces the sequence to a single value                                                 |
+| `reduceRight()`   | Reduces the sequence from right to left                                                |
+| `some()`          | Returns true when any value satisfies the predicate                                    |
+| `every()`         | Returns true when all values satisfy the predicate                                     |
+| `find()`          | Returns the first value that satisfies the predicate                                   |
+| `findIndex()`     | Returns the index of the first value that satisfies the predicate                      |
+| `at()`            | Returns the value at the specified index, matching `Array.prototype.at()`              |
+| `includes()`      | Returns true when the value is present, matching `Array.prototype.includes()`          |
+| `indexOf()`       | Returns the first matching index, matching `Array.prototype.indexOf()`                 |
+| `lastIndexOf()`   | Returns the last matching index, matching `Array.prototype.lastIndexOf()`              |
+| `findLast()`      | Returns the last value that satisfies the predicate                                    |
+| `findLastIndex()` | Returns the index of the last value that satisfies the predicate                       |
+| `min()`           | Returns the minimum value, or `undefined` for an empty sequence                        |
+| `minBy()`         | Returns the value with the minimum projected key, or `undefined` for an empty sequence |
+| `max()`           | Returns the maximum value, or `undefined` for an empty sequence                        |
+| `maxBy()`         | Returns the value with the maximum projected key, or `undefined` for an empty sequence |
+| `groupBy()`       | Collects values into a `Map` grouped by projected key                                  |
+| `countBy()`       | Counts values into a `Map` grouped by projected key                                    |
+| `join()`          | Concatenates the values into a string, matching `Array.prototype.join()`               |
+| `toArray()`       | Materializes the resulting values into an array                                        |
+
+Index-based operators such as `slice()`, `at()`, `includes()`, `indexOf()`, and `lastIndexOf()`
+follow the corresponding `Array` semantics.
+Negative indexes or negative `fromIndex` values may require consuming the source before the result is known.
+
+Materializing operators such as `flat()`, `reverse()`, `toReversed()`, `sort()`, `toSorted()`, and
+`reduceRight()` consume the entire source before they can produce results.
+
 ### ES2022+ using statement
 
 Use with using statement (requires ES2022+ or equivalent polyfill)
@@ -653,122 +759,203 @@ const batchLocker = createMutex(50);
 
 ## Benchmark results
 
-These results do not introduce hooks by `LogicalContext`. See [benchmark/suites/](benchmark/suites/).
+These results do not introduce hooks by `LogicalContext`. See [benchmarks/suites/](benchmarks/suites/).
+
+You can run all benchmark suites with:
+
+```bash
+npm run benchmark
+```
+
+You can also run only the `AsyncOperator` benchmarks:
+
+```bash
+npm run benchmark -- --suite=async-operator
+```
+
+For machine-readable output:
+
+```bash
+npm run --silent benchmark:json -- --suite=async-operator
+```
+
+The benchmark table below is generated by `./run_benchmark.sh`. Values depend on the machine and runtime environment.
+
+<!-- benchmark-results:start -->
 
 | Benchmark                                                                | Operations/sec | Avg Time (ms) | Median Time (ms) | Std Dev (ms) | Total Time (ms) |
 | ------------------------------------------------------------------------ | -------------- | ------------- | ---------------- | ------------ | --------------- |
-| delay(0)                                                                 | 934            | 1079.586      | 1070.068         | 126.534      | 1000.78         |
-| delay(1)                                                                 | 934            | 1071.761      | 1068.625         | 49.364       | 1001.03         |
-| Mutex acquire/release                                                    | 274,303        | 4.474         | 3.576            | 38.848       | 1000            |
-| Semaphore(1) acquire/release                                             | 290,067        | 4.331         | 3.357            | 41.765       | 1000            |
-| Semaphore(2) acquire/release                                             | 288,334        | 4.435         | 3.396            | 43.934       | 1000            |
-| Semaphore(5) acquire/release                                             | 290,287        | 4.419         | 3.366            | 44.587       | 1000            |
-| Semaphore(10) acquire/release                                            | 292,229        | 4.342         | 3.356            | 43.939       | 1000            |
-| Semaphore(1) sequential (100x)                                           | 10,024         | 111.958       | 97.473           | 142.563      | 1000.01         |
-| Semaphore(5) sequential (100x)                                           | 10,024         | 113.495       | 96.992           | 155.519      | 1000            |
-| Semaphore(1) concurrent (10x)                                            | 63,539         | 18.449        | 15.229           | 59.406       | 1000.01         |
-| Semaphore(2) concurrent (10x)                                            | 64,914         | 17.86         | 15.108           | 59.934       | 1000.01         |
-| Semaphore(5) concurrent (10x)                                            | 66,078         | 17.944        | 14.677           | 66.436       | 1000.01         |
-| Semaphore(2) high contention (20x)                                       | 34,480         | 33.178        | 28.453           | 73.498       | 1000.01         |
-| Semaphore(5) high contention (50x)                                       | 14,610         | 80.79         | 66.414           | 259.057      | 1000.02         |
-| Semaphore(5) maxCalls=10 sequential (100x)                               | 9,970          | 114.741       | 97.973           | 164.314      | 1000.08         |
-| Semaphore(5) maxCalls=50 sequential (100x)                               | 10,013         | 113.082       | 97.503           | 150.644      | 1000.1          |
-| Semaphore(5) maxCalls=100 sequential (100x)                              | 9,722          | 126.805       | 98.725           | 602.04       | 1000.24         |
-| ReaderWriterLock readLock acquire/release (write-preferring)             | 208,591        | 6.592         | 4.699            | 78.696       | 1000            |
-| ReaderWriterLock writeLock acquire/release (write-preferring)            | 207,769        | 7             | 4.669            | 207.649      | 1000            |
-| ReaderWriterLock readLock acquire/release (read-preferring)              | 210,419        | 7.163         | 4.659            | 220.061      | 1014.02         |
-| ReaderWriterLock writeLock acquire/release (read-preferring)             | 211,489        | 6.471         | 4.659            | 74.975       | 1000            |
-| ReaderWriterLock sequential reads (100x, write-preferring)               | 9,826          | 118.356       | 99.567           | 196.413      | 1000.94         |
-| ReaderWriterLock sequential writes (100x, write-preferring)              | 9,761          | 132.774       | 99.136           | 991.938      | 1000.05         |
-| ReaderWriterLock sequential reads (100x, read-preferring)                | 9,902          | 117.885       | 99.066           | 200.593      | 1001.19         |
-| ReaderWriterLock sequential writes (100x, read-preferring)               | 9,807          | 117.465       | 99.937           | 184.883      | 1000.1          |
-| ReaderWriterLock concurrent readers (10x, write-preferring)              | 61,960         | 19.46         | 15.849           | 79.852       | 1000.42         |
-| ReaderWriterLock concurrent readers (20x, write-preferring)              | 36,276         | 32.669        | 26.88            | 105.354      | 1000.02         |
-| ReaderWriterLock concurrent readers (10x, read-preferring)               | 59,870         | 22.843        | 15.769           | 335.036      | 1000.01         |
-| ReaderWriterLock concurrent readers (20x, read-preferring)               | 36,144         | 32.936        | 27.081           | 100.923      | 1001.41         |
-| ReaderWriterLock read-heavy (100 ops, write-preferring)                  | 7,975          | 144.183       | 121.207          | 158.526      | 1000.05         |
-| ReaderWriterLock read-heavy (100 ops, read-preferring)                   | 8,057          | 141.475       | 120.446          | 150.893      | 1000.09         |
-| ReaderWriterLock write-heavy (100 ops, write-preferring)                 | 7,065          | 174.014       | 136.876          | 814.345      | 1000.06         |
-| ReaderWriterLock write-heavy (100 ops, read-preferring)                  | 7,050          | 163.203       | 136.747          | 168.259      | 1000.11         |
-| ReaderWriterLock balanced (100 ops, write-preferring)                    | 7,449          | 155.188       | 129.793          | 168.603      | 1000.03         |
-| ReaderWriterLock balanced (100 ops, read-preferring)                     | 7,554          | 158.157       | 127.669          | 207.97       | 1000.03         |
-| ReaderWriterLock maxCalls=10 mixed (100 ops, write-preferring)           | 7,572          | 158.004       | 127.098          | 208.476      | 1000.16         |
-| ReaderWriterLock maxCalls=50 mixed (100 ops, write-preferring)           | 8,199          | 139.732       | 117.791          | 177.521      | 1000.62         |
-| ReaderWriterLock maxCalls=10 mixed (100 ops, read-preferring)            | 7,814          | 142.376       | 123.602          | 119.782      | 1000.05         |
-| ReaderWriterLock maxCalls=50 mixed (100 ops, read-preferring)            | 8,270          | 134.827       | 117.15           | 126.091      | 1000.01         |
-| ReaderWriterLock write-preference test (50 ops)                          | 15,298         | 73.611        | 63.599           | 89.2         | 1000            |
-| ReaderWriterLock read-preference test (50 ops)                           | 14,740         | 76.531        | 65.864           | 88.866       | 1000.03         |
-| Deferred resolve                                                         | 967,076        | 1.079         | 1.022            | 2.304        | 1000            |
-| Deferred reject/catch                                                    | 161,211        | 6.457         | 6.131            | 36.68        | 1000            |
-| defer callback                                                           | 634,484        | 1.651         | 1.553            | 8.61         | 1000            |
-| defer [setTimeout(0)]                                                    | 942            | 1099.454      | 1067.532         | 190.464      | 1001.6          |
-| onAbort setup/cleanup                                                    | 734,009        | 1.42          | 1.353            | 12.645       | 1000            |
-| Mutex Sequential (1000x) - maxCalls: 1                                   | 773            | 1439.014      | 1186.095         | 650.3        | 1000.11         |
-| Mutex Sequential (1000x) - maxCalls: 5                                   | 798            | 1342.9        | 1167.278         | 474.905      | 1000.46         |
-| Mutex Sequential (1000x) - maxCalls: 10                                  | 786            | 1398.933      | 1165.956         | 616.517      | 1000.24         |
-| Mutex Sequential (1000x) - maxCalls: 20                                  | 806            | 1316.3        | 1162.615         | 420.848      | 1000.39         |
-| Mutex Sequential (1000x) - maxCalls: 50                                  | 803            | 1330.459      | 1162.12          | 455.191      | 1000.51         |
-| Mutex Sequential (1000x) - maxCalls: 100                                 | 804            | 1328.995      | 1161.147         | 452.855      | 1000.73         |
-| Mutex Sequential (1000x) - maxCalls: 1000                                | 806            | 1323.39       | 1160.656         | 449.744      | 1000.48         |
-| Mutex High-freq (500x) - maxCalls: 1                                     | 1,561          | 796.818       | 599.555          | 700.583      | 1000.01         |
-| Mutex High-freq (500x) - maxCalls: 5                                     | 1,609          | 726.243       | 589.465          | 529.868      | 1000.04         |
-| Mutex High-freq (500x) - maxCalls: 10                                    | 1,631          | 696.869       | 586.359          | 447.914      | 1000.01         |
-| Mutex High-freq (500x) - maxCalls: 20                                    | 1,636          | 689.876       | 585.081          | 428.906      | 1000.32         |
-| Mutex High-freq (500x) - maxCalls: 50                                    | 1,637          | 681.668       | 584.35           | 391.355      | 1001.37         |
-| Mutex High-freq (500x) - maxCalls: 100                                   | 1,637          | 678.442       | 584.475          | 379.747      | 1000.02         |
-| Mutex High-freq (500x) - maxCalls: 1000                                  | 1,625          | 719.7         | 584.675          | 537.45       | 1000.38         |
-| Mutex Concurrent (20x) - maxCalls: 1                                     | 17,365         | 73.686        | 56.175           | 829.884      | 1000.06         |
-| Mutex Concurrent (20x) - maxCalls: 5                                     | 29,719         | 39.954        | 33.052           | 106.234      | 1000.02         |
-| Mutex Concurrent (20x) - maxCalls: 10                                    | 33,241         | 36.628        | 29.485           | 110.818      | 1000.02         |
-| Mutex Concurrent (20x) - maxCalls: 20                                    | 36,190         | 33.319        | 26.981           | 113.952      | 1000.01         |
-| Mutex Concurrent (20x) - maxCalls: 50                                    | 36,541         | 31.079        | 26.92            | 69.48        | 1000            |
-| Mutex Concurrent (20x) - maxCalls: 100                                   | 36,529         | 31.222        | 26.921           | 73.062       | 1000.01         |
-| Mutex Concurrent (20x) - maxCalls: 1000                                  | 35,973         | 32.576        | 26.961           | 83.952       | 1000.03         |
-| Mutex Ultra-high-freq (2000x) - maxCalls: 1                              | 370            | 2900.41       | 2380.239         | 884.207      | 1000.64         |
-| Mutex Ultra-high-freq (2000x) - maxCalls: 5                              | 388            | 2692.99       | 2342.889         | 631.597      | 1001.79         |
-| Mutex Ultra-high-freq (2000x) - maxCalls: 10                             | 390            | 2672.744      | 2335.075         | 607.606      | 1002.28         |
-| Mutex Ultra-high-freq (2000x) - maxCalls: 20                             | 379            | 2907.13       | 2336.011         | 1715.718     | 1000.05         |
-| Mutex Ultra-high-freq (2000x) - maxCalls: 50                             | 391            | 2674.667      | 2329.264         | 633.959      | 1000.33         |
-| Mutex Ultra-high-freq (2000x) - maxCalls: 100                            | 393            | 2640.003      | 2327.25          | 572.272      | 1003.2          |
-| Mutex Ultra-high-freq (2000x) - maxCalls: 1000                           | 391            | 2669.926      | 2326.478         | 625.909      | 1001.22         |
-| Conditional trigger/wait                                                 | 508,413        | 2.119         | 1.944            | 8.544        | 1000.1          |
-| Conditional trigger reaction time                                        | 452,111        | 2.37          | 2.193            | 8.231        | 1000            |
-| Conditional multiple waiters with trigger                                | 84,426         | 12.058        | 11.692           | 10.464       | 1000.01         |
-| ManuallyConditional raise/wait                                           | 369,773        | 2.864         | 2.685            | 9.754        | 1000            |
-| ManuallyConditional raise reaction time                                  | 338,972        | 3.226         | 2.925            | 14.948       | 1000            |
-| ManuallyConditional trigger/wait                                         | 371,705        | 2.831         | 2.665            | 8.58         | 1000            |
-| ManuallyConditional trigger reaction time                                | 338,929        | 3.123         | 2.926            | 8.218        | 1000.08         |
-| ManuallyConditional multiple waiters with raise                          | 80,330         | 13.079        | 12.294           | 17.541       | 1000.01         |
-| ManuallyConditional multiple waiters with trigger                        | 79,769         | 13.118        | 12.384           | 14.868       | 1000.01         |
-| Conditional vs ManuallyConditional - single waiter (Conditional)         | 510,197        | 2.093         | 1.944            | 6.925        | 1000            |
-| Conditional vs ManuallyConditional - single waiter (ManuallyConditional) | 367,391        | 2.889         | 2.695            | 9.852        | 1000            |
-| Conditional vs ManuallyConditional - batch waiters (Conditional)         | 145,223        | 7.532         | 6.803            | 23.79        | 1000.01         |
-| Conditional vs ManuallyConditional - batch waiters (ManuallyConditional) | 133,227        | 8.217         | 7.414            | 24.952       | 1000.01         |
-| [Comparison] Mutex single acquire/release                                | 268,954        | 5.33          | 3.586            | 94.867       | 1000            |
-| [Comparison] Semaphore(1) single acquire/release                         | 292,941        | 4.69          | 3.356            | 63.966       | 1000            |
-| [Comparison] Mutex sequential (50x)                                      | 16,375         | 71.832        | 59.912           | 139.937      | 1000.05         |
-| [Comparison] Semaphore(1) sequential (50x)                               | 19,336         | 62.213        | 50.855           | 160.662      | 1000.01         |
-| [Comparison] RWLock write-only sequential (50x)                          | 18,838         | 65.947        | 52.048           | 203.229      | 1000.02         |
-| [Comparison] Mutex concurrent (20x)                                      | 32,657         | 41.34         | 28.324           | 172.457      | 1002.09         |
-| [Comparison] Semaphore(1) concurrent (20x)                               | 34,374         | 35.436        | 28.413           | 110.662      | 1000.01         |
-| [Comparison] RWLock write-only concurrent (20x)                          | 32,800         | 37.984        | 29.816           | 133.543      | 1000.54         |
-| [Comparison] Semaphore(5) for pool (20 requests)                         | 35,386         | 34.342        | 27.762           | 111.709      | 1000.02         |
-| [Comparison] 5 Mutexes round-robin (20 requests)                         | 25,174         | 49.959        | 38.913           | 156.849      | 1000.03         |
-| [Comparison] RWLock read-mostly (90% read)                               | 16,215         | 75.794        | 59.922           | 166.724      | 1000.03         |
-| [Comparison] Mutex for read-mostly (simulated)                           | 14,888         | 90.556        | 65.052           | 899.732      | 1000.01         |
-| [Scenario] Connection Pool - Semaphore(3)                                | 67,270         | 19.833        | 14.527           | 116.812      | 1000.01         |
-| [Scenario] Cache - RWLock (70% read, 30% write)                          | 24,514         | 53.69         | 39.358           | 186.92       | 1000.03         |
-| [Scenario] Critical Section - Mutex                                      | 46,239         | 28.861        | 20.989           | 139.625      | 1000.01         |
-| [HighContention] Mutex (50 concurrent)                                   | 14,348         | 88.91         | 67.156           | 220.185      | 1000.06         |
-| [HighContention] Semaphore(1) (50 concurrent)                            | 14,429         | 80.106        | 67.125           | 151.764      | 1000.04         |
-| [HighContention] Semaphore(10) (50 concurrent)                           | 15,763         | 71.495        | 62.006           | 102.435      | 1000.01         |
-| [HighContention] RWLock writes (50 concurrent)                           | 14,082         | 81.354        | 69.059           | 118.924      | 1000.01         |
-| [HighContention] RWLock reads (50 concurrent)                            | 17,010         | 67.396        | 57.608           | 121.204      | 1000.02         |
+| delay(0)                                                                 | 1,074          | 1.083         | 1.078            | 0.076        | 1000.76         |
+| delay(1)                                                                 | 1,082          | 1.086         | 1.079            | 0.091        | 1000.59         |
+| Mutex acquire/release                                                    | 259,111        | 0.005         | 0.003            | 0.076        | 1000.87         |
+| Semaphore(1) acquire/release                                             | 295,582        | 0.004         | 0.003            | 0.069        | 1000            |
+| Semaphore(2) acquire/release                                             | 287,243        | 0.005         | 0.003            | 0.081        | 1000            |
+| Semaphore(5) acquire/release                                             | 292,272        | 0.004         | 0.003            | 0.08         | 1000            |
+| Semaphore(10) acquire/release                                            | 285,535        | 0.005         | 0.003            | 0.074        | 1000            |
+| Semaphore(1) sequential (100x)                                           | 11,351         | 0.102         | 0.084            | 0.287        | 1000.04         |
+| Semaphore(5) sequential (100x)                                           | 11,316         | 0.103         | 0.084            | 0.297        | 1000.16         |
+| Semaphore(1) concurrent (10x)                                            | 65,322         | 0.02          | 0.014            | 0.237        | 1000.02         |
+| Semaphore(2) concurrent (10x)                                            | 60,323         | 0.021         | 0.014            | 0.101        | 1000.01         |
+| Semaphore(5) concurrent (10x)                                            | 62,271         | 0.021         | 0.014            | 0.229        | 1000.6          |
+| Semaphore(2) high contention (20x)                                       | 33,628         | 0.037         | 0.027            | 0.127        | 1000.02         |
+| Semaphore(5) high contention (50x)                                       | 15,884         | 0.075         | 0.061            | 0.476        | 1000.01         |
+| Semaphore(5) maxCalls=10 sequential (100x)                               | 11,353         | 0.1           | 0.087            | 0.268        | 1001.04         |
+| Semaphore(5) maxCalls=50 sequential (100x)                               | 11,368         | 0.11          | 0.086            | 0.915        | 1036.13         |
+| Semaphore(5) maxCalls=100 sequential (100x)                              | 11,465         | 0.098         | 0.085            | 0.254        | 1000.03         |
+| ReaderWriterLock readLock acquire/release (write-preferring)             | 211,300        | 0.006         | 0.005            | 0.125        | 1003.45         |
+| ReaderWriterLock writeLock acquire/release (write-preferring)            | 210,102        | 0.007         | 0.005            | 0.451        | 1000            |
+| ReaderWriterLock readLock acquire/release (read-preferring)              | 202,592        | 0.007         | 0.005            | 0.234        | 1000            |
+| ReaderWriterLock writeLock acquire/release (read-preferring)             | 206,635        | 0.006         | 0.005            | 0.109        | 1000            |
+| ReaderWriterLock sequential reads (100x, write-preferring)               | 10,950         | 0.106         | 0.087            | 0.273        | 1000.09         |
+| ReaderWriterLock sequential writes (100x, write-preferring)              | 10,040         | 0.143         | 0.09             | 1.523        | 1000.08         |
+| ReaderWriterLock sequential reads (100x, read-preferring)                | 10,966         | 0.106         | 0.086            | 0.259        | 1000.07         |
+| ReaderWriterLock sequential writes (100x, read-preferring)               | 11,171         | 0.102         | 0.086            | 0.265        | 1000.08         |
+| ReaderWriterLock concurrent readers (10x, write-preferring)              | 64,896         | 0.018         | 0.015            | 0.109        | 1000.01         |
+| ReaderWriterLock concurrent readers (20x, write-preferring)              | 38,968         | 0.03          | 0.025            | 0.146        | 1000.02         |
+| ReaderWriterLock concurrent readers (10x, read-preferring)               | 65,577         | 0.021         | 0.015            | 0.655        | 1000            |
+| ReaderWriterLock concurrent readers (20x, read-preferring)               | 39,536         | 0.029         | 0.025            | 0.14         | 1000.01         |
+| ReaderWriterLock read-heavy (100 ops, write-preferring)                  | 7,753          | 0.158         | 0.115            | 0.228        | 1000.01         |
+| ReaderWriterLock read-heavy (100 ops, read-preferring)                   | 8,052          | 0.147         | 0.117            | 0.218        | 1000.38         |
+| ReaderWriterLock write-heavy (100 ops, write-preferring)                 | 7,698          | 0.152         | 0.126            | 0.764        | 1000.11         |
+| ReaderWriterLock write-heavy (100 ops, read-preferring)                  | 7,582          | 0.15          | 0.129            | 0.236        | 1000.11         |
+| ReaderWriterLock balanced (100 ops, write-preferring)                    | 7,237          | 0.17          | 0.126            | 0.265        | 1001.98         |
+| ReaderWriterLock balanced (100 ops, read-preferring)                     | 8,158          | 0.145         | 0.116            | 0.266        | 1000.02         |
+| ReaderWriterLock maxCalls=10 mixed (100 ops, write-preferring)           | 8,268          | 0.137         | 0.116            | 0.204        | 1000.09         |
+| ReaderWriterLock maxCalls=50 mixed (100 ops, write-preferring)           | 8,911          | 0.125         | 0.109            | 0.209        | 1000.06         |
+| ReaderWriterLock maxCalls=10 mixed (100 ops, read-preferring)            | 8,361          | 0.134         | 0.117            | 0.199        | 1000.07         |
+| ReaderWriterLock maxCalls=50 mixed (100 ops, read-preferring)            | 8,953          | 0.124         | 0.108            | 0.207        | 1000.01         |
+| ReaderWriterLock write-preference test (50 ops)                          | 15,933         | 0.074         | 0.06             | 0.155        | 1000.03         |
+| ReaderWriterLock read-preference test (50 ops)                           | 15,473         | 0.074         | 0.061            | 0.144        | 1000.01         |
+| Deferred resolve                                                         | 1,003,856      | 0.001         | 0.001            | 0.004        | 1000            |
+| Deferred reject/catch                                                    | 133,475        | 0.008         | 0.007            | 0.051        | 1000            |
+| defer callback                                                           | 609,937        | 0.002         | 0.002            | 0.002        | 1000            |
+| defer [setTimeout(0)]                                                    | 1,182          | 1.081         | 1.077            | 0.182        | 1001.06         |
+| onAbort setup/cleanup                                                    | 775,586        | 0.001         | 0.001            | 0.001        | 1000            |
+| Mutex Sequential (1000x) - maxCalls: 1                                   | 828            | 1.581         | 1.092            | 2.062        | 1000.84         |
+| Mutex Sequential (1000x) - maxCalls: 5                                   | 821            | 1.544         | 1.073            | 1.654        | 1000.65         |
+| Mutex Sequential (1000x) - maxCalls: 10                                  | 866            | 1.329         | 1.067            | 0.902        | 1000.9          |
+| Mutex Sequential (1000x) - maxCalls: 20                                  | 895            | 1.24          | 1.068            | 0.765        | 1000.68         |
+| Mutex Sequential (1000x) - maxCalls: 50                                  | 846            | 1.403         | 1.055            | 0.941        | 1001.77         |
+| Mutex Sequential (1000x) - maxCalls: 100                                 | 894            | 1.258         | 1.045            | 0.777        | 1000.46         |
+| Mutex Sequential (1000x) - maxCalls: 1000                                | 920            | 1.267         | 1.044            | 2.515        | 1000.92         |
+| Mutex High-freq (500x) - maxCalls: 1                                     | 1,716          | 0.719         | 0.552            | 1.152        | 1000.42         |
+| Mutex High-freq (500x) - maxCalls: 5                                     | 1,712          | 0.691         | 0.539            | 0.696        | 1000.49         |
+| Mutex High-freq (500x) - maxCalls: 10                                    | 1,780          | 0.637         | 0.538            | 0.578        | 1000.3          |
+| Mutex High-freq (500x) - maxCalls: 20                                    | 1,815          | 0.679         | 0.537            | 2.953        | 1000.1          |
+| Mutex High-freq (500x) - maxCalls: 50                                    | 1,819          | 0.603         | 0.537            | 0.515        | 1000.39         |
+| Mutex High-freq (500x) - maxCalls: 100                                   | 1,813          | 0.602         | 0.536            | 0.491        | 1000.13         |
+| Mutex High-freq (500x) - maxCalls: 1000                                  | 1,834          | 0.595         | 0.535            | 0.479        | 1000.35         |
+| Mutex Concurrent (20x) - maxCalls: 1                                     | 16,719         | 0.071         | 0.058            | 0.831        | 1000.04         |
+| Mutex Concurrent (20x) - maxCalls: 5                                     | 30,918         | 0.037         | 0.031            | 0.106        | 1000.02         |
+| Mutex Concurrent (20x) - maxCalls: 10                                    | 35,457         | 0.032         | 0.028            | 0.112        | 1000            |
+| Mutex Concurrent (20x) - maxCalls: 20                                    | 38,797         | 0.031         | 0.025            | 0.315        | 1000            |
+| Mutex Concurrent (20x) - maxCalls: 50                                    | 39,698         | 0.028         | 0.025            | 0.107        | 1000.02         |
+| Mutex Concurrent (20x) - maxCalls: 100                                   | 39,646         | 0.03          | 0.025            | 0.331        | 1000.01         |
+| Mutex Concurrent (20x) - maxCalls: 1000                                  | 39,152         | 0.029         | 0.025            | 0.113        | 1000.02         |
+| Mutex Ultra-high-freq (2000x) - maxCalls: 1                              | 429            | 2.988         | 2.155            | 4.031        | 1003.9          |
+| Mutex Ultra-high-freq (2000x) - maxCalls: 5                              | 450            | 2.43          | 2.108            | 1.233        | 1000.97         |
+| Mutex Ultra-high-freq (2000x) - maxCalls: 10                             | 455            | 2.376         | 2.105            | 1.093        | 1000.12         |
+| Mutex Ultra-high-freq (2000x) - maxCalls: 20                             | 454            | 2.546         | 2.094            | 3.739        | 1000.65         |
+| Mutex Ultra-high-freq (2000x) - maxCalls: 50                             | 458            | 2.333         | 2.095            | 0.956        | 1000.79         |
+| Mutex Ultra-high-freq (2000x) - maxCalls: 100                            | 456            | 2.348         | 2.078            | 0.973        | 1000.44         |
+| Mutex Ultra-high-freq (2000x) - maxCalls: 1000                           | 457            | 2.339         | 2.102            | 0.97         | 1000.91         |
+| Conditional trigger/wait                                                 | 525,765        | 0.002         | 0.002            | 0.006        | 1000            |
+| Conditional trigger reaction time                                        | 485,457        | 0.002         | 0.002            | 0.024        | 1000            |
+| Conditional multiple waiters with trigger                                | 86,356         | 0.012         | 0.011            | 0.041        | 1000            |
+| ManuallyConditional raise/wait                                           | 375,703        | 0.003         | 0.003            | 0.005        | 1000            |
+| ManuallyConditional raise reaction time                                  | 366,014        | 0.003         | 0.003            | 0.014        | 1000            |
+| ManuallyConditional trigger/wait                                         | 382,759        | 0.003         | 0.003            | 0.027        | 1000            |
+| ManuallyConditional trigger reaction time                                | 355,576        | 0.003         | 0.003            | 0.01         | 1000            |
+| ManuallyConditional multiple waiters with raise                          | 81,321         | 0.013         | 0.012            | 0.025        | 1000            |
+| ManuallyConditional multiple waiters with trigger                        | 78,183         | 0.013         | 0.012            | 0.017        | 1000            |
+| Conditional vs ManuallyConditional - single waiter (Conditional)         | 540,861        | 0.002         | 0.002            | 0.004        | 1000            |
+| Conditional vs ManuallyConditional - single waiter (ManuallyConditional) | 372,273        | 0.003         | 0.003            | 0.006        | 1000            |
+| Conditional vs ManuallyConditional - batch waiters (Conditional)         | 146,693        | 0.007         | 0.007            | 0.004        | 1000.01         |
+| Conditional vs ManuallyConditional - batch waiters (ManuallyConditional) | 130,035        | 0.008         | 0.007            | 0.029        | 1000.01         |
+| [Comparison] Mutex single acquire/release                                | 259,708        | 0.006         | 0.003            | 0.562        | 1000            |
+| [Comparison] Semaphore(1) single acquire/release                         | 299,682        | 0.004         | 0.003            | 0.075        | 1000            |
+| [Comparison] Mutex sequential (50x)                                      | 17,488         | 0.074         | 0.054            | 0.849        | 1000.06         |
+| [Comparison] Semaphore(1) sequential (50x)                               | 21,430         | 0.056         | 0.044            | 0.197        | 1000.03         |
+| [Comparison] RWLock write-only sequential (50x)                          | 19,596         | 0.063         | 0.047            | 0.205        | 1000.01         |
+| [Comparison] Mutex concurrent (20x)                                      | 36,904         | 0.032         | 0.026            | 0.122        | 1003.5          |
+| [Comparison] Semaphore(1) concurrent (20x)                               | 30,608         | 0.042         | 0.028            | 0.124        | 1000.06         |
+| [Comparison] RWLock write-only concurrent (20x)                          | 32,133         | 0.04          | 0.028            | 0.126        | 1000            |
+| [Comparison] Semaphore(5) for pool (20 requests)                         | 38,564         | 0.036         | 0.025            | 1.094        | 1000.01         |
+| [Comparison] 5 Mutexes round-robin (20 requests)                         | 24,071         | 0.053         | 0.037            | 0.201        | 1000.01         |
+| [Comparison] RWLock read-mostly (90% read)                               | 17,228         | 0.066         | 0.056            | 0.172        | 1000.05         |
+| [Comparison] Mutex for read-mostly (simulated)                           | 16,288         | 0.076         | 0.06             | 0.825        | 1000.04         |
+| [Scenario] Connection Pool - Semaphore(3)                                | 72,053         | 0.016         | 0.014            | 0.1          | 1000.01         |
+| [Scenario] Cache - RWLock (70% read, 30% write)                          | 26,320         | 0.044         | 0.037            | 0.173        | 1000.02         |
+| [Scenario] Critical Section - Mutex                                      | 49,951         | 0.024         | 0.02             | 0.132        | 1005.46         |
+| [HighContention] Mutex (50 concurrent)                                   | 15,432         | 0.073         | 0.064            | 0.192        | 1000            |
+| [HighContention] Semaphore(1) (50 concurrent)                            | 15,239         | 0.075         | 0.064            | 0.199        | 1000.05         |
+| [HighContention] Semaphore(10) (50 concurrent)                           | 16,618         | 0.071         | 0.058            | 0.228        | 1000.02         |
+| [HighContention] RWLock writes (50 concurrent)                           | 15,253         | 0.076         | 0.064            | 0.252        | 1001.12         |
+| [HighContention] RWLock reads (50 concurrent)                            | 18,199         | 0.063         | 0.052            | 0.18         | 1000.04         |
+| [AsyncOperator] toArray()                                                | 36,727         | 0.028         | 0.026            | 0.024        | 1000.02         |
+| [AsyncOperator] toArray() on AsyncIterable                               | 9,192          | 0.112         | 0.106            | 0.045        | 1000.06         |
+| [AsyncOperator] map() -> toArray()                                       | 17,498         | 0.06          | 0.055            | 0.047        | 1000            |
+| [AsyncOperator] map() -> toArray() on AsyncIterable                      | 5,140          | 0.226         | 0.174            | 0.136        | 1000.44         |
+| [AsyncOperator] map(async) -> toArray()                                  | 13,518         | 0.081         | 0.069            | 0.06         | 1000.01         |
+| [AsyncOperator] flatMap() -> toArray()                                   | 7,272          | 0.157         | 0.125            | 0.129        | 1000.11         |
+| [AsyncOperator] flatMap(async) -> toArray()                              | 6,951          | 0.148         | 0.14             | 0.058        | 1000.06         |
+| [AsyncOperator] filter() -> toArray()                                    | 15,020         | 0.071         | 0.063            | 0.048        | 1000.07         |
+| [AsyncOperator] filter() -> toArray() on AsyncIterable                   | 6,363          | 0.173         | 0.146            | 0.093        | 1000.11         |
+| [AsyncOperator] filter(async) -> toArray()                               | 11,990         | 0.09          | 0.078            | 0.055        | 1000.12         |
+| [AsyncOperator] concat() -> toArray()                                    | 18,289         | 0.058         | 0.053            | 0.069        | 1000.02         |
+| [AsyncOperator] choose() -> toArray()                                    | 14,735         | 0.074         | 0.064            | 0.052        | 1000.88         |
+| [AsyncOperator] slice() -> toArray()                                     | 15,938         | 0.066         | 0.061            | 0.045        | 1000.05         |
+| [AsyncOperator] distinct() -> toArray()                                  | 16,856         | 0.063         | 0.056            | 0.047        | 1000.05         |
+| [AsyncOperator] distinctBy() -> toArray()                                | 15,943         | 0.067         | 0.059            | 0.067        | 1000.01         |
+| [AsyncOperator] skip() -> toArray()                                      | 7,711          | 0.144         | 0.12             | 0.086        | 1000.1          |
+| [AsyncOperator] skipWhile() -> toArray()                                 | 14,753         | 0.074         | 0.064            | 0.054        | 1000.05         |
+| [AsyncOperator] take() -> toArray()                                      | 15,713         | 0.068         | 0.06             | 0.048        | 1000.01         |
+| [AsyncOperator] takeWhile() -> toArray()                                 | 15,307         | 0.072         | 0.06             | 0.053        | 1000.14         |
+| [AsyncOperator] pairwise() -> toArray()                                  | 9,951          | 0.115         | 0.091            | 0.084        | 1000.01         |
+| [AsyncOperator] zip() -> toArray()                                       | 10,099         | 0.105         | 0.095            | 0.056        | 1000.08         |
+| [AsyncOperator] scan() -> toArray()                                      | 11,857         | 0.087         | 0.082            | 0.047        | 1000            |
+| [AsyncOperator] union() -> toArray()                                     | 10,105         | 0.102         | 0.096            | 0.047        | 1000.04         |
+| [AsyncOperator] unionBy() -> toArray()                                   | 8,533          | 0.132         | 0.107            | 0.079        | 1000.08         |
+| [AsyncOperator] intersect() -> toArray()                                 | 12,073         | 0.085         | 0.08             | 0.043        | 1000.03         |
+| [AsyncOperator] intersectBy() -> toArray()                               | 10,865         | 0.095         | 0.091            | 0.048        | 1000.05         |
+| [AsyncOperator] except() -> toArray()                                    | 12,935         | 0.083         | 0.074            | 0.066        | 1000.01         |
+| [AsyncOperator] exceptBy() -> toArray()                                  | 12,592         | 0.081         | 0.078            | 0.044        | 1000.07         |
+| [AsyncOperator] chunkBySize() -> toArray()                               | 19,965         | 0.052         | 0.049            | 0.041        | 1000.01         |
+| [AsyncOperator] windowed() -> toArray()                                  | 9,945          | 0.104         | 0.097            | 0.048        | 1000.09         |
+| [AsyncOperator] flat() -> toArray()                                      | 10,781         | 0.097         | 0.089            | 0.051        | 1000.02         |
+| [AsyncOperator] reverse() -> toArray()                                   | 11,057         | 0.094         | 0.089            | 0.048        | 1000.05         |
+| [AsyncOperator] toReversed() -> toArray()                                | 11,107         | 0.094         | 0.088            | 0.078        | 1000.05         |
+| [AsyncOperator] sort() -> toArray()                                      | 8,306          | 0.123         | 0.117            | 0.048        | 1000.11         |
+| [AsyncOperator] toSorted() -> toArray()                                  | 8,700          | 0.12          | 0.11             | 0.055        | 1000.03         |
+| [AsyncOperator] forEach()                                                | 41,074         | 0.025         | 0.024            | 0.009        | 1000.02         |
+| [AsyncOperator] reduce()                                                 | 39,909         | 0.025         | 0.024            | 0.008        | 1000.02         |
+| [AsyncOperator] reduceRight()                                            | 33,283         | 0.03          | 0.029            | 0.014        | 1000.02         |
+| [AsyncOperator] some()                                                   | 40,059         | 0.025         | 0.024            | 0.008        | 1000.02         |
+| [AsyncOperator] every()                                                  | 40,837         | 0.025         | 0.024            | 0.011        | 1000.02         |
+| [AsyncOperator] find()                                                   | 40,632         | 0.025         | 0.024            | 0.008        | 1000.01         |
+| [AsyncOperator] findIndex()                                              | 39,717         | 0.026         | 0.024            | 0.011        | 1000.01         |
+| [AsyncOperator] at()                                                     | 46,189         | 0.022         | 0.021            | 0.009        | 1000            |
+| [AsyncOperator] includes()                                               | 41,313         | 0.025         | 0.024            | 0.011        | 1000.01         |
+| [AsyncOperator] indexOf()                                                | 41,459         | 0.024         | 0.024            | 0.008        | 1000.01         |
+| [AsyncOperator] lastIndexOf()                                            | 37,385         | 0.027         | 0.026            | 0.009        | 1000.01         |
+| [AsyncOperator] findLast()                                               | 40,993         | 0.025         | 0.024            | 0.008        | 1000.01         |
+| [AsyncOperator] findLastIndex()                                          | 41,058         | 0.025         | 0.024            | 0.008        | 1000.02         |
+| [AsyncOperator] min()                                                    | 38,433         | 0.026         | 0.025            | 0.008        | 1000.02         |
+| [AsyncOperator] minBy()                                                  | 36,195         | 0.029         | 0.026            | 0.015        | 1000.02         |
+| [AsyncOperator] max()                                                    | 35,691         | 0.031         | 0.026            | 0.019        | 1000.01         |
+| [AsyncOperator] maxBy()                                                  | 34,688         | 0.031         | 0.027            | 0.017        | 1000.02         |
+| [AsyncOperator] groupBy()                                                | 30,537         | 0.035         | 0.031            | 0.017        | 1000.03         |
+| [AsyncOperator] countBy()                                                | 30,991         | 0.034         | 0.031            | 0.014        | 1000.02         |
+| [AsyncOperator] join()                                                   | 35,589         | 0.029         | 0.027            | 0.01         | 1000            |
+| [AsyncOperator] linear chain(depth=5) -> toArray()                       | 6,558          | 0.156         | 0.151            | 0.057        | 1000.07         |
+| [AsyncOperator] linear chain(depth=5, async callbacks) -> toArray()      | 5,525          | 0.186         | 0.176            | 0.069        | 1000.13         |
 
-**Test Environment:** Node.js v22.19.0, linux x64  
-**CPU:** AMD EPYC 7763 64-Core Processor  
-**Memory:** 16GB  
-**Last Updated:** 2025-09-04
+**Test Environment:** Node.js v24.11.1, linux x64  
+**CPU:** Intel(R) Core(TM) i9-9980XE CPU @ 3.00GHz  
+**Memory:** 62GB  
+**Last Updated:** 2026-04-02
+
+<!-- benchmark-results:end -->
 
 ---
 

@@ -10,20 +10,45 @@ export interface BenchmarkResult {
   stdDev: number;
 }
 
-export function formatResults(
+const toFiniteNumber = (value: number | undefined): number => {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+};
+
+const roundMetric = (value: number | undefined, fractionDigits: number) => {
+  return parseFloat(toFiniteNumber(value).toFixed(fractionDigits));
+};
+
+const getOpsPerSec = (task: Task): number => {
+  return toFiniteNumber(task.result?.throughput?.mean ?? task.result?.hz);
+};
+
+const getAvgTime = (task: Task): number => {
+  // tinybench 6 moved the latency aggregate metrics under result.latency.
+  return toFiniteNumber(task.result?.latency?.mean ?? task.result?.mean);
+};
+
+const getMedianTime = (task: Task): number => {
+  return toFiniteNumber(
+    task.result?.latency?.p50 ?? task.result?.latency?.mean ?? task.result?.mean
+  );
+};
+
+const getStdDev = (task: Task): number => {
+  return toFiniteNumber(task.result?.latency?.sd ?? task.result?.sd);
+};
+
+export const formatResults = (
   tasks: Task[],
   systemInfo: SystemInfo,
   outputFormat: 'markdown' | 'json' = 'markdown'
-): string {
+): string => {
   const results: BenchmarkResult[] = tasks.map((task) => ({
     name: task.name,
-    opsPerSec: Math.round(task.result?.hz || 0),
-    avgTime: parseFloat(((task.result?.mean || 0) * 1000).toFixed(3)),
-    medianTime: parseFloat(
-      ((task.result?.latency?.p50 || 0) * 1000).toFixed(3)
-    ),
-    totalTime: parseFloat((task.result?.totalTime || 0).toFixed(2)),
-    stdDev: parseFloat(((task.result?.sd || 0) * 1000).toFixed(3)),
+    opsPerSec: Math.round(getOpsPerSec(task)),
+    avgTime: roundMetric(getAvgTime(task), 3),
+    medianTime: roundMetric(getMedianTime(task), 3),
+    totalTime: roundMetric(task.result?.totalTime, 2),
+    stdDev: roundMetric(getStdDev(task), 3),
   }));
 
   if (outputFormat === 'json') {
@@ -53,4 +78,4 @@ ${tableRows}
 **CPU:** ${systemInfo.cpu}  
 **Memory:** ${systemInfo.memory}  
 **Last Updated:** ${systemInfo.timestamp}`;
-}
+};

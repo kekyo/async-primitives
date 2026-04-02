@@ -169,9 +169,8 @@ describe('AsyncLocal', () => {
     it('should maintain LogicalContext across setTimeout', async () => {
       vi.resetModules();
 
-      const { createAsyncLocal } = await import(
-        '../src/primitives/async-local'
-      );
+      const { createAsyncLocal } =
+        await import('../src/primitives/async-local');
       const asyncLocal = createAsyncLocal<string>();
 
       asyncLocal.setValue('value before timeout');
@@ -190,9 +189,8 @@ describe('AsyncLocal', () => {
     it('should maintain LogicalContext across queueMicrotask', async () => {
       vi.resetModules();
 
-      const { createAsyncLocal } = await import(
-        '../src/primitives/async-local'
-      );
+      const { createAsyncLocal } =
+        await import('../src/primitives/async-local');
       const asyncLocal = createAsyncLocal<string>();
 
       asyncLocal.setValue('value before microtask');
@@ -215,9 +213,8 @@ describe('AsyncLocal', () => {
     it('should work with Promise chains', async () => {
       vi.resetModules();
 
-      const { createAsyncLocal } = await import(
-        '../src/primitives/async-local'
-      );
+      const { createAsyncLocal } =
+        await import('../src/primitives/async-local');
       const asyncLocal = createAsyncLocal<string>();
 
       asyncLocal.setValue('value before Promise');
@@ -237,12 +234,10 @@ describe('AsyncLocal', () => {
     it('should handle LogicalContext switching correctly across async boundaries', async () => {
       vi.resetModules();
 
-      const { createAsyncLocal } = await import(
-        '../src/primitives/async-local'
-      );
-      const { runOnNewLogicalContext } = await import(
-        '../src/primitives/logical-context'
-      );
+      const { createAsyncLocal } =
+        await import('../src/primitives/async-local');
+      const { runOnNewLogicalContext } =
+        await import('../src/primitives/logical-context');
       const asyncLocal = createAsyncLocal<string>();
 
       asyncLocal.setValue('external context value');
