@@ -324,6 +324,16 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
   ) => AsyncOperator<NonNullable<U>>;
 
   /**
+   * Returns a portion of the sequence between two indexes
+   * @param start Zero-based start index, or a negative offset from the end
+   * @param end Zero-based exclusive end index, or a negative offset from the end
+   * @returns A new async operator containing the sliced range
+   * @remarks
+   * This follows `Array.prototype.slice()` semantics. Negative indexes may require consuming the source first.
+   */
+  readonly slice: (start: number, end?: number) => AsyncOperator<T>;
+
+  /**
    * Removes duplicate values
    * @returns A new async operator whose values are distinct
    */
@@ -556,6 +566,48 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
    */
   readonly findIndex: (
     predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => Promise<number>;
+
+  /**
+   * Returns the value at the specified index
+   * @param index Zero-based index, or a negative offset from the end
+   * @returns A promise that resolves to the value at the specified index or undefined
+   * @remarks
+   * This follows `Array.prototype.at()` semantics. Negative indexes may require consuming the source first.
+   */
+  readonly at: (index: number) => Promise<T | undefined>;
+
+  /**
+   * Determines whether the sequence contains the specified value
+   * @param searchElement Value to locate in the sequence
+   * @param fromIndex Zero-based index to start searching from
+   * @returns A promise that resolves to true when the value is found
+   * @remarks
+   * This follows `Array.prototype.includes()` semantics. Negative `fromIndex` values may require consuming the source first.
+   */
+  readonly includes: (searchElement: T, fromIndex?: number) => Promise<boolean>;
+
+  /**
+   * Returns the first index of the specified value
+   * @param searchElement Value to locate in the sequence
+   * @param fromIndex Zero-based index to start searching from
+   * @returns A promise that resolves to the found index or -1
+   * @remarks
+   * This follows `Array.prototype.indexOf()` semantics. Negative `fromIndex` values may require consuming the source first.
+   */
+  readonly indexOf: (searchElement: T, fromIndex?: number) => Promise<number>;
+
+  /**
+   * Returns the last index of the specified value
+   * @param searchElement Value to locate in the sequence
+   * @param fromIndex Zero-based index to start searching backward from
+   * @returns A promise that resolves to the found index or -1
+   * @remarks
+   * This follows `Array.prototype.lastIndexOf()` semantics and may require consuming the source first.
+   */
+  readonly lastIndexOf: (
+    searchElement: T,
+    fromIndex?: number
   ) => Promise<number>;
 
   /**

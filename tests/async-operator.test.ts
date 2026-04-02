@@ -203,6 +203,35 @@ describe('AsyncOperator', () => {
       expect(distinctObjects).toEqual(['alice', 'bob']);
     });
 
+    it('should support slice with positive and negative indexes', async () => {
+      const positiveSlice = await from([1, 2, 3, 4, 5]).slice(1, 4).toArray();
+      const negativeSlice = await from([1, 2, 3, 4, 5]).slice(-3, -1).toArray();
+
+      expect(positiveSlice).toEqual([2, 3, 4]);
+      expect(negativeSlice).toEqual([3, 4]);
+    });
+
+    it('should stop early for positive slice bounds', async () => {
+      const events: string[] = [];
+      const source = {
+        [Symbol.iterator]: function* () {
+          events.push('yield-1');
+          yield 1;
+          events.push('yield-2');
+          yield 2;
+          events.push('yield-3');
+          yield 3;
+          events.push('yield-4');
+          yield 4;
+        },
+      };
+
+      const values = await from(source).slice(1, 3).toArray();
+
+      expect(values).toEqual([2, 3]);
+      expect(events).toEqual(['yield-1', 'yield-2', 'yield-3']);
+    });
+
     it('should support concat with iterable and async iterable sources', async () => {
       const result = await from([Promise.resolve(1), 2])
         .concat(
@@ -435,6 +464,29 @@ describe('AsyncOperator', () => {
       expect(found).toBe(10);
       expect(foundIndex).toBe(3);
       expect(missingIndex).toBe(-1);
+    });
+
+    it('should support at, includes, indexOf and lastIndexOf', async () => {
+      const values = [1, 2, 3, 2, Number.NaN];
+
+      const atPositive = await from(values).at(1);
+      const atNegative = await from(values).at(-1);
+      const atMissing = await from(values).at(-6);
+
+      const includesValue = await from(values).includes(2, -2);
+      const includesNaN = await from(values).includes(Number.NaN);
+      const indexOfValue = await from(values).indexOf(2, -2);
+      const indexOfNaN = await from(values).indexOf(Number.NaN);
+      const lastIndex = await from(values).lastIndexOf(2, -2);
+
+      expect(atPositive).toBe(2);
+      expect(atNegative).toBe(Number.NaN);
+      expect(atMissing).toBeUndefined();
+      expect(includesValue).toBe(true);
+      expect(includesNaN).toBe(true);
+      expect(indexOfValue).toBe(3);
+      expect(indexOfNaN).toBe(-1);
+      expect(lastIndex).toBe(3);
     });
 
     it('should support findLast, findLastIndex and join', async () => {

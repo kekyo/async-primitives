@@ -17,6 +17,9 @@ const createAsyncIterable = <T>(
 
 const identity = <T>(value: T): T => value;
 
+const sameValueZero = <T>(left: T, right: T): boolean =>
+  left === right || (left !== left && right !== right);
+
 const isAsyncIterable = <T>(
   source: AsyncOperatorSource<T>
 ): source is AsyncIterable<Awaitable<T>> =>
@@ -35,6 +38,16 @@ const toAsyncIterable = <T>(source: AsyncOperatorSource<T>): AsyncIterable<T> =>
       }
     }
   });
+
+const toIntegerOrInfinity = (value: number): number => {
+  if (Number.isNaN(value) || value === 0) {
+    return 0;
+  }
+  if (!Number.isFinite(value)) {
+    return value;
+  }
+  return Math.trunc(value);
+};
 
 const normalizeCount = (count: number): number => {
   if (Number.isNaN(count) || count <= 0) {
@@ -77,6 +90,16 @@ const collectKeysFromSource = async <T, TKey>(
   }
 
   return keys;
+};
+
+const materializeValues = async <T>(
+  iterableFactory: AsyncIterableFactory<T>
+): Promise<T[]> => {
+  const values: T[] = [];
+  for await (const value of iterableFactory()) {
+    values.push(value);
+  }
+  return values;
 };
 
 const findExtremeBy = async <T, TKey>(
@@ -216,6 +239,66 @@ const createAsyncOperator = <T>(
           }
         })
       ) as AsyncOperator<NonNullable<U>>,
+    slice: (start: number, end?: number) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const normalizedStart = toIntegerOrInfinity(start);
+          const normalizedEnd =
+            end === undefined ? undefined : toIntegerOrInfinity(end);
+
+          if (
+            normalizedStart < 0 ||
+            (normalizedEnd !== undefined && normalizedEnd < 0)
+          ) {
+            const values = await materializeValues(iterableFactory);
+            for (const value of values.slice(start, end)) {
+              yield value;
+            }
+            return;
+          }
+
+          const startIndex = Math.max(normalizedStart, 0);
+          if (startIndex === Infinity) {
+            return;
+          }
+
+          const endIndex =
+            normalizedEnd === undefined
+              ? undefined
+              : Math.max(normalizedEnd, 0);
+          if (
+            endIndex !== undefined &&
+            endIndex !== Infinity &&
+            endIndex <= startIndex
+          ) {
+            return;
+          }
+
+          let index = 0;
+          const iterator = iterableFactory()[Symbol.asyncIterator]();
+
+          while (true) {
+            if (
+              endIndex !== undefined &&
+              endIndex !== Infinity &&
+              index >= endIndex
+            ) {
+              return;
+            }
+
+            const result = await iterator.next();
+            if (result.done) {
+              return;
+            }
+
+            const value = result.value;
+            if (index >= startIndex) {
+              yield value as T;
+            }
+            index++;
+          }
+        })
+      ) as AsyncOperator<T>,
     distinct: () =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
@@ -578,6 +661,97 @@ const createAsyncOperator = <T>(
       }
       return -1;
     },
+    at: async (index: number): Promise<T | undefined> => {
+      const normalizedIndex = toIntegerOrInfinity(index);
+
+      if (normalizedIndex >= 0) {
+        if (normalizedIndex === Infinity) {
+          return undefined;
+        }
+
+        let currentIndex = 0;
+        for await (const value of iterableFactory()) {
+          if (currentIndex === normalizedIndex) {
+            return value;
+          }
+          currentIndex++;
+        }
+        return undefined;
+      }
+
+      if (normalizedIndex === -Infinity) {
+        return undefined;
+      }
+
+      const lookback = Math.abs(normalizedIndex);
+      const buffer: T[] = [];
+
+      for await (const value of iterableFactory()) {
+        buffer.push(value);
+        if (buffer.length > lookback) {
+          buffer.shift();
+        }
+      }
+
+      return buffer.length === lookback ? buffer[0] : undefined;
+    },
+    includes: async (
+      searchElement: T,
+      fromIndex?: number
+    ): Promise<boolean> => {
+      const normalizedFromIndex = toIntegerOrInfinity(fromIndex ?? 0);
+
+      if (normalizedFromIndex < 0) {
+        const values = await materializeValues(iterableFactory);
+        return values.includes(searchElement, normalizedFromIndex);
+      }
+
+      if (normalizedFromIndex === Infinity) {
+        return false;
+      }
+
+      let index = 0;
+      for await (const value of iterableFactory()) {
+        if (
+          index >= normalizedFromIndex &&
+          sameValueZero(value, searchElement)
+        ) {
+          return true;
+        }
+        index++;
+      }
+      return false;
+    },
+    indexOf: async (searchElement: T, fromIndex?: number): Promise<number> => {
+      const normalizedFromIndex = toIntegerOrInfinity(fromIndex ?? 0);
+
+      if (normalizedFromIndex < 0) {
+        const values = await materializeValues(iterableFactory);
+        return values.indexOf(searchElement, normalizedFromIndex);
+      }
+
+      if (normalizedFromIndex === Infinity) {
+        return -1;
+      }
+
+      let index = 0;
+      for await (const value of iterableFactory()) {
+        if (index >= normalizedFromIndex && value === searchElement) {
+          return index;
+        }
+        index++;
+      }
+      return -1;
+    },
+    lastIndexOf: async (
+      searchElement: T,
+      fromIndex?: number
+    ): Promise<number> => {
+      const values = await materializeValues(iterableFactory);
+      return fromIndex === undefined
+        ? values.lastIndexOf(searchElement)
+        : values.lastIndexOf(searchElement, fromIndex);
+    },
     findLast: async (
       predicate: (value: T, index: number) => Awaitable<boolean>
     ): Promise<T | undefined> => {
@@ -668,13 +842,7 @@ const createAsyncOperator = <T>(
 
       return result;
     },
-    toArray: async (): Promise<T[]> => {
-      const values: T[] = [];
-      for await (const value of iterableFactory()) {
-        values.push(value);
-      }
-      return values;
-    },
+    toArray: async (): Promise<T[]> => materializeValues(iterableFactory),
   };
 };
 

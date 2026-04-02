@@ -511,6 +511,7 @@ Intermediate operators:
 | `filter()`      | Keeps only values whose predicate result is truthy                         |
 | `concat()`      | Appends values from additional iterables or async iterables                |
 | `choose()`      | Projects each resolved value and omits `null` and `undefined` results      |
+| `slice()`       | Returns a subrange using `Array.prototype.slice()` semantics               |
 | `distinct()`    | Removes duplicate values                                                   |
 | `distinctBy()`  | Removes duplicate values by projected key                                  |
 | `skip()`        | Skips the specified number of values                                       |
@@ -539,6 +540,10 @@ Terminal operators:
 | `every()`         | Returns true when all values satisfy the predicate                                     |
 | `find()`          | Returns the first value that satisfies the predicate                                   |
 | `findIndex()`     | Returns the index of the first value that satisfies the predicate                      |
+| `at()`            | Returns the value at the specified index, matching `Array.prototype.at()`              |
+| `includes()`      | Returns true when the value is present, matching `Array.prototype.includes()`          |
+| `indexOf()`       | Returns the first matching index, matching `Array.prototype.indexOf()`                 |
+| `lastIndexOf()`   | Returns the last matching index, matching `Array.prototype.lastIndexOf()`              |
 | `findLast()`      | Returns the last value that satisfies the predicate                                    |
 | `findLastIndex()` | Returns the index of the last value that satisfies the predicate                       |
 | `min()`           | Returns the minimum value, or `undefined` for an empty sequence                        |
@@ -549,6 +554,10 @@ Terminal operators:
 | `countBy()`       | Counts values into a `Map` grouped by projected key                                    |
 | `join()`          | Concatenates the values into a string, matching `Array.prototype.join()`               |
 | `toArray()`       | Materializes the resulting values into an array                                        |
+
+Index-based operators such as `slice()`, `at()`, `includes()`, `indexOf()`, and `lastIndexOf()`
+follow the corresponding `Array` semantics.
+Negative indexes or negative `fromIndex` values may require consuming the source before the result is known.
 
 ### ES2022+ using statement
 
