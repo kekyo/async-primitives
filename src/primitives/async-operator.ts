@@ -60,6 +60,10 @@ const identity = <T>(value: T): T => value;
 const sameValueZero = <T>(left: T, right: T): boolean =>
   left === right || (left !== left && right !== right);
 
+const isArraySource = <T>(
+  source: AsyncOperatorSource<T>
+): source is readonly Awaitable<T>[] => Array.isArray(source);
+
 const isPromiseLike = <T>(value: Awaitable<T>): value is PromiseLike<T> =>
   ((typeof value === 'object' && value !== null) ||
     typeof value === 'function') &&
@@ -402,27 +406,80 @@ const createAsyncOperator = <T>(
         createAsyncIterable(async function* () {
           let index = 0;
           if (syncFactory !== undefined) {
-            for (const value of syncFactory()) {
-              const resolvedValue = (
-                isPromiseLike(value) ? await value : value
-              ) as T;
-              const selected = selector(resolvedValue, index);
-              const innerSource = isPromiseLike(selected)
-                ? await selected
-                : selected;
+            const source = syncFactory();
+            if (Array.isArray(source)) {
+              for (
+                let outerIndex = 0;
+                outerIndex < source.length;
+                outerIndex++
+              ) {
+                const value = source[outerIndex] as Awaitable<T>;
+                const resolvedValue = (
+                  isPromiseLike(value) ? await value : value
+                ) as T;
+                const selected = selector(resolvedValue, index);
+                const innerSource = isPromiseLike(selected)
+                  ? await selected
+                  : selected;
 
-              if (isAsyncIterable(innerSource)) {
-                for await (const innerValue of innerSource) {
-                  yield innerValue as U;
+                if (isArraySource(innerSource)) {
+                  for (
+                    let innerIndex = 0;
+                    innerIndex < innerSource.length;
+                    innerIndex++
+                  ) {
+                    const innerValue = innerSource[innerIndex] as Awaitable<U>;
+                    yield (
+                      isPromiseLike(innerValue) ? await innerValue : innerValue
+                    ) as U;
+                  }
+                } else if (isAsyncIterable(innerSource)) {
+                  for await (const innerValue of innerSource) {
+                    yield innerValue as U;
+                  }
+                } else {
+                  for (const innerValue of innerSource) {
+                    yield (
+                      isPromiseLike(innerValue) ? await innerValue : innerValue
+                    ) as U;
+                  }
                 }
-              } else {
-                for (const innerValue of innerSource) {
-                  yield (
-                    isPromiseLike(innerValue) ? await innerValue : innerValue
-                  ) as U;
-                }
+                index++;
               }
-              index++;
+            } else {
+              for (const value of source) {
+                const resolvedValue = (
+                  isPromiseLike(value) ? await value : value
+                ) as T;
+                const selected = selector(resolvedValue, index);
+                const innerSource = isPromiseLike(selected)
+                  ? await selected
+                  : selected;
+
+                if (isArraySource(innerSource)) {
+                  for (
+                    let innerIndex = 0;
+                    innerIndex < innerSource.length;
+                    innerIndex++
+                  ) {
+                    const innerValue = innerSource[innerIndex] as Awaitable<U>;
+                    yield (
+                      isPromiseLike(innerValue) ? await innerValue : innerValue
+                    ) as U;
+                  }
+                } else if (isAsyncIterable(innerSource)) {
+                  for await (const innerValue of innerSource) {
+                    yield innerValue as U;
+                  }
+                } else {
+                  for (const innerValue of innerSource) {
+                    yield (
+                      isPromiseLike(innerValue) ? await innerValue : innerValue
+                    ) as U;
+                  }
+                }
+                index++;
+              }
             }
           } else {
             for await (const value of iterableFactory()) {
@@ -431,7 +488,18 @@ const createAsyncOperator = <T>(
                 ? await selected
                 : selected;
 
-              if (isAsyncIterable(innerSource)) {
+              if (isArraySource(innerSource)) {
+                for (
+                  let innerIndex = 0;
+                  innerIndex < innerSource.length;
+                  innerIndex++
+                ) {
+                  const innerValue = innerSource[innerIndex] as Awaitable<U>;
+                  yield (
+                    isPromiseLike(innerValue) ? await innerValue : innerValue
+                  ) as U;
+                }
+              } else if (isAsyncIterable(innerSource)) {
                 for await (const innerValue of innerSource) {
                   yield innerValue as U;
                 }
