@@ -50,6 +50,12 @@ const unsortedValues = Array.from(
 const lexicalSortValues = unsortedValues.map(
   (value) => `value-${value.toString().padStart(3, '0')}`
 );
+const createAsyncValues = <T>(values: Iterable<T>) =>
+  (async function* () {
+    for (const value of values) {
+      yield value;
+    }
+  })();
 
 const registerTerminalArrayBenchmark = (
   bench: Bench,
@@ -67,10 +73,31 @@ export const createAsyncOperatorBenchmarks = (bench: Bench) => {
   );
   registerTerminalArrayBenchmark(
     bench,
+    '[AsyncOperator] toArray() on AsyncIterable',
+    async () => from(createAsyncValues(numericValues)).toArray()
+  );
+  registerTerminalArrayBenchmark(
+    bench,
     '[AsyncOperator] map() -> toArray()',
     async () =>
       from(numericValues)
         .map((value) => value + 1)
+        .toArray()
+  );
+  registerTerminalArrayBenchmark(
+    bench,
+    '[AsyncOperator] map() -> toArray() on AsyncIterable',
+    async () =>
+      from(createAsyncValues(numericValues))
+        .map((value) => value + 1)
+        .toArray()
+  );
+  registerTerminalArrayBenchmark(
+    bench,
+    '[AsyncOperator] map(async) -> toArray()',
+    async () =>
+      from(numericValues)
+        .map(async (value) => value + 1)
         .toArray()
   );
   registerTerminalArrayBenchmark(
@@ -83,10 +110,34 @@ export const createAsyncOperatorBenchmarks = (bench: Bench) => {
   );
   registerTerminalArrayBenchmark(
     bench,
+    '[AsyncOperator] flatMap(async) -> toArray()',
+    async () =>
+      from(numericValues)
+        .flatMap(async (value) => [value, value + 1])
+        .toArray()
+  );
+  registerTerminalArrayBenchmark(
+    bench,
     '[AsyncOperator] filter() -> toArray()',
     async () =>
       from(numericValues)
         .filter((value) => value % 2 === 0)
+        .toArray()
+  );
+  registerTerminalArrayBenchmark(
+    bench,
+    '[AsyncOperator] filter() -> toArray() on AsyncIterable',
+    async () =>
+      from(createAsyncValues(numericValues))
+        .filter((value) => value % 2 === 0)
+        .toArray()
+  );
+  registerTerminalArrayBenchmark(
+    bench,
+    '[AsyncOperator] filter(async) -> toArray()',
+    async () =>
+      from(numericValues)
+        .filter(async (value) => value % 2 === 0)
         .toArray()
   );
   registerTerminalArrayBenchmark(
@@ -306,5 +357,29 @@ export const createAsyncOperatorBenchmarks = (bench: Bench) => {
   );
   bench.add('[AsyncOperator] join()', async () =>
     from(duplicateValues).join(',')
+  );
+  registerTerminalArrayBenchmark(
+    bench,
+    '[AsyncOperator] linear chain(depth=5) -> toArray()',
+    async () =>
+      from(numericValues)
+        .map((value) => value + 1)
+        .filter((value) => value % 2 === 0)
+        .choose((value) => (value % 3 === 0 ? value : undefined))
+        .map((value) => value * 2)
+        .takeWhile((value) => value < 384)
+        .toArray()
+  );
+  registerTerminalArrayBenchmark(
+    bench,
+    '[AsyncOperator] linear chain(depth=5, async callbacks) -> toArray()',
+    async () =>
+      from(numericValues)
+        .map(async (value) => value + 1)
+        .filter(async (value) => value % 2 === 0)
+        .choose(async (value) => (value % 3 === 0 ? value : undefined))
+        .map(async (value) => value * 2)
+        .takeWhile(async (value) => value < 384)
+        .toArray()
   );
 };

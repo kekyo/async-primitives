@@ -56,12 +56,18 @@ describe('Benchmark infrastructure', () => {
 
     createAsyncOperatorBenchmarks(bench as any);
 
-    expect(tasks).toHaveLength(49);
+    expect(tasks).toHaveLength(57);
     expect(tasks.map((task) => task.name)).toEqual([
       '[AsyncOperator] toArray()',
+      '[AsyncOperator] toArray() on AsyncIterable',
       '[AsyncOperator] map() -> toArray()',
+      '[AsyncOperator] map() -> toArray() on AsyncIterable',
+      '[AsyncOperator] map(async) -> toArray()',
       '[AsyncOperator] flatMap() -> toArray()',
+      '[AsyncOperator] flatMap(async) -> toArray()',
       '[AsyncOperator] filter() -> toArray()',
+      '[AsyncOperator] filter() -> toArray() on AsyncIterable',
+      '[AsyncOperator] filter(async) -> toArray()',
       '[AsyncOperator] concat() -> toArray()',
       '[AsyncOperator] choose() -> toArray()',
       '[AsyncOperator] slice() -> toArray()',
@@ -107,6 +113,8 @@ describe('Benchmark infrastructure', () => {
       '[AsyncOperator] groupBy()',
       '[AsyncOperator] countBy()',
       '[AsyncOperator] join()',
+      '[AsyncOperator] linear chain(depth=5) -> toArray()',
+      '[AsyncOperator] linear chain(depth=5, async callbacks) -> toArray()',
     ]);
 
     for (const task of tasks) {
