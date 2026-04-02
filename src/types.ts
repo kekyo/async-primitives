@@ -269,7 +269,9 @@ export type Awaitable<T> = T | PromiseLike<T>;
 /**
  * Source sequence handled by `AsyncOperator`
  */
-export type AsyncOperatorSource<T> = Iterable<Awaitable<T>>;
+export type AsyncOperatorSource<T> =
+  | Iterable<Awaitable<T>>
+  | AsyncIterable<Awaitable<T>>;
 
 /**
  * Chainable operators for asynchronously resolved collections

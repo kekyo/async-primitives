@@ -470,7 +470,7 @@ try {
 
 ### from()
 
-Creates an `AsyncOperator<T>` from an iterable of values or promises, allowing lazy and sequential operator chaining.
+Creates an `AsyncOperator<T>` from an `Iterable` or `AsyncIterable` of values or promises, allowing lazy and sequential operator chaining.
 
 ```typescript
 import { from } from 'async-primitives';
@@ -492,6 +492,15 @@ for await (const value of from(iterable).map((value) => value * 2)) {
   console.log(value);
 }
 ```
+
+```typescript
+// AsyncIterable<T> sources are also supported
+const values = await from(asyncIterable).toArray();
+```
+
+Some sources are one-shot, such as async generator instances.
+If the same source cannot be enumerated again, calling multiple terminal operations on the same `AsyncOperator`
+may produce different results on the second and later enumerations.
 
 Intermediate operators:
 

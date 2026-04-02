@@ -15,10 +15,22 @@ const createAsyncIterable = <T>(
   [Symbol.asyncIterator]: iteratorFactory,
 });
 
+const isAsyncIterable = <T>(
+  source: AsyncOperatorSource<T>
+): source is AsyncIterable<Awaitable<T>> =>
+  typeof (source as AsyncIterable<Awaitable<T>>)[Symbol.asyncIterator] ===
+  'function';
+
 const toAsyncIterable = <T>(source: AsyncOperatorSource<T>): AsyncIterable<T> =>
   createAsyncIterable(async function* () {
-    for (const value of source) {
-      yield (await Promise.resolve(value)) as T;
+    if (isAsyncIterable(source)) {
+      for await (const value of source) {
+        yield value as T;
+      }
+    } else {
+      for (const value of source) {
+        yield (await Promise.resolve(value)) as T;
+      }
     }
   });
 
@@ -132,8 +144,8 @@ const createAsyncOperator = <T>(
           let index = 0;
           for await (const value of iterableFactory()) {
             const innerSource = await Promise.resolve(selector(value, index));
-            for (const innerValue of innerSource) {
-              yield (await Promise.resolve(innerValue)) as U;
+            for await (const innerValue of toAsyncIterable(innerSource)) {
+              yield innerValue as U;
             }
             index++;
           }
@@ -275,18 +287,15 @@ const createAsyncOperator = <T>(
     zip: <U>(source: AsyncOperatorSource<U>) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
-          const otherIterator = source[Symbol.iterator]();
+          const otherIterator = toAsyncIterable(source)[Symbol.asyncIterator]();
 
           for await (const value of iterableFactory()) {
-            const otherResult = otherIterator.next();
+            const otherResult = await otherIterator.next();
             if (otherResult.done) {
               return;
             }
 
-            yield [
-              value as T,
-              (await Promise.resolve(otherResult.value)) as U,
-            ] as const;
+            yield [value as T, otherResult.value as U] as const;
           }
         })
       ) as AsyncOperator<readonly [T, U]>,

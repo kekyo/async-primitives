@@ -29,6 +29,25 @@ describe('AsyncOperator', () => {
       expect(values).toEqual([1, 2, 3]);
     });
 
+    it('should accept AsyncIterable sources', async () => {
+      const createSource = async function* () {
+        yield Promise.resolve(1);
+        await delay(1);
+        yield 2;
+        yield Promise.resolve(3);
+      };
+
+      const collected = await from(createSource()).toArray();
+      const iterated: number[] = [];
+
+      for await (const value of from(createSource())) {
+        iterated.push(value);
+      }
+
+      expect(collected).toEqual([1, 2, 3]);
+      expect(iterated).toEqual([1, 2, 3]);
+    });
+
     it('should stop iterating when the source rejects', async () => {
       const error = new Error('source failed');
       const events: string[] = [];
@@ -66,6 +85,20 @@ describe('AsyncOperator', () => {
         .toArray();
 
       expect(result).toEqual([1, 10, 3, 30, 5, 50]);
+    });
+
+    it('should support flatMap with AsyncIterable inner sources', async () => {
+      const result = await from([1, 2])
+        .flatMap((value) =>
+          (async function* () {
+            yield value;
+            await delay(1);
+            yield value * 10;
+          })()
+        )
+        .toArray();
+
+      expect(result).toEqual([1, 10, 2, 20]);
     });
 
     it('should evaluate lazily and re-enumerate on each terminal operation', async () => {
@@ -186,6 +219,15 @@ describe('AsyncOperator', () => {
       const zipped = await from([1, 2, 3])
         .zip([Promise.resolve('a'), 'b'])
         .toArray();
+      const zippedAsync = await from([1, 2, 3])
+        .zip(
+          (async function* () {
+            yield 'x';
+            await delay(1);
+            yield Promise.resolve('y');
+          })()
+        )
+        .toArray();
 
       expect(pairwise).toEqual([
         [1, 2],
@@ -195,6 +237,10 @@ describe('AsyncOperator', () => {
       expect(zipped).toEqual([
         [1, 'a'],
         [2, 'b'],
+      ]);
+      expect(zippedAsync).toEqual([
+        [1, 'x'],
+        [2, 'y'],
       ]);
     });
 
