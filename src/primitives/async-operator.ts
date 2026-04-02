@@ -148,6 +148,25 @@ const collectKeysFromSource = async <T, TKey>(
   return keys;
 };
 
+const collectValuesFromSource = async <T>(
+  source: AsyncOperatorSource<T>
+): Promise<Set<T>> => {
+  const { syncFactory, asyncFactory } = createIteratorFactories(source);
+  const values = new Set<T>();
+
+  if (syncFactory !== undefined) {
+    for (const value of syncFactory()) {
+      values.add((isPromiseLike(value) ? await value : value) as T);
+    }
+  } else {
+    for await (const value of asyncFactory()) {
+      values.add(value);
+    }
+  }
+
+  return values;
+};
+
 const materializeValues = async <T>(
   iteratorFactories: IteratorFactories<T>
 ): Promise<T[]> => {
@@ -601,10 +620,22 @@ const createAsyncOperator = <T>(
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
           const seenValues = new Set<T>();
-          for await (const value of iterableFactory()) {
-            if (!seenValues.has(value)) {
-              seenValues.add(value);
-              yield value as T;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              if (!seenValues.has(resolvedValue)) {
+                seenValues.add(resolvedValue);
+                yield resolvedValue as T;
+              }
+            }
+          } else {
+            for await (const value of iterableFactory()) {
+              if (!seenValues.has(value)) {
+                seenValues.add(value);
+                yield value as T;
+              }
             }
           }
         })
@@ -863,17 +894,41 @@ const createAsyncOperator = <T>(
         createAsyncIterable(async function* () {
           const seenValues = new Set<T>();
 
-          for await (const value of iterableFactory()) {
-            if (!seenValues.has(value)) {
-              seenValues.add(value);
-              yield value as T;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              if (!seenValues.has(resolvedValue)) {
+                seenValues.add(resolvedValue);
+                yield resolvedValue as T;
+              }
+            }
+          } else {
+            for await (const value of iterableFactory()) {
+              if (!seenValues.has(value)) {
+                seenValues.add(value);
+                yield value as T;
+              }
             }
           }
 
-          for await (const value of toAsyncIterable(source)) {
-            if (!seenValues.has(value)) {
-              seenValues.add(value);
-              yield value as T;
+          if (isAsyncIterable(source)) {
+            for await (const value of source) {
+              if (!seenValues.has(value)) {
+                seenValues.add(value);
+                yield value as T;
+              }
+            }
+          } else {
+            for (const value of source) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              if (!seenValues.has(resolvedValue)) {
+                seenValues.add(resolvedValue);
+                yield resolvedValue as T;
+              }
             }
           }
         })
@@ -887,39 +942,91 @@ const createAsyncOperator = <T>(
           const seenKeys = new Set<TKey>();
           let index = 0;
 
-          for await (const value of iterableFactory()) {
-            const key = await Promise.resolve(selector(value, index));
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              yield value as T;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              const selectedKey = selector(resolvedValue, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                yield resolvedValue as T;
+              }
+              index++;
             }
-            index++;
+          } else {
+            for await (const value of iterableFactory()) {
+              const selectedKey = selector(value, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                yield value as T;
+              }
+              index++;
+            }
           }
 
           index = 0;
-          for await (const value of toAsyncIterable(source)) {
-            const key = await Promise.resolve(selector(value, index));
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              yield value as T;
+          if (isAsyncIterable(source)) {
+            for await (const value of source) {
+              const selectedKey = selector(value, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                yield value as T;
+              }
+              index++;
             }
-            index++;
+          } else {
+            for (const value of source) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              const selectedKey = selector(resolvedValue, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                yield resolvedValue as T;
+              }
+              index++;
+            }
           }
         })
       ) as AsyncOperator<T>,
     intersect: (source: AsyncOperatorSource<T>) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
-          const rightValues = await collectKeysFromSource(
-            source,
-            (value) => value
-          );
+          const rightValues = await collectValuesFromSource(source);
           const yieldedValues = new Set<T>();
 
-          for await (const value of iterableFactory()) {
-            if (rightValues.has(value) && !yieldedValues.has(value)) {
-              yieldedValues.add(value);
-              yield value as T;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              if (
+                rightValues.has(resolvedValue) &&
+                !yieldedValues.has(resolvedValue)
+              ) {
+                yieldedValues.add(resolvedValue);
+                yield resolvedValue as T;
+              }
+            }
+          } else {
+            for await (const value of iterableFactory()) {
+              if (rightValues.has(value) && !yieldedValues.has(value)) {
+                yieldedValues.add(value);
+                yield value as T;
+              }
             }
           }
         })
@@ -934,29 +1041,61 @@ const createAsyncOperator = <T>(
           const yieldedKeys = new Set<TKey>();
           let index = 0;
 
-          for await (const value of iterableFactory()) {
-            const key = await Promise.resolve(selector(value, index));
-            if (rightKeys.has(key) && !yieldedKeys.has(key)) {
-              yieldedKeys.add(key);
-              yield value as T;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              const selectedKey = selector(resolvedValue, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (rightKeys.has(key) && !yieldedKeys.has(key)) {
+                yieldedKeys.add(key);
+                yield resolvedValue as T;
+              }
+              index++;
             }
-            index++;
+          } else {
+            for await (const value of iterableFactory()) {
+              const selectedKey = selector(value, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (rightKeys.has(key) && !yieldedKeys.has(key)) {
+                yieldedKeys.add(key);
+                yield value as T;
+              }
+              index++;
+            }
           }
         })
       ) as AsyncOperator<T>,
     except: (source: AsyncOperatorSource<T>) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
-          const excludedValues = await collectKeysFromSource(
-            source,
-            (value) => value
-          );
+          const excludedValues = await collectValuesFromSource(source);
           const yieldedValues = new Set<T>();
 
-          for await (const value of iterableFactory()) {
-            if (!excludedValues.has(value) && !yieldedValues.has(value)) {
-              yieldedValues.add(value);
-              yield value as T;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              if (
+                !excludedValues.has(resolvedValue) &&
+                !yieldedValues.has(resolvedValue)
+              ) {
+                yieldedValues.add(resolvedValue);
+                yield resolvedValue as T;
+              }
+            }
+          } else {
+            for await (const value of iterableFactory()) {
+              if (!excludedValues.has(value) && !yieldedValues.has(value)) {
+                yieldedValues.add(value);
+                yield value as T;
+              }
             }
           }
         })
@@ -971,13 +1110,33 @@ const createAsyncOperator = <T>(
           const yieldedKeys = new Set<TKey>();
           let index = 0;
 
-          for await (const value of iterableFactory()) {
-            const key = await Promise.resolve(selector(value, index));
-            if (!excludedKeys.has(key) && !yieldedKeys.has(key)) {
-              yieldedKeys.add(key);
-              yield value as T;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              const selectedKey = selector(resolvedValue, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (!excludedKeys.has(key) && !yieldedKeys.has(key)) {
+                yieldedKeys.add(key);
+                yield resolvedValue as T;
+              }
+              index++;
             }
-            index++;
+          } else {
+            for await (const value of iterableFactory()) {
+              const selectedKey = selector(value, index);
+              const key = isPromiseLike(selectedKey)
+                ? await selectedKey
+                : selectedKey;
+              if (!excludedKeys.has(key) && !yieldedKeys.has(key)) {
+                yieldedKeys.add(key);
+                yield value as T;
+              }
+              index++;
+            }
           }
         })
       ) as AsyncOperator<T>,
@@ -1004,16 +1163,48 @@ const createAsyncOperator = <T>(
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
           const normalizedSize = normalizeRequiredCount(size, 'Window size');
-          const window: T[] = [];
+          const buffer = new Array<T>(normalizedSize);
+          let count = 0;
+          let nextIndex = 0;
 
-          for await (const value of iterableFactory()) {
-            window.push(value);
-            if (window.length < normalizedSize) {
-              continue;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              buffer[nextIndex] = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              nextIndex = (nextIndex + 1) % normalizedSize;
+              count = Math.min(count + 1, normalizedSize);
+
+              if (count < normalizedSize) {
+                continue;
+              }
+
+              const window = new Array<T>(normalizedSize);
+              for (let index = 0; index < normalizedSize; index++) {
+                window[index] = buffer[
+                  (nextIndex + index) % normalizedSize
+                ] as T;
+              }
+              yield window;
             }
+          } else {
+            for await (const value of iterableFactory()) {
+              buffer[nextIndex] = value;
+              nextIndex = (nextIndex + 1) % normalizedSize;
+              count = Math.min(count + 1, normalizedSize);
 
-            yield [...window];
-            window.shift();
+              if (count < normalizedSize) {
+                continue;
+              }
+
+              const window = new Array<T>(normalizedSize);
+              for (let index = 0; index < normalizedSize; index++) {
+                window[index] = buffer[
+                  (nextIndex + index) % normalizedSize
+                ] as T;
+              }
+              yield window;
+            }
           }
         })
       ) as AsyncOperator<T[]>,
@@ -1236,25 +1427,25 @@ const createAsyncOperator = <T>(
       }
 
       const lookback = Math.abs(normalizedIndex);
-      const buffer: T[] = [];
+      const buffer = new Array<T>(lookback);
+      let count = 0;
+      let nextIndex = 0;
 
       if (syncFactory !== undefined) {
         for (const value of syncFactory()) {
-          buffer.push((isPromiseLike(value) ? await value : value) as T);
-          if (buffer.length > lookback) {
-            buffer.shift();
-          }
+          buffer[nextIndex] = (isPromiseLike(value) ? await value : value) as T;
+          nextIndex = (nextIndex + 1) % lookback;
+          count = Math.min(count + 1, lookback);
         }
       } else {
         for await (const value of iterableFactory()) {
-          buffer.push(value);
-          if (buffer.length > lookback) {
-            buffer.shift();
-          }
+          buffer[nextIndex] = value;
+          nextIndex = (nextIndex + 1) % lookback;
+          count = Math.min(count + 1, lookback);
         }
       }
 
-      return buffer.length === lookback ? buffer[0] : undefined;
+      return count === lookback ? buffer[nextIndex] : undefined;
     },
     includes: async (
       searchElement: T,
