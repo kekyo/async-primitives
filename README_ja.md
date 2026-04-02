@@ -1,6 +1,6 @@
 # async-primitives
 
-A collection of primitive functions for asynchronous operations in TypeScript/JavaScript.
+TypeScript/JavaScript における非同期処理のためのプリミティブ関数集です。
 
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -8,54 +8,51 @@ A collection of primitive functions for asynchronous operations in TypeScript/Ja
 
 ---
 
-[(For Japanese language/日本語はこちら)](./README_ja.md)
+[(For English language)](./README.md)
 
-> Please note that this English version of the document was machine-translated and then partially edited, so it may contain inaccuracies.
-> We welcome pull requests to correct any errors in the text.
+## これは何ですか?
 
-## What is this?
+`Promise<T>` に対して追加の処理を行いたい場合、この小さなライブラリが役に立つかもしれません。
+Mutex、producer-consumer 分離（副作用を持つ処理）、シグナリング（フラグ制御）、論理コンテキスト、イテレータチェイニング演算子などを提供します。
 
-If you are interested in performing additional calculations on `Promise<T>`, you may find this small library useful.
-Mutex, producer-consumer separation (side-effect operation), signaling (flag control), logical context, iterator chaining operators and more.
+- ブラウザ環境と Node.js 環境の両方で動作します（16 以降、テストは 24 のみ）。
+- 外部依存はありません。
 
-- Works in both browser and Node.js environments (16 or later, tested only 24).
-- No external dependencies.
+プリミティブ:
 
-Primitives:
+| 関数                          | 説明                                             |
+| :---------------------------- | :----------------------------------------------- |
+| `delay()`                     | Promise ベースの遅延関数                         |
+| `defer()`                     | 次のイベントループでコールバックを実行予約       |
+| `onAbort()`                   | クリーンアップ付きの安全な abort signal hook 登録 |
+| `createMutex()`               | クリティカルセクション向け Promise ベース mutex  |
+| `createSemaphore()`           | 同時アクセス数を制限する Promise ベース semaphore |
+| `createReaderWriterLock()`    | 複数 reader / 単一 writer 向け read-write lock   |
+| `createDeferred()`            | Promise の resolve/reject を外部制御             |
+| `createDeferredGenerator()`   | キュー管理付き async generator の外部制御        |
+| `createConditional()`         | 自動条件トリガー（1 トリガーにつき waiter 1 件） |
+| `createManuallyConditional()` | 手動条件制御（状態の raise/drop）                |
 
-| Function                      | Description                                               |
-| :---------------------------- | :-------------------------------------------------------- |
-| `delay()`                     | Promise-based delay function                              |
-| `defer()`                     | Schedule callback for next event loop                     |
-| `onAbort()`                   | Register safer abort signal hooks with cleanup            |
-| `createMutex()`               | Promise-based mutex lock for critical sections            |
-| `createSemaphore()`           | Promise-based semaphore for limiting concurrent access    |
-| `createReaderWriterLock()`    | Read-write lock for multiple readers/single writer        |
-| `createDeferred()`            | External control of Promise resolution/rejection          |
-| `createDeferredGenerator()`   | External control of async generator with queue management |
-| `createConditional()`         | Automatic conditional trigger (one-waiter per trigger)    |
-| `createManuallyConditional()` | Manual conditional control (raise/drop state)             |
+イテレータ操作:
 
-Iterator operations:
+| 関数     | 説明                                         |
+| :------- | :------------------------------------------- |
+| `from()` | 非同期値の iterable に対する chainable operator |
 
-| Function | Description                                   |
-| :------- | :-------------------------------------------- |
-| `from()` | Chainable operators for iterable async values |
+高度な機能:
 
-Advanced features:
+| 関数                 | 説明                             |
+| :------------------- | :------------------------------- |
+| `createAsyncLocal()` | 非同期コンテキストストレージ     |
+| `LogicalContext`     | 低レベルな非同期実行コンテキスト管理 |
 
-| Function             | Description                                  |
-| :------------------- | :------------------------------------------- |
-| `createAsyncLocal()` | Asynchronous context storage                 |
-| `LogicalContext`     | Low-level async execution context management |
-
-- The implementations previously known symbol as `AsyncLock` and `Signal` have been changed to `Mutex` and `Conditional`.
-  Although these symbol names can still be used, please note that they are marked as deprecated.
-  They may be removed in future versions.
+- 以前 `AsyncLock` および `Signal` として知られていた実装は、`Mutex` および `Conditional` に変更されました。
+  これらのシンボル名は引き続き使用できますが、非推奨としてマークされている点に注意してください。
+  将来のバージョンで削除される可能性があります。
 
 ---
 
-## Installation
+## インストール
 
 ```bash
 npm install async-primitives
@@ -63,35 +60,35 @@ npm install async-primitives
 
 ---
 
-## Usage
+## 使い方
 
-Each functions are independent and does not require knowledge of each other's assumptions.
+各関数は独立しており、互いの前提知識を必要としません。
 
 ### delay()
 
-Provides a delay that can be awaited with `Promise<void>`, with support for cancellation via `AbortSignal.`
+`Promise<void>` として await 可能な遅延を提供し、`AbortSignal` によるキャンセルにも対応します。
 
 ```typescript
 import { delay } from 'async-primitives';
 
-// Use delay
-await delay(1000); // Wait for 1 second
+// delay を使う
+await delay(1000); // 1 秒待機
 ```
 
 ```typescript
-// With AbortSignal
+// AbortSignal を使う
 const c = new AbortController();
-await delay(1000, c.signal); // Wait for 1 second
+await delay(1000, c.signal); // 1 秒待機
 ```
 
 ### defer()
 
-Schedules a callback to be executed asynchronously on the next event loop iteration.
+次のイベントループ反復で非同期に実行されるコールバックをスケジュールします。
 
 ```typescript
 import { defer } from 'async-primitives';
 
-// Use defer (Schedule callback for next event loop)
+// defer を使う（次のイベントループでコールバックを実行予約）
 defer(() => {
   console.log('Executes asynchronously');
 });
@@ -99,84 +96,84 @@ defer(() => {
 
 ### onAbort()
 
-Registers a hook function to `AbortSignal` abort events, enabling cleanup processing. Also supports early release.
+`AbortSignal` の abort イベントに hook 関数を登録し、クリーンアップ処理を可能にします。早期解除にも対応しています。
 
 ```typescript
 import { onAbort } from 'async-primitives';
 
-// Use onAbort (Abort signal hooking)
+// onAbort を使う（AbortSignal にフック）
 const controller = new AbortController();
 
 const releaseHandle = onAbort(controller.signal, (error: Error) => {
   console.log('Operation was aborted!');
-  // (Will automatically cleanup when exit)
+  // （終了時に自動でクリーンアップされます）
 });
 
-// (Cleanup early if needed)
+// （必要なら早期にクリーンアップ）
 releaseHandle.release();
 ```
 
 ### createMutex()
 
-Provides `Promise` based mutex functionality to implement critical sections that prevent race conditions in asynchronous operations.
+Promise ベースの mutex 機能を提供し、非同期処理における競合状態を防ぐクリティカルセクションを実装できます。
 
 ```typescript
 import { createMutex } from 'async-primitives';
 
-// Use Mutex
+// Mutex を使う
 const locker = createMutex();
 
-// Lock Mutex
+// Mutex をロック
 const handler = await locker.lock();
 try {
-  // Critical section, avoid race condition.
+  // クリティカルセクション。競合状態を防ぎます。
 } finally {
-  // Release Mutex
+  // Mutex を解放
   handler.release();
 }
 ```
 
 ```typescript
-// With AbortSignal
+// AbortSignal を使う
 const handler = await locker.lock(c.signal);
 ```
 
 ### createDeferred()
 
-Creates a `Deferred<T>` object that allows external control of `Promise<T>` resolution or rejection.
-Useful for separating producers and consumers in asynchronous processing.
+`Promise<T>` の resolve/reject を外部から制御できる `Deferred<T>` オブジェクトを作成します。
+非同期処理における producer と consumer の分離に便利です。
 
 ```typescript
 import { createDeferred } from 'async-primitives';
 
-// Use Deferred
+// Deferred を使う
 const deferred = createDeferred<number>();
 
-deferred.resolve(123); // (Produce result value)
-deferred.reject(new Error()); // (Produce an error)
+deferred.resolve(123); // （結果値を供給）
+deferred.reject(new Error()); // （エラーを供給）
 
-// (Consumer)
+// （コンシューマ側）
 const value = await deferred.promise;
 ```
 
 ```typescript
-// With AbortSignal support
+// AbortSignal 対応
 const controller = new AbortController();
 const abortableDeferred = createDeferred<number>(controller.signal);
 ```
 
 ### createDeferredGenerator()
 
-Creates a `DeferredGenerator<T>` object that allows external control of async generator `AsyncGenerator<T, ...>` yielding, returning and throwing operations.
-Useful for separating producers and consumers in streaming data patterns.
+async generator `AsyncGenerator<T, ...>` の yield、return、throw を外部から制御できる `DeferredGenerator<T>` オブジェクトを作成します。
+ストリーミングデータのような producer/consumer 分離パターンに便利です。
 
 ```typescript
 import { createDeferredGenerator } from 'async-primitives';
 
-// Basic usage - streaming data
+// 基本的な使い方 - ストリーミングデータ
 const deferredGen = createDeferredGenerator<string>();
 
-// Consumer - iterate over values as they arrive
+// コンシューマ側 - 値が到着するたびに反復
 const consumer = async () => {
   for await (const value of deferredGen.generator) {
     console.log('Received:', value);
@@ -184,20 +181,20 @@ const consumer = async () => {
   console.log('Stream completed');
 };
 
-// Start consuming
+// 消費を開始
 consumer();
 
-// Producer - send values externally (now returns Promise<void>)
+// プロデューサ側 - 外部から値を送る（現在は Promise<void> を返す）
 await deferredGen.yield('First value');
 await deferredGen.yield('Second value');
 await deferredGen.yield('Third value');
-await deferredGen.return(); // Complete the stream
+await deferredGen.return(); // ストリームを完了
 ```
 
-Can insert an error when yielding:
+yield 時にエラーを挿入することもできます:
 
 ```typescript
-// With error handling
+// エラーハンドリング付き
 const errorGen = createDeferredGenerator<number>();
 
 const errorConsumer = async () => {
@@ -216,59 +213,59 @@ await errorGen.yield(2);
 await errorGen.throw(new Error('Something went wrong'));
 ```
 
-#### Queue Size Management
+#### キューサイズ管理
 
-Control the maximum number of items that can be queued using the `maxItemReserved` option:
+`maxItemReserved` オプションにより、キューに保持できるアイテム数の上限を制御できます。
 
 ```typescript
-// Limit queue to 3 items maximum
+// キューの最大サイズを 3 件に制限
 const limitedGen = createDeferredGenerator<string>({ maxItemReserved: 3 });
 
-// When queue is full, yield operations will wait for space
+// キューが満杯の場合、yield は空きができるまで待機
 await limitedGen.yield('item1');
 await limitedGen.yield('item2');
-await limitedGen.yield('item3'); // Queue is now full
+await limitedGen.yield('item3'); // キューは満杯です
 
-// This will wait until consumer processes some items
-await limitedGen.yield('item4'); // Waits for queue space
+// コンシューマがいくつか処理するまで待機します
+await limitedGen.yield('item4'); // キューの空きを待機
 ```
 
 ### createConditional()
 
-Creates an automatically or manually controlled signal that can be raise and drop.
-Multiple waiters can await for the same signal, and all will be resolved when the signal is raise.
+raise と drop が可能な、自動または手動制御のシグナルを作成します。
+複数の waiter が同じシグナルを待機でき、シグナルが raise されると全員が解決されます。
 
-The `Conditional` (automatic conditional) is "trigger" automatically raise-and-drop to release only one-waiter:
+`Conditional`（自動 conditional）は自動的に raise-and-drop され、1 回のトリガーで waiter を 1 件だけ解放します:
 
 ```typescript
 import { createConditional } from 'async-primitives';
 
-// Create an automatic conditional
+// 自動 Conditional を作成
 const signal = createConditional();
 
-// Start multiple waiters
+// 複数の待機を開始
 const waiter1 = signal.wait();
 const waiter2 = signal.wait();
 
-// Trigger the signal - only one waiter will resolve per trigger
-signal.trigger(); // waiter1 resolves
+// シグナルをトリガー - 1 回のトリガーで 1 つの待機のみ解決
+signal.trigger(); // waiter1 が解決される
 
 await waiter1;
 console.log('First waiter resolved');
 
-// Second waiter is still waiting
-signal.trigger(); // waiter2 resolves
+// 2 番目の待機はまだ継続中
+signal.trigger(); // waiter2 が解決される
 
 await waiter2;
 console.log('Second waiter resolved');
 ```
 
 ```typescript
-// Wait with AbortSignal support
+// AbortSignal 対応の待機
 const controller = new AbortController();
 try {
   const waitPromise = signal.wait(controller.signal);
-  // Abort the wait operation
+  // 待機処理を中断
   controller.abort();
   await waitPromise;
 } catch (error) {
@@ -278,33 +275,33 @@ try {
 
 ### createManuallyConditional()
 
-The `ManuallyConditional` is manually controlled raise and drop state, and trigger action is optional.
+`ManuallyConditional` は raise/drop 状態を手動で制御するもので、trigger 操作は任意です。
 
 ```typescript
 import { createManuallyConditional } from 'async-primitives';
 
-// Create a manually conditional
+// 手動 Conditional を作成
 const signal = createManuallyConditional();
 
-// Start multiple waiters
+// 複数の待機を開始
 const waiter1 = signal.wait();
 const waiter2 = signal.wait();
 
-// Raise the signal - all waiters will resolve
+// シグナルを raise - すべての待機が解決
 signal.raise();
 
-// Or, you can release only one-waiter
-//signal.trigger();　　// waiter1 resolves
+// または、1 つの待機だけ解放することもできます
+//signal.trigger(); // waiter1 が解決される
 
 await Promise.all([waiter1, waiter2]);
 console.log('All waiters resolved');
 
-// Drop the signal
+// シグナルを drop
 signal.drop();
 ```
 
 ```typescript
-// Wait with AbortSignal support
+// AbortSignal 対応の待機
 const controller = new AbortController();
 try {
   await signal.wait(controller.signal);
@@ -315,34 +312,34 @@ try {
 
 ### createSemaphore()
 
-Creates a `Semaphore` that limits the number of concurrent operations to a specified count.
-Useful for rate limiting, resource pooling, and controlling concurrent access to limited resources.
+指定した数まで同時実行を制限する `Semaphore` を作成します。
+レート制限、リソースプーリング、制限されたリソースへの同時アクセス制御に便利です。
 
 ```typescript
 import { createSemaphore } from 'async-primitives';
 
-// Create a semaphore with max 3 concurrent operations
+// 同時 3 処理までの semaphore を作成
 const semaphore = createSemaphore(3);
 
-// Acquire a resource
+// リソースを取得
 const handle = await semaphore.acquire();
 try {
-  // Critical section - only 3 operations can run concurrently
+  // クリティカルセクション - 同時に 3 処理まで実行可能
   await performExpensiveOperation();
 } finally {
-  // Release the resource
+  // リソースを解放
   handle.release();
 }
 
-// Check available resources
+// 利用可能なリソース数を確認
 console.log(`Available: ${semaphore.availableCount}`);
 console.log(`Waiting: ${semaphore.pendingCount}`);
 ```
 
-Rate limiting example for API calls:
+API 呼び出しのレート制限例:
 
 ```typescript
-// Limit to 5 concurrent API calls
+// API 呼び出しを同時 5 件に制限
 const apiSemaphore = createSemaphore(5);
 
 const rateLimitedFetch = async (url: string) => {
@@ -354,20 +351,20 @@ const rateLimitedFetch = async (url: string) => {
   }
 };
 
-// Process many URLs with controlled concurrency
-const urls = ['url1', 'url2' /* ... many more ... */];
+// 並行数を制御しながら多数の URL を処理
+const urls = ['url1', 'url2' /* ... ほか多数 ... */];
 const promises = urls.map((url) => rateLimitedFetch(url));
 const results = await Promise.all(promises);
-// Only 5 requests will be in-flight at any time
+// 常に同時実行中のリクエストは 5 件まで
 ```
 
 ```typescript
-// With AbortSignal support
+// AbortSignal 対応
 const controller = new AbortController();
 try {
   const handle = await semaphore.acquire(controller.signal);
 
-  // Use the resource
+  // リソースを使う
   handle.release();
 } catch (error) {
   console.log('Semaphore acquisition was aborted');
@@ -376,32 +373,32 @@ try {
 
 ### createReaderWriterLock()
 
-Creates a `ReaderWriterLock` that allows multiple concurrent readers but only one exclusive writer.
+複数の同時 reader と、1 つの排他的 writer を許可する `ReaderWriterLock` を作成します。
 
-Lock policies:
+ロックポリシー:
 
-- `write-preferring` (default): When a writer is waiting, new readers must wait until the writer completes
-- `read-preferring`: New readers can acquire the lock even when writers are waiting
+- `write-preferring`（デフォルト）: writer が待機中の場合、新しい reader は writer 完了まで待機します
+- `read-preferring`: writer が待機中でも新しい reader はロックを取得できます
 
 ```typescript
 import { createReaderWriterLock } from 'async-primitives';
 
-// Create a reader-writer lock (default: write-preferring)
+// ReaderWriterLock を作成（デフォルト: write-preferring）
 const rwLock = createReaderWriterLock();
 
-// With specific policy
+// ポリシーを指定して作成
 const readPreferringLock = createReaderWriterLock({
   policy: 'read-preferring',
 });
 
-// Backward compatible with legacy API
-const rwLockLegacy = createReaderWriterLock(10); // maxConsecutiveCalls
+// 従来 API との後方互換
+const rwLockLegacy = createReaderWriterLock(10); // maxConsecutiveCalls を指定
 
-// Multiple readers can access concurrently
+// 複数の reader が同時にアクセス可能
 const readData = async () => {
   const handle = await rwLock.readLock();
   try {
-    // Multiple threads can read simultaneously
+    // 複数の読み取り処理を同時に実行できます
     const data = await readFromSharedResource();
     return data;
   } finally {
@@ -409,31 +406,31 @@ const readData = async () => {
   }
 };
 
-// Writers have exclusive access
+// writer は排他的にアクセス
 const writeData = async (newData: any) => {
   const handle = await rwLock.writeLock();
   try {
-    // Exclusive access - no readers or other writers
+    // 排他的アクセス - reader も他の writer も不可
     await writeToSharedResource(newData);
   } finally {
     handle.release();
   }
 };
 
-// Check lock state
+// ロック状態を確認
 console.log(`Current readers: ${rwLock.currentReaders}`);
 console.log(`Has writer: ${rwLock.hasWriter}`);
 console.log(`Pending readers: ${rwLock.pendingReadersCount}`);
 console.log(`Pending writers: ${rwLock.pendingWritersCount}`);
 ```
 
-Cache implementation example:
+キャッシュ実装例:
 
 ```typescript
 const cacheLock = createReaderWriterLock();
 const cache = new Map();
 
-// Read from cache (multiple concurrent reads allowed)
+// キャッシュから読み取る（複数同時読み取り可）
 const getCached = async (key: string) => {
   const handle = await cacheLock.readLock();
   try {
@@ -443,7 +440,7 @@ const getCached = async (key: string) => {
   }
 };
 
-// Update cache (exclusive write access)
+// キャッシュを更新（排他的書き込み）
 const updateCache = async (key: string, value: any) => {
   const handle = await cacheLock.writeLock();
   try {
@@ -453,7 +450,7 @@ const updateCache = async (key: string, value: any) => {
   }
 };
 
-// Clear cache (exclusive write access)
+// キャッシュを消去（排他的書き込み）
 const clearCache = async () => {
   const handle = await cacheLock.writeLock();
   try {
@@ -465,12 +462,12 @@ const clearCache = async () => {
 ```
 
 ```typescript
-// With AbortSignal support
+// AbortSignal 対応
 const controller = new AbortController();
 try {
   const readHandle = await rwLock.readLock(controller.signal);
 
-  // Read operations...
+  // 読み取り処理...
   readHandle.release();
 } catch (error) {
   console.log('Lock acquisition was aborted');
@@ -479,13 +476,13 @@ try {
 
 ### from()
 
-Creates an `AsyncOperator<T>` from an `Iterable` or `AsyncIterable` of values or promises, allowing lazy and sequential operator chaining.
-It’s helpful to think of functions like `Array.map()` as being applicable to asynchronous iterators as well.
+値または `Promise` の `Iterable` / `AsyncIterable` から `AsyncOperator<T>` を作成し、遅延評価かつ順次実行される演算子のチェイニングを可能にします。
+`Array.map()` のような関数を、非同期イテレータにも適用できる、と考えると良いでしょう。
 
 ```typescript
 import { from } from 'async-primitives';
 
-// Processing promise elements with operators
+// 配列を演算子で処理する
 const values = await from([Promise.resolve(1), 2, Promise.resolve(3)])
   .map(async (value) => value * 2)
   .filter((value) => value > 2)
@@ -495,19 +492,19 @@ const values = await from([Promise.resolve(1), 2, Promise.resolve(3)])
 console.log(values); // [4, 104, 6, 106]
 ```
 
-`AsyncOperator<T>` is also an `AsyncIterable<T>`, so it can be consumed directly with `for await`.
+`AsyncOperator<T>` は `AsyncIterable<T>` でもあるため、`for await` で直接消費できます。
 
 ```typescript
-// Consume directly as AsyncIterable<T>
+// AsyncIterable<T> として直接消費
 for await (const value of from(iterable).map((value) => value * 2)) {
   console.log(value);
 }
 ```
 
-You can also pass in an `AsyncIterable<T>` (which is typically generated by "asynchronous generators"):
+`AsyncIterable<T>` （主に非同期ジェネレータとして生成される）を投入することも出来ます:
 
 ```typescript
-// AsyncIterable<T> sources are also supported
+// AsyncIterable<T> のソースにも対応
 const asyncIterable = (async function* () {
   yield 1;
   yield 2;
@@ -517,79 +514,79 @@ const asyncIterable = (async function* () {
 const values = await from(asyncIterable).toArray();
 ```
 
-Some sources are one-shot, such as async generator instances.
-If the same source cannot be enumerated again, calling multiple terminal operations on the same `AsyncOperator`
-may produce different results on the second and later enumerations.
+非同期ジェネレータインスタンスのように、一度しか列挙できないソースもあります。
+同じソースを再列挙できない場合、同じ `AsyncOperator` に対して複数の終端操作を呼ぶと、
+2 回目以降の列挙では異なる結果になる可能性があります。
 
-Intermediate operators:
+中間演算子:
 
-| Operator        | Description                                                                |
-| :-------------- | :------------------------------------------------------------------------- |
-| `map()`         | Projects each resolved value into another value                            |
-| `flatMap()`     | Projects each resolved value into an iterable and flattens it by one level |
-| `filter()`      | Keeps only values whose predicate result is truthy                         |
-| `concat()`      | Appends values from additional iterables or async iterables                |
-| `choose()`      | Projects each resolved value and omits `null` and `undefined` results      |
-| `slice()`       | Returns a subrange using `Array.prototype.slice()` semantics               |
-| `distinct()`    | Removes duplicate values                                                   |
-| `distinctBy()`  | Removes duplicate values by projected key                                  |
-| `skip()`        | Skips the specified number of values                                       |
-| `skipWhile()`   | Skips values while the predicate returns true                              |
-| `take()`        | Takes the specified number of values                                       |
-| `takeWhile()`   | Takes values while the predicate returns true                              |
-| `pairwise()`    | Produces adjacent pairs                                                    |
-| `zip()`         | Combines values with another iterable element by element                   |
-| `scan()`        | Produces intermediate accumulator states, including the initial value      |
-| `union()`       | Produces distinct values from this sequence followed by another sequence   |
-| `unionBy()`     | Produces distinct values by projected key across two sequences             |
-| `intersect()`   | Produces distinct values that appear in both sequences                     |
-| `intersectBy()` | Produces distinct values by projected key that appear in both sequences    |
-| `except()`      | Produces distinct values that do not appear in another sequence            |
-| `exceptBy()`    | Produces distinct values by projected key not found in another sequence    |
-| `chunkBySize()` | Groups values into arrays of a fixed maximum size                          |
-| `windowed()`    | Produces sliding windows of a fixed size                                   |
-| `flat()`        | Flattens nested arrays using `Array.prototype.flat()` semantics            |
-| `reverse()`     | Returns the sequence in reverse order                                      |
-| `toReversed()`  | Returns a reversed copy of the sequence                                    |
-| `sort()`        | Returns the sequence sorted with `Array.prototype.sort()` semantics        |
-| `toSorted()`    | Returns a sorted copy with `Array.prototype.toSorted()` semantics          |
+| 演算子          | 説明                                                    |
+| :-------------- | :------------------------------------------------------ |
+| `map()`         | 解決済みの各値を別の値へ写像します                      |
+| `flatMap()`     | 解決済みの各値を iterable に写像し、1 段 flatten します |
+| `filter()`      | predicate が truthy を返した値だけを残します            |
+| `concat()`      | 追加の iterable または async iterable の値を連結します  |
+| `choose()`      | 各値を写像し、`null` と `undefined` の結果を除外します  |
+| `slice()`       | `Array.prototype.slice()` と同じ意味論で部分範囲を返します |
+| `distinct()`    | 重複する値を取り除きます                                |
+| `distinctBy()`  | 射影キーで重複する値を取り除きます                      |
+| `skip()`        | 指定した数の値をスキップします                          |
+| `skipWhile()`   | predicate が true を返す間、値をスキップします          |
+| `take()`        | 指定した数の値を取得します                              |
+| `takeWhile()`   | predicate が true を返す間、値を取得します              |
+| `pairwise()`    | 隣接する値のペアを生成します                            |
+| `zip()`         | 別の iterable と要素ごとに結合します                    |
+| `scan()`        | 初期値を含む途中の accumulator 状態を生成します         |
+| `union()`       | このシーケンスと別シーケンスを順に見て一意な値を生成します |
+| `unionBy()`     | 2 つのシーケンス全体で射影キーごとの一意値を生成します  |
+| `intersect()`   | 両方のシーケンスに現れる一意な値を生成します            |
+| `intersectBy()` | 両方のシーケンスに現れる射影キーごとの一意値を生成します |
+| `except()`      | 別シーケンスに現れない一意な値を生成します              |
+| `exceptBy()`    | 別シーケンスに存在しない射影キーごとの一意値を生成します |
+| `chunkBySize()` | 固定最大サイズの配列に値をグループ化します              |
+| `windowed()`    | 固定サイズのスライディングウィンドウを生成します        |
+| `flat()`        | `Array.prototype.flat()` と同じ意味論でネスト配列を平坦化します |
+| `reverse()`     | 逆順のシーケンスを返します                              |
+| `toReversed()`  | 逆順コピーを返します                                    |
+| `sort()`        | `Array.prototype.sort()` と同じ意味論で整列したシーケンスを返します |
+| `toSorted()`    | `Array.prototype.toSorted()` と同じ意味論の整列コピーを返します |
 
-Terminal operators:
+終端演算子:
 
-| Operator          | Description                                                                            |
-| :---------------- | :------------------------------------------------------------------------------------- |
-| `forEach()`       | Executes an action for each value                                                      |
-| `reduce()`        | Reduces the sequence to a single value                                                 |
-| `reduceRight()`   | Reduces the sequence from right to left                                                |
-| `some()`          | Returns true when any value satisfies the predicate                                    |
-| `every()`         | Returns true when all values satisfy the predicate                                     |
-| `find()`          | Returns the first value that satisfies the predicate                                   |
-| `findIndex()`     | Returns the index of the first value that satisfies the predicate                      |
-| `at()`            | Returns the value at the specified index, matching `Array.prototype.at()`              |
-| `includes()`      | Returns true when the value is present, matching `Array.prototype.includes()`          |
-| `indexOf()`       | Returns the first matching index, matching `Array.prototype.indexOf()`                 |
-| `lastIndexOf()`   | Returns the last matching index, matching `Array.prototype.lastIndexOf()`              |
-| `findLast()`      | Returns the last value that satisfies the predicate                                    |
-| `findLastIndex()` | Returns the index of the last value that satisfies the predicate                       |
-| `min()`           | Returns the minimum value, or `undefined` for an empty sequence                        |
-| `minBy()`         | Returns the value with the minimum projected key, or `undefined` for an empty sequence |
-| `max()`           | Returns the maximum value, or `undefined` for an empty sequence                        |
-| `maxBy()`         | Returns the value with the maximum projected key, or `undefined` for an empty sequence |
-| `groupBy()`       | Collects values into a `Map` grouped by projected key                                  |
-| `countBy()`       | Counts values into a `Map` grouped by projected key                                    |
-| `join()`          | Concatenates the values into a string, matching `Array.prototype.join()`               |
-| `toArray()`       | Materializes the resulting values into an array                                        |
+| 演算子            | 説明                                                               |
+| :---------------- | :----------------------------------------------------------------- |
+| `forEach()`       | 各値に対して action を実行します                                   |
+| `reduce()`        | シーケンスを単一の値に畳み込みます                                 |
+| `reduceRight()`   | 右から左へシーケンスを畳み込みます                                 |
+| `some()`          | いずれかの値が predicate を満たすと true を返します                |
+| `every()`         | すべての値が predicate を満たすと true を返します                  |
+| `find()`          | predicate を満たす最初の値を返します                               |
+| `findIndex()`     | predicate を満たす最初の値のインデックスを返します                 |
+| `at()`            | `Array.prototype.at()` に対応する指定インデックスの値を返します    |
+| `includes()`      | `Array.prototype.includes()` に対応する包含判定を返します          |
+| `indexOf()`       | `Array.prototype.indexOf()` に対応する最初の一致位置を返します     |
+| `lastIndexOf()`   | `Array.prototype.lastIndexOf()` に対応する最後の一致位置を返します |
+| `findLast()`      | predicate を満たす最後の値を返します                               |
+| `findLastIndex()` | predicate を満たす最後の値のインデックスを返します                 |
+| `min()`           | 最小値を返し、空シーケンスでは `undefined` を返します              |
+| `minBy()`         | 射影キーが最小の値を返し、空シーケンスでは `undefined` を返します  |
+| `max()`           | 最大値を返し、空シーケンスでは `undefined` を返します              |
+| `maxBy()`         | 射影キーが最大の値を返し、空シーケンスでは `undefined` を返します  |
+| `groupBy()`       | 射影キーごとに `Map` へ値を収集します                              |
+| `countBy()`       | 射影キーごとに `Map` へ件数を集計します                            |
+| `join()`          | `Array.prototype.join()` に対応して値を文字列連結します            |
+| `toArray()`       | 結果の値を配列として実体化します                                   |
 
-Index-based operators such as `slice()`, `at()`, `includes()`, `indexOf()`, and `lastIndexOf()`
-follow the corresponding `Array` semantics.
-Negative indexes or negative `fromIndex` values may require consuming the source before the result is known.
+`slice()`、`at()`、`includes()`、`indexOf()`、`lastIndexOf()` のようなインデックスベースの operator は、
+対応する `Array` の意味論に従います。
+負のインデックスや負の `fromIndex` は、結果が判明するまでソース全体の消費が必要になる場合があります。
 
-Materializing operators such as `flat()`, `reverse()`, `toReversed()`, `sort()`, `toSorted()`, and
-`reduceRight()` consume the entire source before they can produce results.
+`flat()`、`reverse()`、`toReversed()`、`sort()`、`toSorted()`、`reduceRight()` のような実体化を伴う operator は、
+結果を生成する前にソース全体を消費します。
 
-### ES2022+ using statement
+### ES2022+ の using statement
 
-Use with using statement (requires ES2022+ or equivalent polyfill)
+using statement と組み合わせて使用できます（ES2022+ または同等の polyfill が必要です）
 
 ```typescript
 const locker = createMutex();
@@ -597,7 +594,7 @@ const locker = createMutex();
 {
   using handler = await locker.lock();
 
-  // (Auto release when exit the scope.)
+  // （スコープを抜けると自動解放されます）
 }
 
 {
@@ -605,65 +602,65 @@ const locker = createMutex();
     console.log('Cleanup on aborts');
   });
 
-  // (Auto release when exit the scope.)
+  // （スコープを抜けると自動解放されます）
 }
 
-// Semaphore with using statement
+// using statement を使った Semaphore
 const semaphore = createSemaphore(3);
 
 {
   using handle = await semaphore.acquire();
 
-  // Perform rate-limited operation
+  // レート制限付きの処理を実行
   await performOperation();
 
-  // (Auto release when exit the scope.)
+  // （スコープを抜けると自動解放されます）
 }
 
-// ReaderWriterLock with using statement
+// using statement を使った ReaderWriterLock
 const rwLock = createReaderWriterLock();
 
 {
-  // Reader scope
+  // 読み取りスコープ
   using readHandle = await rwLock.readLock();
 
   const data = await readSharedData();
 
-  // (Auto release when exit the scope.)
+  // （スコープを抜けると自動解放されます）
 }
 
 {
-  // Writer scope
+  // 書き込みスコープ
   using writeHandle = await rwLock.writeLock();
 
   await writeSharedData(newData);
 
-  // (Auto release when exit the scope.)
+  // （スコープを抜けると自動解放されます）
 }
 ```
 
-## Advanced Topic
+## 高度な話題
 
 ### createAsyncLocal()
 
-Provides asynchronous context storage similar to thread-local storage, but separated by asynchronous context instead of threads.
-Values are maintained across asynchronous boundaries like `setTimeout`, `await`, and `Promise` chains within the same logical context.
+スレッドローカルストレージに似た非同期コンテキストストレージを提供しますが、スレッドではなく非同期コンテキスト単位で分離されます。
+値は同一の論理コンテキスト内で、`setTimeout`、`await`、`Promise` チェーンのような非同期境界をまたいでも維持されます。
 
 ```typescript
 import { createAsyncLocal } from 'async-primitives';
 
-// Create an AsyncLocal instance
+// AsyncLocal インスタンスを作成
 const asyncLocal = createAsyncLocal<string>();
 
-// Set a value in the current context
+// 現在のコンテキストに値を設定
 asyncLocal.setValue('context value');
 
-// Value is maintained across setTimeout
+// 値は setTimeout をまたいでも維持される
 setTimeout(() => {
   console.log(asyncLocal.getValue()); // 'context value'
 }, 100);
 
-// Value is maintained across await boundaries
+// 値は await 境界をまたいでも維持される
 const example = async () => {
   asyncLocal.setValue('before await');
 
@@ -672,7 +669,7 @@ const example = async () => {
   console.log(asyncLocal.getValue()); // 'before await'
 };
 
-// Value is maintained in Promise chains
+// 値は Promise チェーン内でも維持される
 Promise.resolve()
   .then(() => {
     asyncLocal.setValue('in promise');
@@ -683,13 +680,13 @@ Promise.resolve()
   });
 ```
 
-NOTE: The above example is no different than using a variable in the global scope.
-In fact, to isolate the "asynchronous context" and observe different results, you must use `LogicalContext` below section.
+注: 上の例はグローバルスコープの変数を使う場合と違いがありません。
+実際に「非同期コンテキスト」を分離して異なる結果を観測するには、以下の `LogicalContext` セクションを使う必要があります。
 
-### LogicalContext Operations
+### LogicalContext の操作
 
-`LogicalContext` provides low-level APIs for managing asynchronous execution contexts.
-These are automatically used by `createAsyncLocal()` but can also be used directly for advanced scenarios.
+`LogicalContext` は非同期実行コンテキストを管理するための低レベル API を提供します。
+これらは `createAsyncLocal()` によって自動的に利用されますが、高度な用途では直接使うこともできます。
 
 ```typescript
 import {
@@ -699,106 +696,106 @@ import {
   getCurrentLogicalContextId,
 } from 'async-primitives';
 
-// Direct context value manipulation
+// コンテキスト値を直接操作
 const key = Symbol('my-context-key');
 setLogicalContextValue(key, 'some value');
 const value = getLogicalContextValue<string>(key); // 'some value'
 
-// Get current context ID
+// 現在のコンテキスト ID を取得
 const contextId = getCurrentLogicalContextId();
 console.log(`Current context: ${contextId.toString()}`);
 
-// Execute code in a new isolated context
+// 新しい分離コンテキストでコードを実行
 const result = runOnNewLogicalContext('my-operation', () => {
-  // This runs in a completely new context
+  // これは完全に新しいコンテキストで実行される
   const isolatedValue = getLogicalContextValue<string>(key); // undefined
 
   setLogicalContextValue(key, 'isolated value');
   return getLogicalContextValue<string>(key); // 'isolated value'
 });
 
-// Back to original context
+// 元のコンテキストに戻る
 const originalValue = getLogicalContextValue<string>(key); // 'some value'
 ```
 
-When using `LogicalContext` for the first time, hooks are inserted into various runtime functions and definitions in JavaScript to maintain the context correctly. Note that these create some overhead.
+`LogicalContext` を初めて使用すると、コンテキストを正しく維持するために JavaScript のさまざまなランタイム関数や定義へ hook が挿入されます。これにより一定のオーバーヘッドが発生する点に注意してください。
 
-| Target                         | Purpose                                                         |
-| :----------------------------- | :-------------------------------------------------------------- |
-| `setTimeout`                   | Maintains context across timer callbacks                        |
-| `setInterval`                  | Maintains context across interval callbacks                     |
-| `queueMicrotask`               | Preserves context in microtask queue                            |
-| `setImmediate`                 | Preserves context in immediate queue (Node.js only)             |
-| `process.nextTick`             | Preserves context in next tick queue (Node.js only)             |
-| `Promise`                      | Captures context for `then()`, `catch()` and `finally()` chains |
-| `EventTarget.addEventListener` | Maintains context in all EventTarget event handlers             |
-| `Element.addEventListener`     | Maintains context in DOM event handlers                         |
-| `requestAnimationFrame`        | Preserves context in animation callbacks                        |
-| `XMLHttpRequest`               | Maintains context in XHR event handlers and callbacks           |
-| `WebSocket`                    | Maintains context in WebSocket event handlers and callbacks     |
-| `MutationObserver`             | Preserves context in DOM mutation observer callbacks            |
-| `ResizeObserver`               | Preserves context in element resize observer callbacks          |
-| `IntersectionObserver`         | Preserves context in intersection observer callbacks            |
-| `Worker`                       | Maintains context in Web Worker event handlers                  |
-| `MessagePort`                  | Maintains context in MessagePort communication handlers         |
+| 対象                           | 目的                                                      |
+| :----------------------------- | :-------------------------------------------------------- |
+| `setTimeout`                   | タイマーコールバックをまたいでコンテキストを維持します   |
+| `setInterval`                  | interval コールバックをまたいでコンテキストを維持します  |
+| `queueMicrotask`               | microtask queue 内でコンテキストを保持します             |
+| `setImmediate`                 | immediate queue 内でコンテキストを保持します（Node.js のみ） |
+| `process.nextTick`             | next tick queue 内でコンテキストを保持します（Node.js のみ） |
+| `Promise`                      | `then()`、`catch()`、`finally()` チェーン用のコンテキストを捕捉します |
+| `EventTarget.addEventListener` | すべての EventTarget ハンドラでコンテキストを維持します  |
+| `Element.addEventListener`     | DOM イベントハンドラでコンテキストを維持します           |
+| `requestAnimationFrame`        | アニメーションコールバック内でコンテキストを保持します   |
+| `XMLHttpRequest`               | XHR のイベントハンドラとコールバックでコンテキストを維持します |
+| `WebSocket`                    | WebSocket のイベントハンドラとコールバックでコンテキストを維持します |
+| `MutationObserver`             | DOM 変化監視コールバック内でコンテキストを保持します     |
+| `ResizeObserver`               | 要素サイズ監視コールバック内でコンテキストを保持します   |
+| `IntersectionObserver`         | intersection observer コールバック内でコンテキストを保持します |
+| `Worker`                       | Web Worker のイベントハンドラでコンテキストを維持します  |
+| `MessagePort`                  | MessagePort 通信ハンドラでコンテキストを維持します       |
 
-NOTE: `LogicalContext` values are isolated between different contexts but maintained across asynchronous boundaries within the same context.
-This enables proper context isolation in complex asynchronous applications.
+注: `LogicalContext` の値は異なるコンテキスト間では分離されますが、同一コンテキスト内の非同期境界をまたいでは維持されます。
+これにより、複雑な非同期アプリケーションでも適切なコンテキスト分離が可能になります。
 
-### createMutex() Parameter Details
+### createMutex() のパラメータ詳細
 
-In `createMutex(maxConsecutiveCalls?: number)`, you can specify the `maxConsecutiveCalls` parameter (default value: 20).
+`createMutex(maxConsecutiveCalls?: number)` では、`maxConsecutiveCalls` パラメータ（デフォルト値: 20）を指定できます。
 
-This value sets the limit for consecutive executions when processing the lock's waiting queue:
+この値はロック待機キューを処理する際の連続実行回数の上限を設定します:
 
-- **Small values (e.g., 1-5)**
-  - Returns control to the event loop more frequently
-  - Minimizes impact on other asynchronous operations
-  - May slightly reduce lock processing throughput
+- **小さい値（例: 1-5）**
+  - イベントループにより頻繁に制御を返します
+  - 他の非同期処理への影響を最小化します
+  - ロック処理スループットはやや低下する可能性があります
 
-- **Large values (e.g., 50-100)**
-  - Executes more lock processes consecutively
-  - Improves lock processing throughput
-  - May block other asynchronous operations for longer periods
+- **大きい値（例: 50-100）**
+  - より多くのロック処理を連続実行します
+  - ロック処理スループットが向上します
+  - 他の非同期処理をより長くブロックする可能性があります
 
-- **Recommended settings**
-  - Default value (20) is suitable for most use cases
-  - For UI responsiveness priority: lower values (3-7)
-  - For high throughput needs like batch processing: higher values (20-100)
+- **推奨設定**
+  - デフォルト値（20）はほとんどの用途に適しています
+  - UI 応答性を優先する場合: 低めの値（3-7）
+  - バッチ処理のように高スループットが必要な場合: 高めの値（20-100）
 
 ```typescript
-// Prioritize UI responsiveness
+// UI 応答性を優先
 const uiLocker = createMutex(5);
 
-// High throughput processing
+// 高スループット処理
 const batchLocker = createMutex(50);
 ```
 
 ---
 
-## Benchmark results
+## ベンチマーク結果
 
-These results do not introduce hooks by `LogicalContext`. See [benchmarks/suites/](benchmarks/suites/).
+これらの結果には `LogicalContext` による hook は導入されていません。[benchmarks/suites/](benchmarks/suites/) を参照してください。
 
-You can run all benchmark suites with:
+すべてのベンチマークスイートは以下で実行できます:
 
 ```bash
 npm run benchmark
 ```
 
-You can also run only the `AsyncOperator` benchmarks:
+`AsyncOperator` ベンチマークのみを実行することもできます:
 
 ```bash
 npm run benchmark -- --suite=async-operator
 ```
 
-For machine-readable output:
+機械可読な出力が必要な場合:
 
 ```bash
 npm run --silent benchmark:json -- --suite=async-operator
 ```
 
-The benchmark table below is generated by `./run_benchmark.sh`. Values depend on the machine and runtime environment.
+以下のベンチマークテーブルは `./run_benchmark.sh` により生成されています。値はマシンやランタイム環境に依存します。
 
 <!-- benchmark-results:start -->
 
@@ -978,6 +975,6 @@ The benchmark table below is generated by `./run_benchmark.sh`. Values depend on
 
 ---
 
-## License
+## ライセンス
 
-Under MIT.
+MIT.
