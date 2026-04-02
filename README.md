@@ -761,6 +761,24 @@ const batchLocker = createMutex(50);
 
 These results do not introduce hooks by `LogicalContext`. See [benchmark/suites/](benchmark/suites/).
 
+You can run all benchmark suites with:
+
+```bash
+npm run benchmark
+```
+
+You can also run only the `AsyncOperator` benchmarks:
+
+```bash
+npm run benchmark -- --suite=async-operator
+```
+
+For machine-readable output:
+
+```bash
+npm run benchmark:json -- --suite=async-operator
+```
+
 | Benchmark                                                                | Operations/sec | Avg Time (ms) | Median Time (ms) | Std Dev (ms) | Total Time (ms) |
 | ------------------------------------------------------------------------ | -------------- | ------------- | ---------------- | ------------ | --------------- |
 | delay(0)                                                                 | 934            | 1079.586      | 1070.068         | 126.534      | 1000.78         |
