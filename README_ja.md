@@ -20,30 +20,30 @@ Mutex、producer-consumer 分離（副作用を持つ処理）、シグナリン
 
 プリミティブ:
 
-| 関数                          | 説明                                             |
-| :---------------------------- | :----------------------------------------------- |
-| `delay()`                     | Promise ベースの遅延関数                         |
-| `defer()`                     | 次のイベントループでコールバックを実行予約       |
+| 関数                          | 説明                                              |
+| :---------------------------- | :------------------------------------------------ |
+| `delay()`                     | Promise ベースの遅延関数                          |
+| `defer()`                     | 次のイベントループでコールバックを実行予約        |
 | `onAbort()`                   | クリーンアップ付きの安全な abort signal hook 登録 |
-| `createMutex()`               | クリティカルセクション向け Promise ベース mutex  |
+| `createMutex()`               | クリティカルセクション向け Promise ベース mutex   |
 | `createSemaphore()`           | 同時アクセス数を制限する Promise ベース semaphore |
-| `createReaderWriterLock()`    | 複数 reader / 単一 writer 向け read-write lock   |
-| `createDeferred()`            | Promise の resolve/reject を外部制御             |
-| `createDeferredGenerator()`   | キュー管理付き async generator の外部制御        |
-| `createConditional()`         | 自動条件トリガー（1 トリガーにつき waiter 1 件） |
-| `createManuallyConditional()` | 手動条件制御（状態の raise/drop）                |
+| `createReaderWriterLock()`    | 複数 reader / 単一 writer 向け read-write lock    |
+| `createDeferred()`            | Promise の resolve/reject を外部制御              |
+| `createDeferredGenerator()`   | キュー管理付き async generator の外部制御         |
+| `createConditional()`         | 自動条件トリガー（1 トリガーにつき waiter 1 件）  |
+| `createManuallyConditional()` | 手動条件制御（状態の raise/drop）                 |
 
 イテレータ操作:
 
-| 関数     | 説明                                         |
-| :------- | :------------------------------------------- |
+| 関数     | 説明                                            |
+| :------- | :---------------------------------------------- |
 | `from()` | 非同期値の iterable に対する chainable operator |
 
 高度な機能:
 
-| 関数                 | 説明                             |
-| :------------------- | :------------------------------- |
-| `createAsyncLocal()` | 非同期コンテキストストレージ     |
+| 関数                 | 説明                                 |
+| :------------------- | :----------------------------------- |
+| `createAsyncLocal()` | 非同期コンテキストストレージ         |
 | `LogicalContext`     | 低レベルな非同期実行コンテキスト管理 |
 
 - 以前 `AsyncLock` および `Signal` として知られていた実装は、`Mutex` および `Conditional` に変更されました。
@@ -520,36 +520,36 @@ const values = await from(asyncIterable).toArray();
 
 中間演算子:
 
-| 演算子          | 説明                                                    |
-| :-------------- | :------------------------------------------------------ |
-| `map()`         | 解決済みの各値を別の値へ写像します                      |
-| `flatMap()`     | 解決済みの各値を iterable に写像し、1 段 flatten します |
-| `filter()`      | predicate が truthy を返した値だけを残します            |
-| `concat()`      | 追加の iterable または async iterable の値を連結します  |
-| `choose()`      | 各値を写像し、`null` と `undefined` の結果を除外します  |
-| `slice()`       | `Array.prototype.slice()` と同じ意味論で部分範囲を返します |
-| `distinct()`    | 重複する値を取り除きます                                |
-| `distinctBy()`  | 射影キーで重複する値を取り除きます                      |
-| `skip()`        | 指定した数の値をスキップします                          |
-| `skipWhile()`   | predicate が true を返す間、値をスキップします          |
-| `take()`        | 指定した数の値を取得します                              |
-| `takeWhile()`   | predicate が true を返す間、値を取得します              |
-| `pairwise()`    | 隣接する値のペアを生成します                            |
-| `zip()`         | 別の iterable と要素ごとに結合します                    |
-| `scan()`        | 初期値を含む途中の accumulator 状態を生成します         |
-| `union()`       | このシーケンスと別シーケンスを順に見て一意な値を生成します |
-| `unionBy()`     | 2 つのシーケンス全体で射影キーごとの一意値を生成します  |
-| `intersect()`   | 両方のシーケンスに現れる一意な値を生成します            |
-| `intersectBy()` | 両方のシーケンスに現れる射影キーごとの一意値を生成します |
-| `except()`      | 別シーケンスに現れない一意な値を生成します              |
-| `exceptBy()`    | 別シーケンスに存在しない射影キーごとの一意値を生成します |
-| `chunkBySize()` | 固定最大サイズの配列に値をグループ化します              |
-| `windowed()`    | 固定サイズのスライディングウィンドウを生成します        |
-| `flat()`        | `Array.prototype.flat()` と同じ意味論でネスト配列を平坦化します |
-| `reverse()`     | 逆順のシーケンスを返します                              |
-| `toReversed()`  | 逆順コピーを返します                                    |
+| 演算子          | 説明                                                                |
+| :-------------- | :------------------------------------------------------------------ |
+| `map()`         | 解決済みの各値を別の値へ写像します                                  |
+| `flatMap()`     | 解決済みの各値を iterable に写像し、1 段 flatten します             |
+| `filter()`      | predicate が truthy を返した値だけを残します                        |
+| `concat()`      | 追加の iterable または async iterable の値を連結します              |
+| `choose()`      | 各値を写像し、`null` と `undefined` の結果を除外します              |
+| `slice()`       | `Array.prototype.slice()` と同じ意味論で部分範囲を返します          |
+| `distinct()`    | 重複する値を取り除きます                                            |
+| `distinctBy()`  | 射影キーで重複する値を取り除きます                                  |
+| `skip()`        | 指定した数の値をスキップします                                      |
+| `skipWhile()`   | predicate が true を返す間、値をスキップします                      |
+| `take()`        | 指定した数の値を取得します                                          |
+| `takeWhile()`   | predicate が true を返す間、値を取得します                          |
+| `pairwise()`    | 隣接する値のペアを生成します                                        |
+| `zip()`         | 別の iterable と要素ごとに結合します                                |
+| `scan()`        | 初期値を含む途中の accumulator 状態を生成します                     |
+| `union()`       | このシーケンスと別シーケンスを順に見て一意な値を生成します          |
+| `unionBy()`     | 2 つのシーケンス全体で射影キーごとの一意値を生成します              |
+| `intersect()`   | 両方のシーケンスに現れる一意な値を生成します                        |
+| `intersectBy()` | 両方のシーケンスに現れる射影キーごとの一意値を生成します            |
+| `except()`      | 別シーケンスに現れない一意な値を生成します                          |
+| `exceptBy()`    | 別シーケンスに存在しない射影キーごとの一意値を生成します            |
+| `chunkBySize()` | 固定最大サイズの配列に値をグループ化します                          |
+| `windowed()`    | 固定サイズのスライディングウィンドウを生成します                    |
+| `flat()`        | `Array.prototype.flat()` と同じ意味論でネスト配列を平坦化します     |
+| `reverse()`     | 逆順のシーケンスを返します                                          |
+| `toReversed()`  | 逆順コピーを返します                                                |
 | `sort()`        | `Array.prototype.sort()` と同じ意味論で整列したシーケンスを返します |
-| `toSorted()`    | `Array.prototype.toSorted()` と同じ意味論の整列コピーを返します |
+| `toSorted()`    | `Array.prototype.toSorted()` と同じ意味論の整列コピーを返します     |
 
 終端演算子:
 
@@ -720,24 +720,24 @@ const originalValue = getLogicalContextValue<string>(key); // 'some value'
 
 `LogicalContext` を初めて使用すると、コンテキストを正しく維持するために JavaScript のさまざまなランタイム関数や定義へ hook が挿入されます。これにより一定のオーバーヘッドが発生する点に注意してください。
 
-| 対象                           | 目的                                                      |
-| :----------------------------- | :-------------------------------------------------------- |
-| `setTimeout`                   | タイマーコールバックをまたいでコンテキストを維持します   |
-| `setInterval`                  | interval コールバックをまたいでコンテキストを維持します  |
-| `queueMicrotask`               | microtask queue 内でコンテキストを保持します             |
-| `setImmediate`                 | immediate queue 内でコンテキストを保持します（Node.js のみ） |
-| `process.nextTick`             | next tick queue 内でコンテキストを保持します（Node.js のみ） |
+| 対象                           | 目的                                                                  |
+| :----------------------------- | :-------------------------------------------------------------------- |
+| `setTimeout`                   | タイマーコールバックをまたいでコンテキストを維持します                |
+| `setInterval`                  | interval コールバックをまたいでコンテキストを維持します               |
+| `queueMicrotask`               | microtask queue 内でコンテキストを保持します                          |
+| `setImmediate`                 | immediate queue 内でコンテキストを保持します（Node.js のみ）          |
+| `process.nextTick`             | next tick queue 内でコンテキストを保持します（Node.js のみ）          |
 | `Promise`                      | `then()`、`catch()`、`finally()` チェーン用のコンテキストを捕捉します |
-| `EventTarget.addEventListener` | すべての EventTarget ハンドラでコンテキストを維持します  |
-| `Element.addEventListener`     | DOM イベントハンドラでコンテキストを維持します           |
-| `requestAnimationFrame`        | アニメーションコールバック内でコンテキストを保持します   |
-| `XMLHttpRequest`               | XHR のイベントハンドラとコールバックでコンテキストを維持します |
-| `WebSocket`                    | WebSocket のイベントハンドラとコールバックでコンテキストを維持します |
-| `MutationObserver`             | DOM 変化監視コールバック内でコンテキストを保持します     |
-| `ResizeObserver`               | 要素サイズ監視コールバック内でコンテキストを保持します   |
-| `IntersectionObserver`         | intersection observer コールバック内でコンテキストを保持します |
-| `Worker`                       | Web Worker のイベントハンドラでコンテキストを維持します  |
-| `MessagePort`                  | MessagePort 通信ハンドラでコンテキストを維持します       |
+| `EventTarget.addEventListener` | すべての EventTarget ハンドラでコンテキストを維持します               |
+| `Element.addEventListener`     | DOM イベントハンドラでコンテキストを維持します                        |
+| `requestAnimationFrame`        | アニメーションコールバック内でコンテキストを保持します                |
+| `XMLHttpRequest`               | XHR のイベントハンドラとコールバックでコンテキストを維持します        |
+| `WebSocket`                    | WebSocket のイベントハンドラとコールバックでコンテキストを維持します  |
+| `MutationObserver`             | DOM 変化監視コールバック内でコンテキストを保持します                  |
+| `ResizeObserver`               | 要素サイズ監視コールバック内でコンテキストを保持します                |
+| `IntersectionObserver`         | intersection observer コールバック内でコンテキストを保持します        |
+| `Worker`                       | Web Worker のイベントハンドラでコンテキストを維持します               |
+| `MessagePort`                  | MessagePort 通信ハンドラでコンテキストを維持します                    |
 
 注: `LogicalContext` の値は異なるコンテキスト間では分離されますが、同一コンテキスト内の非同期境界をまたいでは維持されます。
 これにより、複雑な非同期アプリケーションでも適切なコンテキスト分離が可能になります。
