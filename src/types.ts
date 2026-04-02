@@ -308,6 +308,13 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
   ) => AsyncOperator<T>;
 
   /**
+   * Concatenates the sequence with additional sources
+   * @param sources Additional sources to append after the current sequence
+   * @returns A new async operator whose values are emitted from each source in order
+   */
+  readonly concat: (...sources: AsyncOperatorSource<T>[]) => AsyncOperator<T>;
+
+  /**
    * Projects each resolved value into another value and omits nullish results
    * @param selector Selector function for each resolved value
    * @returns A new async operator whose values are the non-nullish projected results
@@ -390,6 +397,90 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
   ) => AsyncOperator<U>;
 
   /**
+   * Combines the sequence with another sequence and removes duplicate values
+   * @param source Source sequence to union with
+   * @returns A new async operator whose values are distinct across both sequences
+   * @remarks
+   * The result preserves the order of first occurrence across the left sequence and then the right sequence.
+   */
+  readonly union: (source: AsyncOperatorSource<T>) => AsyncOperator<T>;
+
+  /**
+   * Combines the sequence with another sequence and removes duplicate values by projected key
+   * @param source Source sequence to union with
+   * @param selector Selector function that produces the distinct key
+   * @returns A new async operator whose values are distinct by key across both sequences
+   * @remarks
+   * The result preserves the order of first occurrence across the left sequence and then the right sequence.
+   */
+  readonly unionBy: <TKey>(
+    source: AsyncOperatorSource<T>,
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => AsyncOperator<T>;
+
+  /**
+   * Produces values that are present in both the current sequence and another sequence
+   * @param source Source sequence to intersect with
+   * @returns A new async operator whose values are distinct values shared by both sequences
+   * @remarks
+   * The result preserves the order of first occurrence from the left sequence.
+   */
+  readonly intersect: (source: AsyncOperatorSource<T>) => AsyncOperator<T>;
+
+  /**
+   * Produces values that are present in both the current sequence and another sequence by projected key
+   * @param source Source sequence to intersect with
+   * @param selector Selector function that produces the comparison key
+   * @returns A new async operator whose values are distinct by key and shared by both sequences
+   * @remarks
+   * The result preserves the order of first occurrence from the left sequence.
+   */
+  readonly intersectBy: <TKey>(
+    source: AsyncOperatorSource<T>,
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => AsyncOperator<T>;
+
+  /**
+   * Produces values that are not present in another sequence
+   * @param source Source sequence to exclude
+   * @returns A new async operator whose values are distinct values unique to the current sequence
+   * @remarks
+   * The result preserves the order of first occurrence from the left sequence.
+   */
+  readonly except: (source: AsyncOperatorSource<T>) => AsyncOperator<T>;
+
+  /**
+   * Produces values that are not present in another sequence by projected key
+   * @param source Source sequence to exclude
+   * @param selector Selector function that produces the comparison key
+   * @returns A new async operator whose values are distinct by key and unique to the current sequence
+   * @remarks
+   * The result preserves the order of first occurrence from the left sequence.
+   */
+  readonly exceptBy: <TKey>(
+    source: AsyncOperatorSource<T>,
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => AsyncOperator<T>;
+
+  /**
+   * Groups resolved values into arrays of a fixed maximum size
+   * @param size Maximum number of values in each chunk
+   * @returns A new async operator whose values are chunk arrays
+   * @remarks
+   * `size` must be greater than 0.
+   */
+  readonly chunkBySize: (size: number) => AsyncOperator<T[]>;
+
+  /**
+   * Produces sliding windows of a fixed size
+   * @param size Number of values in each window
+   * @returns A new async operator whose values are window arrays
+   * @remarks
+   * `size` must be greater than 0.
+   */
+  readonly windowed: (size: number) => AsyncOperator<T[]>;
+
+  /**
    * Executes an action for each resolved value
    * @param action Action function for each resolved value
    * @returns A promise that resolves when all values have been processed
@@ -468,6 +559,24 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
   ) => Promise<number>;
 
   /**
+   * Finds the last value that satisfies the predicate
+   * @param predicate Predicate function for each resolved value
+   * @returns A promise that resolves to the found value or undefined
+   */
+  readonly findLast: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => Promise<T | undefined>;
+
+  /**
+   * Finds the index of the last value that satisfies the predicate
+   * @param predicate Predicate function for each resolved value
+   * @returns A promise that resolves to the found index or -1
+   */
+  readonly findLastIndex: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => Promise<number>;
+
+  /**
    * Finds the minimum value in the sequence
    * @returns A promise that resolves to the minimum value or undefined
    */
@@ -514,6 +623,15 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
   readonly countBy: <TKey>(
     selector: (value: T, index: number) => Awaitable<TKey>
   ) => Promise<Map<TKey, number>>;
+
+  /**
+   * Concatenates the resolved values into a string
+   * @param separator String used to separate adjacent values
+   * @returns A promise that resolves to the concatenated string
+   * @remarks
+   * `null` and `undefined` values contribute empty strings, matching `Array.prototype.join`.
+   */
+  readonly join: (separator?: string) => Promise<string>;
 
   /**
    * Resolves the sequence into an array

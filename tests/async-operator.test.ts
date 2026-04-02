@@ -203,6 +203,21 @@ describe('AsyncOperator', () => {
       expect(distinctObjects).toEqual(['alice', 'bob']);
     });
 
+    it('should support concat with iterable and async iterable sources', async () => {
+      const result = await from([Promise.resolve(1), 2])
+        .concat(
+          [Promise.resolve(3)],
+          (async function* () {
+            yield 4;
+            await delay(1);
+            yield Promise.resolve(5);
+          })()
+        )
+        .toArray();
+
+      expect(result).toEqual([1, 2, 3, 4, 5]);
+    });
+
     it('should support skip, take, skipWhile and takeWhile', async () => {
       const result = await from([1, 2, 3, 4, 5, 6, 7])
         .skip(1)
@@ -258,6 +273,104 @@ describe('AsyncOperator', () => {
 
       expect(values).toEqual([0, 1, 3, 6]);
       expect(emptyValues).toEqual([0]);
+    });
+
+    it('should support union and unionBy', async () => {
+      const unionValues = await from([1, 2, 2, 3])
+        .union(
+          (async function* () {
+            yield Promise.resolve(3);
+            yield 4;
+            yield Promise.resolve(1);
+            yield 5;
+          })()
+        )
+        .toArray();
+
+      const unionByValues = await from([
+        { id: 1, name: 'alice' },
+        { id: 2, name: 'bob' },
+      ])
+        .unionBy(
+          [
+            { id: 2, name: 'bob-duplicate' },
+            { id: 3, name: 'charlie' },
+          ],
+          (value) => value.id
+        )
+        .map((value) => value.name)
+        .toArray();
+
+      expect(unionValues).toEqual([1, 2, 3, 4, 5]);
+      expect(unionByValues).toEqual(['alice', 'bob', 'charlie']);
+    });
+
+    it('should support intersect, intersectBy, except and exceptBy', async () => {
+      const intersectValues = await from([1, 2, 2, 3, 4])
+        .intersect(
+          (async function* () {
+            yield 2;
+            yield Promise.resolve(4);
+            yield 4;
+            yield 6;
+          })()
+        )
+        .toArray();
+
+      const exceptValues = await from([1, 2, 2, 3, 4]).except([2, 5]).toArray();
+
+      const intersectByValues = await from([
+        { id: 1, name: 'alice' },
+        { id: 2, name: 'bob' },
+        { id: 2, name: 'bob-duplicate' },
+        { id: 3, name: 'charlie' },
+      ])
+        .intersectBy(
+          [
+            { id: 2, name: 'other-bob' },
+            { id: 4, name: 'david' },
+          ],
+          (value) => value.id
+        )
+        .map((value) => value.name)
+        .toArray();
+
+      const exceptByValues = await from([
+        { id: 1, name: 'alice' },
+        { id: 2, name: 'bob' },
+        { id: 2, name: 'bob-duplicate' },
+        { id: 3, name: 'charlie' },
+      ])
+        .exceptBy([{ id: 2, name: 'other-bob' }], (value) => value.id)
+        .map((value) => value.name)
+        .toArray();
+
+      expect(intersectValues).toEqual([2, 4]);
+      expect(exceptValues).toEqual([1, 3, 4]);
+      expect(intersectByValues).toEqual(['bob']);
+      expect(exceptByValues).toEqual(['alice', 'charlie']);
+    });
+
+    it('should support chunkBySize and windowed', async () => {
+      const chunks = await from([1, 2, 3, 4, 5]).chunkBySize(2).toArray();
+      const windows = await from([1, 2, 3, 4]).windowed(3).toArray();
+      const emptyWindows = await from([1, 2]).windowed(3).toArray();
+
+      expect(chunks).toEqual([[1, 2], [3, 4], [5]]);
+      expect(windows).toEqual([
+        [1, 2, 3],
+        [2, 3, 4],
+      ]);
+      expect(emptyWindows).toEqual([]);
+    });
+
+    it('should reject invalid chunk and window sizes', async () => {
+      await expect(from([1, 2, 3]).chunkBySize(0).toArray()).rejects.toThrow(
+        'Chunk size must be greater than 0'
+      );
+      await expect(from([1, 2, 3]).windowed(0).toArray()).rejects.toThrow(
+        'Window size must be greater than 0'
+      );
     });
   });
 
@@ -322,6 +435,31 @@ describe('AsyncOperator', () => {
       expect(found).toBe(10);
       expect(foundIndex).toBe(3);
       expect(missingIndex).toBe(-1);
+    });
+
+    it('should support findLast, findLastIndex and join', async () => {
+      const found = await from([5, 7, 9, 10, 11, 12]).findLast(
+        (value) => value % 2 === 0
+      );
+      const foundIndex = await from([5, 7, 9, 10, 11, 12]).findLastIndex(
+        (value) => value % 2 === 0
+      );
+      const missingIndex = await from([1, 3, 5]).findLastIndex(
+        (value) => value % 2 === 0
+      );
+      const joined = await from<number | null | undefined>([
+        1,
+        null,
+        undefined,
+        4,
+      ]).join();
+      const joinedWithSeparator = await from(['a', 'b', 'c']).join(' / ');
+
+      expect(found).toBe(12);
+      expect(foundIndex).toBe(5);
+      expect(missingIndex).toBe(-1);
+      expect(joined).toBe('1,,,4');
+      expect(joinedWithSeparator).toBe('a / b / c');
     });
 
     it('should support min, minBy, max and maxBy', async () => {

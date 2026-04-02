@@ -504,39 +504,51 @@ may produce different results on the second and later enumerations.
 
 Intermediate operators:
 
-| Operator       | Description                                                                |
-| :------------- | :------------------------------------------------------------------------- |
-| `map()`        | Projects each resolved value into another value                            |
-| `flatMap()`    | Projects each resolved value into an iterable and flattens it by one level |
-| `filter()`     | Keeps only values whose predicate result is truthy                         |
-| `choose()`     | Projects each resolved value and omits `null` and `undefined` results      |
-| `distinct()`   | Removes duplicate values                                                   |
-| `distinctBy()` | Removes duplicate values by projected key                                  |
-| `skip()`       | Skips the specified number of values                                       |
-| `skipWhile()`  | Skips values while the predicate returns true                              |
-| `take()`       | Takes the specified number of values                                       |
-| `takeWhile()`  | Takes values while the predicate returns true                              |
-| `pairwise()`   | Produces adjacent pairs                                                    |
-| `zip()`        | Combines values with another iterable element by element                   |
-| `scan()`       | Produces intermediate accumulator states, including the initial value      |
+| Operator        | Description                                                                |
+| :-------------- | :------------------------------------------------------------------------- |
+| `map()`         | Projects each resolved value into another value                            |
+| `flatMap()`     | Projects each resolved value into an iterable and flattens it by one level |
+| `filter()`      | Keeps only values whose predicate result is truthy                         |
+| `concat()`      | Appends values from additional iterables or async iterables                |
+| `choose()`      | Projects each resolved value and omits `null` and `undefined` results      |
+| `distinct()`    | Removes duplicate values                                                   |
+| `distinctBy()`  | Removes duplicate values by projected key                                  |
+| `skip()`        | Skips the specified number of values                                       |
+| `skipWhile()`   | Skips values while the predicate returns true                              |
+| `take()`        | Takes the specified number of values                                       |
+| `takeWhile()`   | Takes values while the predicate returns true                              |
+| `pairwise()`    | Produces adjacent pairs                                                    |
+| `zip()`         | Combines values with another iterable element by element                   |
+| `scan()`        | Produces intermediate accumulator states, including the initial value      |
+| `union()`       | Produces distinct values from this sequence followed by another sequence   |
+| `unionBy()`     | Produces distinct values by projected key across two sequences             |
+| `intersect()`   | Produces distinct values that appear in both sequences                     |
+| `intersectBy()` | Produces distinct values by projected key that appear in both sequences    |
+| `except()`      | Produces distinct values that do not appear in another sequence            |
+| `exceptBy()`    | Produces distinct values by projected key not found in another sequence    |
+| `chunkBySize()` | Groups values into arrays of a fixed maximum size                          |
+| `windowed()`    | Produces sliding windows of a fixed size                                   |
 
 Terminal operators:
 
-| Operator      | Description                                                                            |
-| :------------ | :------------------------------------------------------------------------------------- |
-| `forEach()`   | Executes an action for each value                                                      |
-| `reduce()`    | Reduces the sequence to a single value                                                 |
-| `some()`      | Returns true when any value satisfies the predicate                                    |
-| `every()`     | Returns true when all values satisfy the predicate                                     |
-| `find()`      | Returns the first value that satisfies the predicate                                   |
-| `findIndex()` | Returns the index of the first value that satisfies the predicate                      |
-| `min()`       | Returns the minimum value, or `undefined` for an empty sequence                        |
-| `minBy()`     | Returns the value with the minimum projected key, or `undefined` for an empty sequence |
-| `max()`       | Returns the maximum value, or `undefined` for an empty sequence                        |
-| `maxBy()`     | Returns the value with the maximum projected key, or `undefined` for an empty sequence |
-| `groupBy()`   | Collects values into a `Map` grouped by projected key                                  |
-| `countBy()`   | Counts values into a `Map` grouped by projected key                                    |
-| `toArray()`   | Materializes the resulting values into an array                                        |
+| Operator          | Description                                                                            |
+| :---------------- | :------------------------------------------------------------------------------------- |
+| `forEach()`       | Executes an action for each value                                                      |
+| `reduce()`        | Reduces the sequence to a single value                                                 |
+| `some()`          | Returns true when any value satisfies the predicate                                    |
+| `every()`         | Returns true when all values satisfy the predicate                                     |
+| `find()`          | Returns the first value that satisfies the predicate                                   |
+| `findIndex()`     | Returns the index of the first value that satisfies the predicate                      |
+| `findLast()`      | Returns the last value that satisfies the predicate                                    |
+| `findLastIndex()` | Returns the index of the last value that satisfies the predicate                       |
+| `min()`           | Returns the minimum value, or `undefined` for an empty sequence                        |
+| `minBy()`         | Returns the value with the minimum projected key, or `undefined` for an empty sequence |
+| `max()`           | Returns the maximum value, or `undefined` for an empty sequence                        |
+| `maxBy()`         | Returns the value with the maximum projected key, or `undefined` for an empty sequence |
+| `groupBy()`       | Collects values into a `Map` grouped by projected key                                  |
+| `countBy()`       | Counts values into a `Map` grouped by projected key                                    |
+| `join()`          | Concatenates the values into a string, matching `Array.prototype.join()`               |
+| `toArray()`       | Materializes the resulting values into an array                                        |
 
 ### ES2022+ using statement
 

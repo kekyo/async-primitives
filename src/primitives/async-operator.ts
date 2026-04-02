@@ -15,6 +15,8 @@ const createAsyncIterable = <T>(
   [Symbol.asyncIterator]: iteratorFactory,
 });
 
+const identity = <T>(value: T): T => value;
+
 const isAsyncIterable = <T>(
   source: AsyncOperatorSource<T>
 ): source is AsyncIterable<Awaitable<T>> =>
@@ -41,6 +43,13 @@ const normalizeCount = (count: number): number => {
   return Math.trunc(count);
 };
 
+const normalizeRequiredCount = (count: number, name: string): number => {
+  if (!Number.isFinite(count) || count <= 0) {
+    throw new RangeError(`${name} must be greater than 0`);
+  }
+  return Math.trunc(count);
+};
+
 const isNonNullish = <T>(
   value: T | null | undefined
 ): value is NonNullable<T> => value !== null && value !== undefined;
@@ -53,6 +62,21 @@ const compareValues = <T>(left: T, right: T): number => {
     return 1;
   }
   return 0;
+};
+
+const collectKeysFromSource = async <T, TKey>(
+  source: AsyncOperatorSource<T>,
+  selector: (value: T, index: number) => Awaitable<TKey>
+): Promise<Set<TKey>> => {
+  let index = 0;
+  const keys = new Set<TKey>();
+
+  for await (const value of toAsyncIterable(source)) {
+    keys.add(await Promise.resolve(selector(value, index)));
+    index++;
+  }
+
+  return keys;
 };
 
 const findExtremeBy = async <T, TKey>(
@@ -160,6 +184,20 @@ const createAsyncOperator = <T>(
               yield value as T;
             }
             index++;
+          }
+        })
+      ) as AsyncOperator<T>,
+    concat: (...sources: AsyncOperatorSource<T>[]) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          for await (const value of iterableFactory()) {
+            yield value as T;
+          }
+
+          for (const source of sources) {
+            for await (const value of toAsyncIterable(source)) {
+              yield value as T;
+            }
           }
         })
       ) as AsyncOperator<T>,
@@ -323,6 +361,165 @@ const createAsyncOperator = <T>(
           }
         })
       ) as AsyncOperator<U>,
+    union: (source: AsyncOperatorSource<T>) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const seenValues = new Set<T>();
+
+          for await (const value of iterableFactory()) {
+            if (!seenValues.has(value)) {
+              seenValues.add(value);
+              yield value as T;
+            }
+          }
+
+          for await (const value of toAsyncIterable(source)) {
+            if (!seenValues.has(value)) {
+              seenValues.add(value);
+              yield value as T;
+            }
+          }
+        })
+      ) as AsyncOperator<T>,
+    unionBy: <TKey>(
+      source: AsyncOperatorSource<T>,
+      selector: (value: T, index: number) => Awaitable<TKey>
+    ) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const seenKeys = new Set<TKey>();
+          let index = 0;
+
+          for await (const value of iterableFactory()) {
+            const key = await Promise.resolve(selector(value, index));
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              yield value as T;
+            }
+            index++;
+          }
+
+          index = 0;
+          for await (const value of toAsyncIterable(source)) {
+            const key = await Promise.resolve(selector(value, index));
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              yield value as T;
+            }
+            index++;
+          }
+        })
+      ) as AsyncOperator<T>,
+    intersect: (source: AsyncOperatorSource<T>) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const rightValues = await collectKeysFromSource(
+            source,
+            (value) => value
+          );
+          const yieldedValues = new Set<T>();
+
+          for await (const value of iterableFactory()) {
+            if (rightValues.has(value) && !yieldedValues.has(value)) {
+              yieldedValues.add(value);
+              yield value as T;
+            }
+          }
+        })
+      ) as AsyncOperator<T>,
+    intersectBy: <TKey>(
+      source: AsyncOperatorSource<T>,
+      selector: (value: T, index: number) => Awaitable<TKey>
+    ) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const rightKeys = await collectKeysFromSource(source, selector);
+          const yieldedKeys = new Set<TKey>();
+          let index = 0;
+
+          for await (const value of iterableFactory()) {
+            const key = await Promise.resolve(selector(value, index));
+            if (rightKeys.has(key) && !yieldedKeys.has(key)) {
+              yieldedKeys.add(key);
+              yield value as T;
+            }
+            index++;
+          }
+        })
+      ) as AsyncOperator<T>,
+    except: (source: AsyncOperatorSource<T>) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const excludedValues = await collectKeysFromSource(
+            source,
+            (value) => value
+          );
+          const yieldedValues = new Set<T>();
+
+          for await (const value of iterableFactory()) {
+            if (!excludedValues.has(value) && !yieldedValues.has(value)) {
+              yieldedValues.add(value);
+              yield value as T;
+            }
+          }
+        })
+      ) as AsyncOperator<T>,
+    exceptBy: <TKey>(
+      source: AsyncOperatorSource<T>,
+      selector: (value: T, index: number) => Awaitable<TKey>
+    ) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const excludedKeys = await collectKeysFromSource(source, selector);
+          const yieldedKeys = new Set<TKey>();
+          let index = 0;
+
+          for await (const value of iterableFactory()) {
+            const key = await Promise.resolve(selector(value, index));
+            if (!excludedKeys.has(key) && !yieldedKeys.has(key)) {
+              yieldedKeys.add(key);
+              yield value as T;
+            }
+            index++;
+          }
+        })
+      ) as AsyncOperator<T>,
+    chunkBySize: (size: number) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const normalizedSize = normalizeRequiredCount(size, 'Chunk size');
+          let chunk: T[] = [];
+
+          for await (const value of iterableFactory()) {
+            chunk.push(value);
+            if (chunk.length >= normalizedSize) {
+              yield chunk;
+              chunk = [];
+            }
+          }
+
+          if (chunk.length > 0) {
+            yield chunk;
+          }
+        })
+      ) as AsyncOperator<T[]>,
+    windowed: (size: number) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const normalizedSize = normalizeRequiredCount(size, 'Window size');
+          const window: T[] = [];
+
+          for await (const value of iterableFactory()) {
+            window.push(value);
+            if (window.length < normalizedSize) {
+              continue;
+            }
+
+            yield [...window];
+            window.shift();
+          }
+        })
+      ) as AsyncOperator<T[]>,
     forEach: async (
       action: (value: T, index: number) => Awaitable<void>
     ): Promise<void> => {
@@ -381,8 +578,38 @@ const createAsyncOperator = <T>(
       }
       return -1;
     },
+    findLast: async (
+      predicate: (value: T, index: number) => Awaitable<boolean>
+    ): Promise<T | undefined> => {
+      let index = 0;
+      let foundValue: T | undefined;
+
+      for await (const value of iterableFactory()) {
+        if (await Promise.resolve(predicate(value, index))) {
+          foundValue = value;
+        }
+        index++;
+      }
+
+      return foundValue;
+    },
+    findLastIndex: async (
+      predicate: (value: T, index: number) => Awaitable<boolean>
+    ): Promise<number> => {
+      let index = 0;
+      let foundIndex = -1;
+
+      for await (const value of iterableFactory()) {
+        if (await Promise.resolve(predicate(value, index))) {
+          foundIndex = index;
+        }
+        index++;
+      }
+
+      return foundIndex;
+    },
     min: async (): Promise<T | undefined> =>
-      findExtremeBy(iterableFactory, (value) => value, 'min'),
+      findExtremeBy(iterableFactory, identity, 'min'),
     minBy: async <TKey>(
       selector: (value: T, index: number) => Awaitable<TKey>
     ): Promise<T | undefined> =>
@@ -425,6 +652,21 @@ const createAsyncOperator = <T>(
       }
 
       return counts;
+    },
+    join: async (separator?: string): Promise<string> => {
+      const normalizedSeparator = separator ?? ',';
+      let isFirst = true;
+      let result = '';
+
+      for await (const value of iterableFactory()) {
+        if (!isFirst) {
+          result += normalizedSeparator;
+        }
+        result += value == null ? '' : String(value);
+        isFirst = false;
+      }
+
+      return result;
     },
     toArray: async (): Promise<T[]> => {
       const values: T[] = [];
