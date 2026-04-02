@@ -43,10 +43,18 @@ export const selectBenchmarkSuites = (
   const normalizedFilters = suiteFilters.map((suiteFilter) =>
     suiteFilter.toLowerCase()
   );
+  const exactMatchFilters = new Set(
+    normalizedFilters.filter((suiteFilter) =>
+      benchmarkSuites.some((suite) => suite.name.toLowerCase() === suiteFilter)
+    )
+  );
 
   return benchmarkSuites.filter((suite) =>
-    normalizedFilters.some((suiteFilter) =>
-      suite.name.toLowerCase().includes(suiteFilter)
-    )
+    normalizedFilters.some((suiteFilter) => {
+      const normalizedName = suite.name.toLowerCase();
+      return exactMatchFilters.has(suiteFilter)
+        ? normalizedName === suiteFilter
+        : normalizedName.includes(suiteFilter);
+    })
   );
 };

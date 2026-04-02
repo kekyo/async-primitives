@@ -9,6 +9,41 @@ export interface LogicalContext {
   readonly data: Map<symbol, unknown>;
 }
 
+type RuntimeCallback = (...args: any[]) => void;
+
+type RuntimeSetImmediate =
+  | ((callback: RuntimeCallback, ...args: any[]) => unknown)
+  | undefined;
+
+type RuntimeNextTick =
+  | ((callback: RuntimeCallback, ...args: any[]) => void)
+  | undefined;
+
+type RuntimeProcess = {
+  nextTick?: RuntimeNextTick;
+};
+
+type RuntimeGlobal = typeof globalThis & {
+  setImmediate?: RuntimeSetImmediate;
+  process?: RuntimeProcess | undefined;
+};
+
+const runtimeGlobal = globalThis as RuntimeGlobal;
+const LOGICAL_CONTEXT_HOOK = Symbol('logical-context-hook');
+
+type HookedFunction<T extends (...args: any[]) => any> = T & {
+  [LOGICAL_CONTEXT_HOOK]?: true;
+};
+
+const isHooked = <T extends (...args: any[]) => any>(callback: T) => {
+  return (callback as HookedFunction<T>)[LOGICAL_CONTEXT_HOOK] === true;
+};
+
+const markAsHooked = <T extends (...args: any[]) => any>(callback: T): T => {
+  (callback as HookedFunction<T>)[LOGICAL_CONTEXT_HOOK] = true;
+  return callback;
+};
+
 // Create a new logical context
 export const createLogicalContext = (id: symbol): LogicalContext => {
   return { id, data: new Map() };
@@ -48,67 +83,70 @@ export const trampoline = <T extends any[]>(
 // Whether the logical context system is prepared
 let isPrepared = false;
 
-// Prepare the logical context system
-export const prepare = () => {
-  if (isPrepared) {
-    return;
-  }
-  isPrepared = true;
-
+const prepareRuntimeHooks = () => {
   ///////////////////////////////////////////////////////////////
 
   // Replace the global setTimeout with a version that captures the current logical context
-  if (typeof globalThis.setTimeout !== 'undefined') {
+  if (
+    typeof globalThis.setTimeout !== 'undefined' &&
+    !isHooked(globalThis.setTimeout)
+  ) {
     const __setTimeout = globalThis.setTimeout;
-    globalThis.setTimeout = ((
+    globalThis.setTimeout = markAsHooked(((
       handler: (...args: any[]) => void,
       timeout?: number,
       ...args: any[]
     ) => {
       const capturedLogicalContext = currentLogicalContext;
       return __setTimeout(
-        (...args: any[]) => {
+        (...callbackArgs: any[]) => {
           const adjustment = {
             contextToUse: capturedLogicalContext,
           } as LogicalContextAdjustment;
-          trampoline(adjustment, handler, undefined, ...args);
+          trampoline(adjustment, handler, undefined, ...callbackArgs);
         },
         timeout,
         ...args
       );
-    }) as typeof globalThis.setTimeout;
+    }) as typeof globalThis.setTimeout);
   }
 
   ///////////////////////////////////////////////////////////////
 
   // Replace the global setInterval with a version that captures the current logical context
-  if (typeof globalThis.setInterval !== 'undefined') {
+  if (
+    typeof globalThis.setInterval !== 'undefined' &&
+    !isHooked(globalThis.setInterval)
+  ) {
     const __setInterval = globalThis.setInterval;
-    globalThis.setInterval = ((
+    globalThis.setInterval = markAsHooked(((
       handler: (...args: any[]) => void,
       timeout?: number,
       ...args: any[]
     ) => {
       const capturedLogicalContext = currentLogicalContext;
       return __setInterval(
-        (...args: any[]) => {
+        (...callbackArgs: any[]) => {
           const adjustment = {
             contextToUse: capturedLogicalContext,
           } as LogicalContextAdjustment;
-          trampoline(adjustment, handler, undefined, ...args);
+          trampoline(adjustment, handler, undefined, ...callbackArgs);
         },
         timeout,
         ...args
       );
-    }) as typeof globalThis.setInterval;
+    }) as typeof globalThis.setInterval);
   }
 
   ///////////////////////////////////////////////////////////////
 
   // Replace the global queueMicrotask with a version that captures the current logical context
-  if (typeof globalThis.queueMicrotask !== 'undefined') {
+  if (
+    typeof globalThis.queueMicrotask !== 'undefined' &&
+    !isHooked(globalThis.queueMicrotask)
+  ) {
     const __queueMicrotask = globalThis.queueMicrotask;
-    globalThis.queueMicrotask = (callback: () => void) => {
+    globalThis.queueMicrotask = markAsHooked((callback: () => void) => {
       const capturedLogicalContext = currentLogicalContext;
       return __queueMicrotask(() => {
         const adjustment = {
@@ -116,15 +154,15 @@ export const prepare = () => {
         } as LogicalContextAdjustment;
         trampoline(adjustment, callback, undefined);
       });
-    };
+    });
   }
 
   ///////////////////////////////////////////////////////////////
 
   // Replace the global setImmediate with a version that captures the current logical context (Node.js only)
-  if (typeof globalThis.setImmediate !== 'undefined') {
-    const __setImmediate = globalThis.setImmediate;
-    globalThis.setImmediate = ((
+  const __setImmediate = runtimeGlobal.setImmediate;
+  if (typeof __setImmediate === 'function' && !isHooked(__setImmediate)) {
+    runtimeGlobal.setImmediate = markAsHooked(((
       callback: (...args: any[]) => void,
       ...args: any[]
     ) => {
@@ -138,24 +176,62 @@ export const prepare = () => {
         },
         ...args
       );
-    }) as typeof globalThis.setImmediate;
+    }) as NonNullable<RuntimeSetImmediate>) as RuntimeSetImmediate;
   }
 
   ///////////////////////////////////////////////////////////////
 
   // Replace the global process.nextTick with a version that captures the current logical context (Node.js only)
-  if (typeof process !== 'undefined' && process.nextTick) {
-    const __nextTick = process.nextTick;
-    process.nextTick = (callback: (...args: any[]) => void, ...args: any[]) => {
-      const capturedLogicalContext = currentLogicalContext;
-      return __nextTick(() => {
-        const adjustment = {
-          contextToUse: capturedLogicalContext,
-        } as LogicalContextAdjustment;
-        trampoline(adjustment, callback, undefined, ...args);
-      });
-    };
+  const runtimeProcess = runtimeGlobal.process;
+  if (
+    runtimeProcess &&
+    typeof runtimeProcess.nextTick === 'function' &&
+    !isHooked(runtimeProcess.nextTick)
+  ) {
+    const __nextTick = runtimeProcess.nextTick;
+    runtimeProcess.nextTick = markAsHooked(
+      (callback: (...args: any[]) => void, ...args: any[]) => {
+        const capturedLogicalContext = currentLogicalContext;
+        return __nextTick(() => {
+          const adjustment = {
+            contextToUse: capturedLogicalContext,
+          } as LogicalContextAdjustment;
+          trampoline(adjustment, callback, undefined, ...args);
+        });
+      }
+    );
   }
+
+  ///////////////////////////////////////////////////////////////
+
+  // Replace requestAnimationFrame with a version that captures the current logical context
+  if (
+    typeof globalThis.requestAnimationFrame !== 'undefined' &&
+    !isHooked(globalThis.requestAnimationFrame)
+  ) {
+    const __requestAnimationFrame = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = markAsHooked(
+      (callback: FrameRequestCallback) => {
+        const capturedLogicalContext = currentLogicalContext;
+        return __requestAnimationFrame((time: DOMHighResTimeStamp) => {
+          const adjustment = {
+            contextToUse: capturedLogicalContext,
+          } as LogicalContextAdjustment;
+          return trampoline(adjustment, callback, undefined, time);
+        });
+      }
+    );
+  }
+};
+
+// Prepare the logical context system
+export const prepare = () => {
+  prepareRuntimeHooks();
+
+  if (isPrepared) {
+    return;
+  }
+  isPrepared = true;
 
   ///////////////////////////////////////////////////////////////
 
@@ -375,24 +451,6 @@ export const prepare = () => {
       );
     };
   }
-
-  ///////////////////////////////////////////////////////////////
-
-  // Replace requestAnimationFrame with a version that captures the current logical context
-  if (typeof globalThis.requestAnimationFrame !== 'undefined') {
-    const __requestAnimationFrame = globalThis.requestAnimationFrame;
-    globalThis.requestAnimationFrame = (callback: FrameRequestCallback) => {
-      const capturedLogicalContext = currentLogicalContext;
-      return __requestAnimationFrame((time: DOMHighResTimeStamp) => {
-        const adjustment = {
-          contextToUse: capturedLogicalContext,
-        } as LogicalContextAdjustment;
-        return trampoline(adjustment, callback, undefined, time);
-      });
-    };
-  }
-
-  ///////////////////////////////////////////////////////////////
 
   // Replace XMLHttpRequest with a version that captures the current logical context
   if (typeof globalThis.XMLHttpRequest !== 'undefined') {

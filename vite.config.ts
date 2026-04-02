@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { fileURLToPath, URL } from 'node:url';
-import dts from 'vite-plugin-dts';
+import dts from 'unplugin-dts/vite';
 import screwUp from 'screw-up';
 import prettierMax from 'prettier-max';
 
@@ -10,7 +10,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   plugins: [
     dts({
-      insertTypesEntry: true,
+      entryRoot: 'src',
     }),
     screwUp({
       outputMetadataFile: true,
@@ -27,7 +27,7 @@ export default defineConfig({
         `${entryName}.${format === 'es' ? 'mjs' : 'cjs'}`,
       formats: ['es', 'cjs'],
     },
-    rollupOptions: {
+    rolldownOptions: {
       external: [],
       output: {
         globals: {},

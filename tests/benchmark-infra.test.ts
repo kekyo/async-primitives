@@ -54,6 +54,12 @@ describe('Benchmark infrastructure', () => {
     expect(
       selectBenchmarkSuites(['operator', 'mutex']).map((suite) => suite.name)
     ).toEqual(['mutex', 'async-operator']);
+    expect(selectBenchmarkSuites(['defer']).map((suite) => suite.name)).toEqual(
+      ['defer']
+    );
+    expect(
+      selectBenchmarkSuites(['deferred']).map((suite) => suite.name)
+    ).toEqual(['deferred']);
   });
 
   it('should register and execute all AsyncOperator benchmark tasks', async () => {
@@ -127,16 +133,18 @@ describe('Benchmark infrastructure', () => {
     }
   });
 
-  it('should format tinybench time metrics as milliseconds', () => {
+  it('should format tinybench v6 metrics as milliseconds', () => {
     const output = formatResults(
       [
         {
           name: 'example',
           result: {
-            hz: 1234.4,
-            mean: 1.23456,
-            latency: { p50: 1.12549 },
-            sd: 0.04567,
+            throughput: { mean: 1234.4 },
+            latency: {
+              mean: 1.23456,
+              p50: 1.12549,
+              sd: 0.04567,
+            },
             totalTime: 2500.444,
           },
         } as any,
@@ -159,6 +167,41 @@ describe('Benchmark infrastructure', () => {
         medianTime: 1.125,
         totalTime: 2500.44,
         stdDev: 0.046,
+      },
+    ]);
+  });
+
+  it('should fall back to legacy tinybench metrics when modern aggregates are unavailable', () => {
+    const output = formatResults(
+      [
+        {
+          name: 'legacy-example',
+          result: {
+            hz: 987.6,
+            mean: 2.34567,
+            sd: 0.12345,
+            totalTime: 999.999,
+          },
+        } as any,
+      ],
+      {
+        nodeVersion: 'v0.0.0',
+        platform: 'test',
+        cpu: 'cpu',
+        memory: '1GB',
+        timestamp: '2026-04-02T00:00:00.000Z',
+      },
+      'json'
+    );
+
+    expect(JSON.parse(output).results).toEqual([
+      {
+        name: 'legacy-example',
+        opsPerSec: 988,
+        avgTime: 2.346,
+        medianTime: 2.346,
+        totalTime: 1000,
+        stdDev: 0.123,
       },
     ]);
   });
