@@ -5,7 +5,12 @@
 
 import { AsyncOperator, AsyncOperatorSource, Awaitable } from '../types';
 
+type SyncIterableFactory<T> = () => Iterable<Awaitable<T>>;
 type AsyncIterableFactory<T> = () => AsyncIterable<T>;
+type IteratorFactories<T> = {
+  readonly syncFactory: SyncIterableFactory<T> | undefined;
+  readonly asyncFactory: AsyncIterableFactory<T>;
+};
 
 const __NO_INITIAL_VALUE = Symbol('no-initial-value');
 
@@ -15,10 +20,44 @@ const createAsyncIterable = <T>(
   [Symbol.asyncIterator]: iteratorFactory,
 });
 
+const createIteratorFactories = <T>(
+  source: AsyncOperatorSource<T>
+): IteratorFactories<T> =>
+  isAsyncIterable(source)
+    ? {
+        syncFactory: undefined,
+        asyncFactory: () => toAsyncIterable(source),
+      }
+    : {
+        syncFactory: () => source,
+        asyncFactory: () => toAsyncIterable(source),
+      };
+
+const createAsyncOnlyFactories = <T>(
+  asyncFactory: AsyncIterableFactory<T>
+): IteratorFactories<T> => ({
+  syncFactory: undefined,
+  asyncFactory,
+});
+
+const normalizeIteratorFactories = <T>(
+  iteratorFactoriesOrAsyncFactory:
+    | IteratorFactories<T>
+    | AsyncIterableFactory<T>
+): IteratorFactories<T> =>
+  typeof iteratorFactoriesOrAsyncFactory === 'function'
+    ? createAsyncOnlyFactories(iteratorFactoriesOrAsyncFactory)
+    : iteratorFactoriesOrAsyncFactory;
+
 const identity = <T>(value: T): T => value;
 
 const sameValueZero = <T>(left: T, right: T): boolean =>
   left === right || (left !== left && right !== right);
+
+const isPromiseLike = <T>(value: Awaitable<T>): value is PromiseLike<T> =>
+  ((typeof value === 'object' && value !== null) ||
+    typeof value === 'function') &&
+  typeof (value as PromiseLike<T>).then === 'function';
 
 const isAsyncIterable = <T>(
   source: AsyncOperatorSource<T>
@@ -34,7 +73,7 @@ const toAsyncIterable = <T>(source: AsyncOperatorSource<T>): AsyncIterable<T> =>
       }
     } else {
       for (const value of source) {
-        yield (await Promise.resolve(value)) as T;
+        yield (isPromiseLike(value) ? await value : value) as T;
       }
     }
   });
@@ -81,58 +120,108 @@ const collectKeysFromSource = async <T, TKey>(
   source: AsyncOperatorSource<T>,
   selector: (value: T, index: number) => Awaitable<TKey>
 ): Promise<Set<TKey>> => {
+  const { syncFactory, asyncFactory } = createIteratorFactories(source);
   let index = 0;
   const keys = new Set<TKey>();
 
-  for await (const value of toAsyncIterable(source)) {
-    keys.add(await Promise.resolve(selector(value, index)));
-    index++;
+  if (syncFactory !== undefined) {
+    for (const value of syncFactory()) {
+      const resolvedValue = isPromiseLike(value) ? await value : value;
+      const key = selector(resolvedValue as T, index);
+      keys.add(isPromiseLike(key) ? await key : key);
+      index++;
+    }
+  } else {
+    for await (const value of asyncFactory()) {
+      const key = selector(value, index);
+      keys.add(isPromiseLike(key) ? await key : key);
+      index++;
+    }
   }
 
   return keys;
 };
 
 const materializeValues = async <T>(
-  iterableFactory: AsyncIterableFactory<T>
+  iteratorFactories: IteratorFactories<T>
 ): Promise<T[]> => {
+  const { syncFactory, asyncFactory } = iteratorFactories;
   const values: T[] = [];
-  for await (const value of iterableFactory()) {
-    values.push(value);
+
+  if (syncFactory !== undefined) {
+    for (const value of syncFactory()) {
+      values.push((isPromiseLike(value) ? await value : value) as T);
+    }
+  } else {
+    for await (const value of asyncFactory()) {
+      values.push(value);
+    }
   }
+
   return values;
 };
 
 const findExtremeBy = async <T, TKey>(
-  iterableFactory: AsyncIterableFactory<T>,
+  iteratorFactories: IteratorFactories<T>,
   selector: (value: T, index: number) => Awaitable<TKey>,
   direction: 'min' | 'max'
 ): Promise<T | undefined> => {
+  const { syncFactory, asyncFactory } = iteratorFactories;
   let index = 0;
   let hasBestValue = false;
   let bestValue: T | undefined;
   let bestKey: TKey | undefined;
 
-  for await (const value of iterableFactory()) {
-    const key = await Promise.resolve(selector(value, index));
-    if (
-      !hasBestValue ||
-      (direction === 'min'
-        ? compareValues(key, bestKey as TKey) < 0
-        : compareValues(key, bestKey as TKey) > 0)
-    ) {
-      hasBestValue = true;
-      bestValue = value;
-      bestKey = key;
+  if (syncFactory !== undefined) {
+    for (const value of syncFactory()) {
+      const resolvedValue = (isPromiseLike(value) ? await value : value) as T;
+      const selectedKey = selector(resolvedValue, index);
+      const key = isPromiseLike(selectedKey) ? await selectedKey : selectedKey;
+
+      if (
+        !hasBestValue ||
+        (direction === 'min'
+          ? compareValues(key, bestKey as TKey) < 0
+          : compareValues(key, bestKey as TKey) > 0)
+      ) {
+        hasBestValue = true;
+        bestValue = resolvedValue;
+        bestKey = key;
+      }
+      index++;
     }
-    index++;
+  } else {
+    for await (const value of asyncFactory()) {
+      const selectedKey = selector(value, index);
+      const key = isPromiseLike(selectedKey) ? await selectedKey : selectedKey;
+
+      if (
+        !hasBestValue ||
+        (direction === 'min'
+          ? compareValues(key, bestKey as TKey) < 0
+          : compareValues(key, bestKey as TKey) > 0)
+      ) {
+        hasBestValue = true;
+        bestValue = value;
+        bestKey = key;
+      }
+      index++;
+    }
   }
 
   return bestValue;
 };
 
 const createAsyncOperator = <T>(
-  iterableFactory: AsyncIterableFactory<T>
+  iteratorFactoriesOrAsyncFactory:
+    | IteratorFactories<T>
+    | AsyncIterableFactory<T>
 ): AsyncOperator<T> => {
+  const iteratorFactories = normalizeIteratorFactories(
+    iteratorFactoriesOrAsyncFactory
+  );
+  const { syncFactory, asyncFactory } = iteratorFactories;
+  const iterableFactory = asyncFactory;
   const reduce = (async <U>(
     ...args:
       | [(previousValue: T, currentValue: T, index: number) => Awaitable<T>]
@@ -145,21 +234,39 @@ const createAsyncOperator = <T>(
       : __NO_INITIAL_VALUE;
     let index = 0;
 
-    for await (const value of iterableFactory()) {
-      if (accumulator === __NO_INITIAL_VALUE) {
-        accumulator = value;
-      } else {
-        accumulator = await Promise.resolve(
-          (
+    if (syncFactory !== undefined) {
+      for (const value of syncFactory()) {
+        const resolvedValue = (isPromiseLike(value) ? await value : value) as T;
+        if (accumulator === __NO_INITIAL_VALUE) {
+          accumulator = resolvedValue;
+        } else {
+          const reduced = (
             reducer as (
               previousValue: T | U,
               currentValue: T,
               index: number
             ) => Awaitable<T | U>
-          )(accumulator, value, index)
-        );
+          )(accumulator, resolvedValue, index);
+          accumulator = isPromiseLike(reduced) ? await reduced : reduced;
+        }
+        index++;
       }
-      index++;
+    } else {
+      for await (const value of asyncFactory()) {
+        if (accumulator === __NO_INITIAL_VALUE) {
+          accumulator = value;
+        } else {
+          const reduced = (
+            reducer as (
+              previousValue: T | U,
+              currentValue: T,
+              index: number
+            ) => Awaitable<T | U>
+          )(accumulator, value, index);
+          accumulator = isPromiseLike(reduced) ? await reduced : reduced;
+        }
+        index++;
+      }
     }
 
     if (accumulator === __NO_INITIAL_VALUE) {
@@ -178,7 +285,7 @@ const createAsyncOperator = <T>(
   ): Promise<T | U> => {
     const [reducer] = args;
     const hasInitialValue = args.length === 2;
-    const values = await materializeValues(iterableFactory);
+    const values = await materializeValues(iteratorFactories);
     let accumulator: T | U | typeof __NO_INITIAL_VALUE = hasInitialValue
       ? args[1]
       : __NO_INITIAL_VALUE;
@@ -188,15 +295,14 @@ const createAsyncOperator = <T>(
       if (accumulator === __NO_INITIAL_VALUE) {
         accumulator = value;
       } else {
-        accumulator = await Promise.resolve(
-          (
-            reducer as (
-              previousValue: T | U,
-              currentValue: T,
-              index: number
-            ) => Awaitable<T | U>
-          )(accumulator, value, index)
-        );
+        const reduced = (
+          reducer as (
+            previousValue: T | U,
+            currentValue: T,
+            index: number
+          ) => Awaitable<T | U>
+        )(accumulator, value, index);
+        accumulator = isPromiseLike(reduced) ? await reduced : reduced;
       }
     }
 
@@ -210,17 +316,19 @@ const createAsyncOperator = <T>(
   }) as AsyncOperator<T>['reduceRight'];
 
   const flat = ((depth?: number) =>
-    createAsyncOperator(() =>
-      createAsyncIterable(async function* () {
-        const values = await materializeValues(iterableFactory);
-        for (const value of values.flat(depth)) {
-          yield value;
-        }
-      })
+    createAsyncOperator(
+      createAsyncOnlyFactories(() =>
+        createAsyncIterable(async function* () {
+          const values = await materializeValues(iteratorFactories);
+          for (const value of values.flat(depth)) {
+            yield value;
+          }
+        })
+      )
     )) as AsyncOperator<T>['flat'];
 
   return {
-    [Symbol.asyncIterator]: () => iterableFactory()[Symbol.asyncIterator](),
+    [Symbol.asyncIterator]: () => asyncFactory()[Symbol.asyncIterator](),
     map: <U>(selector: (value: T, index: number) => Awaitable<U>) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
@@ -298,7 +406,7 @@ const createAsyncOperator = <T>(
             normalizedStart < 0 ||
             (normalizedEnd !== undefined && normalizedEnd < 0)
           ) {
-            const values = await materializeValues(iterableFactory);
+            const values = await materializeValues(iteratorFactories);
             for (const value of values.slice(start, end)) {
               yield value;
             }
@@ -655,7 +763,7 @@ const createAsyncOperator = <T>(
     reverse: () =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
-          const values = await materializeValues(iterableFactory);
+          const values = await materializeValues(iteratorFactories);
           values.reverse();
 
           for (const value of values) {
@@ -666,7 +774,7 @@ const createAsyncOperator = <T>(
     toReversed: () =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
-          const values = await materializeValues(iterableFactory);
+          const values = await materializeValues(iteratorFactories);
 
           for (const value of [...values].reverse()) {
             yield value;
@@ -676,7 +784,7 @@ const createAsyncOperator = <T>(
     sort: (compareFn?: (left: T, right: T) => number) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
-          const values = await materializeValues(iterableFactory);
+          const values = await materializeValues(iteratorFactories);
           compareFn === undefined ? values.sort() : values.sort(compareFn);
 
           for (const value of values) {
@@ -687,7 +795,7 @@ const createAsyncOperator = <T>(
     toSorted: (compareFn?: (left: T, right: T) => number) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
-          const values = await materializeValues(iterableFactory);
+          const values = await materializeValues(iteratorFactories);
           const sortedValues = [...values];
           compareFn === undefined
             ? sortedValues.sort()
@@ -702,9 +810,26 @@ const createAsyncOperator = <T>(
       action: (value: T, index: number) => Awaitable<void>
     ): Promise<void> => {
       let index = 0;
-      for await (const value of iterableFactory()) {
-        await Promise.resolve(action(value, index));
-        index++;
+
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const result = action(resolvedValue, index);
+          if (isPromiseLike(result)) {
+            await result;
+          }
+          index++;
+        }
+      } else {
+        for await (const value of iterableFactory()) {
+          const result = action(value, index);
+          if (isPromiseLike(result)) {
+            await result;
+          }
+          index++;
+        }
       }
     },
     reduce,
@@ -713,11 +838,26 @@ const createAsyncOperator = <T>(
       predicate: (value: T, index: number) => Awaitable<boolean>
     ): Promise<boolean> => {
       let index = 0;
-      for await (const value of iterableFactory()) {
-        if (await Promise.resolve(predicate(value, index))) {
-          return true;
+
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const result = predicate(resolvedValue, index);
+          if (isPromiseLike(result) ? await result : result) {
+            return true;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          const result = predicate(value, index);
+          if (isPromiseLike(result) ? await result : result) {
+            return true;
+          }
+          index++;
+        }
       }
       return false;
     },
@@ -725,11 +865,26 @@ const createAsyncOperator = <T>(
       predicate: (value: T, index: number) => Awaitable<boolean>
     ): Promise<boolean> => {
       let index = 0;
-      for await (const value of iterableFactory()) {
-        if (!(await Promise.resolve(predicate(value, index)))) {
-          return false;
+
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const result = predicate(resolvedValue, index);
+          if (!(isPromiseLike(result) ? await result : result)) {
+            return false;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          const result = predicate(value, index);
+          if (!(isPromiseLike(result) ? await result : result)) {
+            return false;
+          }
+          index++;
+        }
       }
       return true;
     },
@@ -737,11 +892,26 @@ const createAsyncOperator = <T>(
       predicate: (value: T, index: number) => Awaitable<boolean>
     ): Promise<T | undefined> => {
       let index = 0;
-      for await (const value of iterableFactory()) {
-        if (await Promise.resolve(predicate(value, index))) {
-          return value;
+
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const result = predicate(resolvedValue, index);
+          if (isPromiseLike(result) ? await result : result) {
+            return resolvedValue;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          const result = predicate(value, index);
+          if (isPromiseLike(result) ? await result : result) {
+            return value;
+          }
+          index++;
+        }
       }
       return undefined;
     },
@@ -749,11 +919,26 @@ const createAsyncOperator = <T>(
       predicate: (value: T, index: number) => Awaitable<boolean>
     ): Promise<number> => {
       let index = 0;
-      for await (const value of iterableFactory()) {
-        if (await Promise.resolve(predicate(value, index))) {
-          return index;
+
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const result = predicate(resolvedValue, index);
+          if (isPromiseLike(result) ? await result : result) {
+            return index;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          const result = predicate(value, index);
+          if (isPromiseLike(result) ? await result : result) {
+            return index;
+          }
+          index++;
+        }
       }
       return -1;
     },
@@ -766,11 +951,24 @@ const createAsyncOperator = <T>(
         }
 
         let currentIndex = 0;
-        for await (const value of iterableFactory()) {
-          if (currentIndex === normalizedIndex) {
-            return value;
+
+        if (syncFactory !== undefined) {
+          for (const value of syncFactory()) {
+            const resolvedValue = (
+              isPromiseLike(value) ? await value : value
+            ) as T;
+            if (currentIndex === normalizedIndex) {
+              return resolvedValue;
+            }
+            currentIndex++;
           }
-          currentIndex++;
+        } else {
+          for await (const value of iterableFactory()) {
+            if (currentIndex === normalizedIndex) {
+              return value;
+            }
+            currentIndex++;
+          }
         }
         return undefined;
       }
@@ -782,10 +980,19 @@ const createAsyncOperator = <T>(
       const lookback = Math.abs(normalizedIndex);
       const buffer: T[] = [];
 
-      for await (const value of iterableFactory()) {
-        buffer.push(value);
-        if (buffer.length > lookback) {
-          buffer.shift();
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          buffer.push((isPromiseLike(value) ? await value : value) as T);
+          if (buffer.length > lookback) {
+            buffer.shift();
+          }
+        }
+      } else {
+        for await (const value of iterableFactory()) {
+          buffer.push(value);
+          if (buffer.length > lookback) {
+            buffer.shift();
+          }
         }
       }
 
@@ -798,7 +1005,7 @@ const createAsyncOperator = <T>(
       const normalizedFromIndex = toIntegerOrInfinity(fromIndex ?? 0);
 
       if (normalizedFromIndex < 0) {
-        const values = await materializeValues(iterableFactory);
+        const values = await materializeValues(iteratorFactories);
         return values.includes(searchElement, normalizedFromIndex);
       }
 
@@ -807,14 +1014,30 @@ const createAsyncOperator = <T>(
       }
 
       let index = 0;
-      for await (const value of iterableFactory()) {
-        if (
-          index >= normalizedFromIndex &&
-          sameValueZero(value, searchElement)
-        ) {
-          return true;
+
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          if (
+            index >= normalizedFromIndex &&
+            sameValueZero(resolvedValue, searchElement)
+          ) {
+            return true;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          if (
+            index >= normalizedFromIndex &&
+            sameValueZero(value, searchElement)
+          ) {
+            return true;
+          }
+          index++;
+        }
       }
       return false;
     },
@@ -822,7 +1045,7 @@ const createAsyncOperator = <T>(
       const normalizedFromIndex = toIntegerOrInfinity(fromIndex ?? 0);
 
       if (normalizedFromIndex < 0) {
-        const values = await materializeValues(iterableFactory);
+        const values = await materializeValues(iteratorFactories);
         return values.indexOf(searchElement, normalizedFromIndex);
       }
 
@@ -831,11 +1054,24 @@ const createAsyncOperator = <T>(
       }
 
       let index = 0;
-      for await (const value of iterableFactory()) {
-        if (index >= normalizedFromIndex && value === searchElement) {
-          return index;
+
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          if (index >= normalizedFromIndex && resolvedValue === searchElement) {
+            return index;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          if (index >= normalizedFromIndex && value === searchElement) {
+            return index;
+          }
+          index++;
+        }
       }
       return -1;
     },
@@ -843,7 +1079,7 @@ const createAsyncOperator = <T>(
       searchElement: T,
       fromIndex?: number
     ): Promise<number> => {
-      const values = await materializeValues(iterableFactory);
+      const values = await materializeValues(iteratorFactories);
       return fromIndex === undefined
         ? values.lastIndexOf(searchElement)
         : values.lastIndexOf(searchElement, fromIndex);
@@ -854,11 +1090,25 @@ const createAsyncOperator = <T>(
       let index = 0;
       let foundValue: T | undefined;
 
-      for await (const value of iterableFactory()) {
-        if (await Promise.resolve(predicate(value, index))) {
-          foundValue = value;
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const result = predicate(resolvedValue, index);
+          if (isPromiseLike(result) ? await result : result) {
+            foundValue = resolvedValue;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          const result = predicate(value, index);
+          if (isPromiseLike(result) ? await result : result) {
+            foundValue = value;
+          }
+          index++;
+        }
       }
 
       return foundValue;
@@ -869,42 +1119,78 @@ const createAsyncOperator = <T>(
       let index = 0;
       let foundIndex = -1;
 
-      for await (const value of iterableFactory()) {
-        if (await Promise.resolve(predicate(value, index))) {
-          foundIndex = index;
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const result = predicate(resolvedValue, index);
+          if (isPromiseLike(result) ? await result : result) {
+            foundIndex = index;
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          const result = predicate(value, index);
+          if (isPromiseLike(result) ? await result : result) {
+            foundIndex = index;
+          }
+          index++;
+        }
       }
 
       return foundIndex;
     },
     min: async (): Promise<T | undefined> =>
-      findExtremeBy(iterableFactory, identity, 'min'),
+      findExtremeBy(iteratorFactories, identity, 'min'),
     minBy: async <TKey>(
       selector: (value: T, index: number) => Awaitable<TKey>
     ): Promise<T | undefined> =>
-      findExtremeBy(iterableFactory, selector, 'min'),
+      findExtremeBy(iteratorFactories, selector, 'min'),
     max: async (): Promise<T | undefined> =>
-      findExtremeBy(iterableFactory, (value) => value, 'max'),
+      findExtremeBy(iteratorFactories, (value) => value, 'max'),
     maxBy: async <TKey>(
       selector: (value: T, index: number) => Awaitable<TKey>
     ): Promise<T | undefined> =>
-      findExtremeBy(iterableFactory, selector, 'max'),
+      findExtremeBy(iteratorFactories, selector, 'max'),
     groupBy: async <TKey>(
       selector: (value: T, index: number) => Awaitable<TKey>
     ): Promise<Map<TKey, T[]>> => {
       let index = 0;
       const groupedValues = new Map<TKey, T[]>();
 
-      for await (const value of iterableFactory()) {
-        const key = await Promise.resolve(selector(value, index));
-        const existingGroup = groupedValues.get(key);
-        if (existingGroup) {
-          existingGroup.push(value);
-        } else {
-          groupedValues.set(key, [value]);
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const selectedKey = selector(resolvedValue, index);
+          const key = isPromiseLike(selectedKey)
+            ? await selectedKey
+            : selectedKey;
+          const existingGroup = groupedValues.get(key);
+          if (existingGroup) {
+            existingGroup.push(resolvedValue);
+          } else {
+            groupedValues.set(key, [resolvedValue]);
+          }
+          index++;
         }
-        index++;
+      } else {
+        for await (const value of iterableFactory()) {
+          const selectedKey = selector(value, index);
+          const key = isPromiseLike(selectedKey)
+            ? await selectedKey
+            : selectedKey;
+          const existingGroup = groupedValues.get(key);
+          if (existingGroup) {
+            existingGroup.push(value);
+          } else {
+            groupedValues.set(key, [value]);
+          }
+          index++;
+        }
       }
 
       return groupedValues;
@@ -915,10 +1201,27 @@ const createAsyncOperator = <T>(
       let index = 0;
       const counts = new Map<TKey, number>();
 
-      for await (const value of iterableFactory()) {
-        const key = await Promise.resolve(selector(value, index));
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-        index++;
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const selectedKey = selector(resolvedValue, index);
+          const key = isPromiseLike(selectedKey)
+            ? await selectedKey
+            : selectedKey;
+          counts.set(key, (counts.get(key) ?? 0) + 1);
+          index++;
+        }
+      } else {
+        for await (const value of iterableFactory()) {
+          const selectedKey = selector(value, index);
+          const key = isPromiseLike(selectedKey)
+            ? await selectedKey
+            : selectedKey;
+          counts.set(key, (counts.get(key) ?? 0) + 1);
+          index++;
+        }
       }
 
       return counts;
@@ -928,17 +1231,30 @@ const createAsyncOperator = <T>(
       let isFirst = true;
       let result = '';
 
-      for await (const value of iterableFactory()) {
-        if (!isFirst) {
-          result += normalizedSeparator;
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          if (!isFirst) {
+            result += normalizedSeparator;
+          }
+          result += resolvedValue == null ? '' : String(resolvedValue);
+          isFirst = false;
         }
-        result += value == null ? '' : String(value);
-        isFirst = false;
+      } else {
+        for await (const value of iterableFactory()) {
+          if (!isFirst) {
+            result += normalizedSeparator;
+          }
+          result += value == null ? '' : String(value);
+          isFirst = false;
+        }
       }
 
       return result;
     },
-    toArray: async (): Promise<T[]> => materializeValues(iterableFactory),
+    toArray: async (): Promise<T[]> => materializeValues(iteratorFactories),
   };
 };
 
@@ -948,4 +1264,4 @@ const createAsyncOperator = <T>(
  * @returns A lazy async operator pipeline
  */
 export const from = <T>(source: AsyncOperatorSource<T>): AsyncOperator<T> =>
-  createAsyncOperator(() => toAsyncIterable(source));
+  createAsyncOperator(createIteratorFactories(source));

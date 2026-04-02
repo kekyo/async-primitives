@@ -4,6 +4,7 @@ import {
   benchmarkSuites,
   selectBenchmarkSuites,
 } from '../benchmarks/suites/index.js';
+import { formatResults } from '../benchmarks/utils/formatter.js';
 import { parseBenchmarkOptions } from '../benchmarks/utils/options.js';
 
 type BenchmarkTask = {
@@ -111,5 +112,41 @@ describe('Benchmark infrastructure', () => {
     for (const task of tasks) {
       await task.fn();
     }
+  });
+
+  it('should format tinybench time metrics as milliseconds', () => {
+    const output = formatResults(
+      [
+        {
+          name: 'example',
+          result: {
+            hz: 1234.4,
+            mean: 1.23456,
+            latency: { p50: 1.12549 },
+            sd: 0.04567,
+            totalTime: 2500.444,
+          },
+        } as any,
+      ],
+      {
+        nodeVersion: 'v0.0.0',
+        platform: 'test',
+        cpu: 'cpu',
+        memory: '1GB',
+        timestamp: '2026-04-02T00:00:00.000Z',
+      },
+      'json'
+    );
+
+    expect(JSON.parse(output).results).toEqual([
+      {
+        name: 'example',
+        opsPerSec: 1234,
+        avgTime: 1.235,
+        medianTime: 1.125,
+        totalTime: 2500.44,
+        stdDev: 0.046,
+      },
+    ]);
   });
 });

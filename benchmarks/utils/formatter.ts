@@ -18,12 +18,10 @@ export function formatResults(
   const results: BenchmarkResult[] = tasks.map((task) => ({
     name: task.name,
     opsPerSec: Math.round(task.result?.hz || 0),
-    avgTime: parseFloat(((task.result?.mean || 0) * 1000).toFixed(3)),
-    medianTime: parseFloat(
-      ((task.result?.latency?.p50 || 0) * 1000).toFixed(3)
-    ),
+    avgTime: parseFloat((task.result?.mean || 0).toFixed(3)),
+    medianTime: parseFloat((task.result?.latency?.p50 || 0).toFixed(3)),
     totalTime: parseFloat((task.result?.totalTime || 0).toFixed(2)),
-    stdDev: parseFloat(((task.result?.sd || 0) * 1000).toFixed(3)),
+    stdDev: parseFloat((task.result?.sd || 0).toFixed(3)),
   }));
 
   if (outputFormat === 'json') {
