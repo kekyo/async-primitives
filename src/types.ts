@@ -491,6 +491,58 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
   readonly windowed: (size: number) => AsyncOperator<T[]>;
 
   /**
+   * Flattens nested array values by the specified depth
+   * @param depth Depth level to flatten
+   * @returns A new async operator whose values are flattened array elements
+   * @remarks
+   * This follows `Array.prototype.flat()` semantics and consumes the source before producing results.
+   */
+  readonly flat: {
+    (): AsyncOperator<FlatArray<T, 1>>;
+    <Depth extends number>(depth: Depth): AsyncOperator<FlatArray<T, Depth>>;
+  };
+
+  /**
+   * Reverses the sequence order
+   * @returns A new async operator whose values are in reverse order
+   * @remarks
+   * This consumes the source before producing results. The underlying source itself is not mutated.
+   */
+  readonly reverse: () => AsyncOperator<T>;
+
+  /**
+   * Returns a reversed copy of the sequence
+   * @returns A new async operator whose values are in reverse order
+   * @remarks
+   * This consumes the source before producing results. The underlying source itself is not mutated.
+   */
+  readonly toReversed: () => AsyncOperator<T>;
+
+  /**
+   * Sorts the sequence values
+   * @param compareFn Comparison function used to determine sort order
+   * @returns A new async operator whose values are sorted
+   * @remarks
+   * This follows `Array.prototype.sort()` semantics and consumes the source before producing results.
+   * The underlying source itself is not mutated.
+   */
+  readonly sort: (
+    compareFn?: (left: T, right: T) => number
+  ) => AsyncOperator<T>;
+
+  /**
+   * Returns a sorted copy of the sequence
+   * @param compareFn Comparison function used to determine sort order
+   * @returns A new async operator whose values are sorted
+   * @remarks
+   * This follows `Array.prototype.toSorted()` semantics and consumes the source before producing results.
+   * The underlying source itself is not mutated.
+   */
+  readonly toSorted: (
+    compareFn?: (left: T, right: T) => number
+  ) => AsyncOperator<T>;
+
+  /**
    * Executes an action for each resolved value
    * @param action Action function for each resolved value
    * @returns A promise that resolves when all values have been processed
@@ -518,6 +570,39 @@ export interface AsyncOperator<T> extends AsyncIterable<T> {
 
     /**
      * Reduces the sequence with an explicit initial value
+     * @param reducer Reducer function for each resolved value
+     * @param initialValue Initial accumulator value
+     * @returns A promise that resolves to the reduced value
+     */
+    <U>(
+      reducer: (
+        previousValue: U,
+        currentValue: T,
+        index: number
+      ) => Awaitable<U>,
+      initialValue: U
+    ): Promise<U>;
+  };
+
+  /**
+   * Reduces the sequence from right to left
+   */
+  readonly reduceRight: {
+    /**
+     * Reduces the sequence from right to left without an explicit initial value
+     * @param reducer Reducer function for each resolved value
+     * @returns A promise that resolves to the reduced value
+     */
+    (
+      reducer: (
+        previousValue: T,
+        currentValue: T,
+        index: number
+      ) => Awaitable<T>
+    ): Promise<T>;
+
+    /**
+     * Reduces the sequence from right to left with an explicit initial value
      * @param reducer Reducer function for each resolved value
      * @param initialValue Initial accumulator value
      * @returns A promise that resolves to the reduced value

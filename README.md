@@ -529,6 +529,11 @@ Intermediate operators:
 | `exceptBy()`    | Produces distinct values by projected key not found in another sequence    |
 | `chunkBySize()` | Groups values into arrays of a fixed maximum size                          |
 | `windowed()`    | Produces sliding windows of a fixed size                                   |
+| `flat()`        | Flattens nested arrays using `Array.prototype.flat()` semantics            |
+| `reverse()`     | Returns the sequence in reverse order                                      |
+| `toReversed()`  | Returns a reversed copy of the sequence                                    |
+| `sort()`        | Returns the sequence sorted with `Array.prototype.sort()` semantics        |
+| `toSorted()`    | Returns a sorted copy with `Array.prototype.toSorted()` semantics          |
 
 Terminal operators:
 
@@ -536,6 +541,7 @@ Terminal operators:
 | :---------------- | :------------------------------------------------------------------------------------- |
 | `forEach()`       | Executes an action for each value                                                      |
 | `reduce()`        | Reduces the sequence to a single value                                                 |
+| `reduceRight()`   | Reduces the sequence from right to left                                                |
 | `some()`          | Returns true when any value satisfies the predicate                                    |
 | `every()`         | Returns true when all values satisfy the predicate                                     |
 | `find()`          | Returns the first value that satisfies the predicate                                   |
@@ -558,6 +564,9 @@ Terminal operators:
 Index-based operators such as `slice()`, `at()`, `includes()`, `indexOf()`, and `lastIndexOf()`
 follow the corresponding `Array` semantics.
 Negative indexes or negative `fromIndex` values may require consuming the source before the result is known.
+
+Materializing operators such as `flat()`, `reverse()`, `toReversed()`, `sort()`, `toSorted()`, and
+`reduceRight()` consume the entire source before they can produce results.
 
 ### ES2022+ using statement
 

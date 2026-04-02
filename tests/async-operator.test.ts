@@ -401,6 +401,43 @@ describe('AsyncOperator', () => {
         'Window size must be greater than 0'
       );
     });
+
+    it('should support flat with depth values', async () => {
+      const flattened = await from<any>([
+        [1, 2],
+        [3, [4]],
+      ])
+        .flat()
+        .toArray();
+      const flattenedDeep = await from<any>([
+        [1, 2],
+        [3, [4]],
+      ])
+        .flat(2)
+        .toArray();
+
+      expect(flattened).toEqual([1, 2, 3, [4]]);
+      expect(flattenedDeep).toEqual([1, 2, 3, 4]);
+    });
+
+    it('should support reverse, toReversed, sort and toSorted without mutating the source', async () => {
+      const reverseSource = [1, 2, 3];
+      const sortSource = [20, 3, 100];
+
+      const reversed = await from(reverseSource).reverse().toArray();
+      const toReversed = await from(reverseSource).toReversed().toArray();
+      const sorted = await from(sortSource).sort().toArray();
+      const toSorted = await from(sortSource)
+        .toSorted((left, right) => left - right)
+        .toArray();
+
+      expect(reversed).toEqual([3, 2, 1]);
+      expect(toReversed).toEqual([3, 2, 1]);
+      expect(sorted).toEqual([100, 20, 3]);
+      expect(toSorted).toEqual([3, 20, 100]);
+      expect(reverseSource).toEqual([1, 2, 3]);
+      expect(sortSource).toEqual([20, 3, 100]);
+    });
   });
 
   describe('terminal operators', () => {
@@ -430,6 +467,25 @@ describe('AsyncOperator', () => {
         from<number>([]).reduce((state, value) => state + value)
       ).rejects.toThrow('Reduce of empty AsyncOperator with no initial value');
       expect(sum).toBe(10);
+    });
+
+    it('should support reduceRight with and without an initial value', async () => {
+      const reduced = await from([1, 2, 3]).reduceRight(
+        async (state, value) => state - value
+      );
+      const reducedWithInitial = await from([1, 2, 3]).reduceRight(
+        async (state, value) => state - value,
+        10
+      );
+
+      await expect(
+        from<number>([]).reduceRight((state, value) => state + value)
+      ).rejects.toThrow(
+        'ReduceRight of empty AsyncOperator with no initial value'
+      );
+
+      expect(reduced).toBe(0);
+      expect(reducedWithInitial).toBe(4);
     });
 
     it('should short-circuit some and every', async () => {

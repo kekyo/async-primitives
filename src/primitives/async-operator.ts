@@ -171,6 +171,54 @@ const createAsyncOperator = <T>(
     return accumulator;
   }) as AsyncOperator<T>['reduce'];
 
+  const reduceRight = (async <U>(
+    ...args:
+      | [(previousValue: T, currentValue: T, index: number) => Awaitable<T>]
+      | [(previousValue: U, currentValue: T, index: number) => Awaitable<U>, U]
+  ): Promise<T | U> => {
+    const [reducer] = args;
+    const hasInitialValue = args.length === 2;
+    const values = await materializeValues(iterableFactory);
+    let accumulator: T | U | typeof __NO_INITIAL_VALUE = hasInitialValue
+      ? args[1]
+      : __NO_INITIAL_VALUE;
+
+    for (let index = values.length - 1; index >= 0; index--) {
+      const value = values[index] as T;
+      if (accumulator === __NO_INITIAL_VALUE) {
+        accumulator = value;
+      } else {
+        accumulator = await Promise.resolve(
+          (
+            reducer as (
+              previousValue: T | U,
+              currentValue: T,
+              index: number
+            ) => Awaitable<T | U>
+          )(accumulator, value, index)
+        );
+      }
+    }
+
+    if (accumulator === __NO_INITIAL_VALUE) {
+      throw new TypeError(
+        'ReduceRight of empty AsyncOperator with no initial value'
+      );
+    }
+
+    return accumulator;
+  }) as AsyncOperator<T>['reduceRight'];
+
+  const flat = ((depth?: number) =>
+    createAsyncOperator(() =>
+      createAsyncIterable(async function* () {
+        const values = await materializeValues(iterableFactory);
+        for (const value of values.flat(depth)) {
+          yield value;
+        }
+      })
+    )) as AsyncOperator<T>['flat'];
+
   return {
     [Symbol.asyncIterator]: () => iterableFactory()[Symbol.asyncIterator](),
     map: <U>(selector: (value: T, index: number) => Awaitable<U>) =>
@@ -603,6 +651,53 @@ const createAsyncOperator = <T>(
           }
         })
       ) as AsyncOperator<T[]>,
+    flat,
+    reverse: () =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const values = await materializeValues(iterableFactory);
+          values.reverse();
+
+          for (const value of values) {
+            yield value;
+          }
+        })
+      ) as AsyncOperator<T>,
+    toReversed: () =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const values = await materializeValues(iterableFactory);
+
+          for (const value of [...values].reverse()) {
+            yield value;
+          }
+        })
+      ) as AsyncOperator<T>,
+    sort: (compareFn?: (left: T, right: T) => number) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const values = await materializeValues(iterableFactory);
+          compareFn === undefined ? values.sort() : values.sort(compareFn);
+
+          for (const value of values) {
+            yield value;
+          }
+        })
+      ) as AsyncOperator<T>,
+    toSorted: (compareFn?: (left: T, right: T) => number) =>
+      createAsyncOperator(() =>
+        createAsyncIterable(async function* () {
+          const values = await materializeValues(iterableFactory);
+          const sortedValues = [...values];
+          compareFn === undefined
+            ? sortedValues.sort()
+            : sortedValues.sort(compareFn);
+
+          for (const value of sortedValues) {
+            yield value;
+          }
+        })
+      ) as AsyncOperator<T>,
     forEach: async (
       action: (value: T, index: number) => Awaitable<void>
     ): Promise<void> => {
@@ -613,6 +708,7 @@ const createAsyncOperator = <T>(
       }
     },
     reduce,
+    reduceRight,
     some: async (
       predicate: (value: T, index: number) => Awaitable<boolean>
     ): Promise<boolean> => {
