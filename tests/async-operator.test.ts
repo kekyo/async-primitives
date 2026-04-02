@@ -101,6 +101,98 @@ describe('AsyncOperator', () => {
       expect(result).toEqual([1, 10, 2, 20]);
     });
 
+    it('should preserve per-operator indexes in fused linear pipelines', async () => {
+      const mapIndexes: number[] = [];
+      const filterCalls: Array<readonly [number, number]> = [];
+      const chooseCalls: Array<readonly [number, number]> = [];
+      const secondMapIndexes: number[] = [];
+      const takeWhileCalls: Array<readonly [number, number]> = [];
+
+      const result = await from([10, 11, 12, 13])
+        .map((value, index) => {
+          mapIndexes.push(index);
+          return value + 1;
+        })
+        .filter((value, index) => {
+          filterCalls.push([value, index]);
+          return index % 2 === 0;
+        })
+        .choose((value, index) => {
+          chooseCalls.push([value, index]);
+          return index === 1 ? undefined : value;
+        })
+        .map((value, index) => {
+          secondMapIndexes.push(index);
+          return value;
+        })
+        .takeWhile((value, index) => {
+          takeWhileCalls.push([value, index]);
+          return index < 1;
+        })
+        .toArray();
+
+      expect(result).toEqual([11]);
+      expect(mapIndexes).toEqual([0, 1, 2, 3]);
+      expect(filterCalls).toEqual([
+        [11, 0],
+        [12, 1],
+        [13, 2],
+        [14, 3],
+      ]);
+      expect(chooseCalls).toEqual([
+        [11, 0],
+        [13, 1],
+      ]);
+      expect(secondMapIndexes).toEqual([0]);
+      expect(takeWhileCalls).toEqual([[11, 0]]);
+    });
+
+    it('should continue evaluating skipWhile after skipping ends in fused pipelines', async () => {
+      const calls: Array<readonly [number, number]> = [];
+
+      const values = await from([1, 2, 3, 4])
+        .map((value) => value)
+        .skipWhile((value, index) => {
+          calls.push([value, index]);
+          return value < 3;
+        })
+        .map((value) => value)
+        .toArray();
+
+      expect(values).toEqual([3, 4]);
+      expect(calls).toEqual([
+        [1, 0],
+        [2, 1],
+        [3, 2],
+        [4, 3],
+      ]);
+    });
+
+    it('should stop without requesting extra values in fused takeWhile pipelines', async () => {
+      const events: string[] = [];
+      const source = {
+        [Symbol.iterator]: function* () {
+          events.push('yield-1');
+          yield 1;
+          events.push('yield-2');
+          yield 2;
+          events.push('yield-3');
+          yield 3;
+          events.push('yield-4');
+          yield 4;
+        },
+      };
+
+      const values = await from(source)
+        .map((value) => value)
+        .takeWhile((value) => value < 3)
+        .map((value) => value)
+        .toArray();
+
+      expect(values).toEqual([1, 2]);
+      expect(events).toEqual(['yield-1', 'yield-2', 'yield-3']);
+    });
+
     it('should evaluate lazily and re-enumerate on each terminal operation', async () => {
       let iteratorCallCount = 0;
       let mapCallCount = 0;

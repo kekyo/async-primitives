@@ -11,8 +11,48 @@ type IteratorFactories<T> = {
   readonly syncFactory: SyncIterableFactory<T> | undefined;
   readonly asyncFactory: AsyncIterableFactory<T>;
 };
+type LinearOperation =
+  | {
+      readonly kind: 'map';
+      readonly selector: (value: unknown, index: number) => Awaitable<unknown>;
+    }
+  | {
+      readonly kind: 'filter';
+      readonly predicate: (value: unknown, index: number) => Awaitable<boolean>;
+    }
+  | {
+      readonly kind: 'choose';
+      readonly selector: (
+        value: unknown,
+        index: number
+      ) => Awaitable<unknown | null | undefined>;
+    }
+  | {
+      readonly kind: 'skipWhile';
+      readonly predicate: (value: unknown, index: number) => Awaitable<boolean>;
+    }
+  | {
+      readonly kind: 'takeWhile';
+      readonly predicate: (value: unknown, index: number) => Awaitable<boolean>;
+    };
+type LinearRuntimeState =
+  | {
+      readonly kind: 'map' | 'filter' | 'choose' | 'takeWhile';
+      index: number;
+    }
+  | {
+      readonly kind: 'skipWhile';
+      index: number;
+      skipping: boolean;
+    };
+type LinearPipeline = {
+  readonly sourceFactories: IteratorFactories<unknown>;
+  readonly operations: readonly LinearOperation[];
+};
 
 const __NO_INITIAL_VALUE = Symbol('no-initial-value');
+const __LINEAR_SKIP = Symbol('linear-skip');
+const __LINEAR_STOP = Symbol('linear-stop');
 
 const createAsyncIterable = <T>(
   iteratorFactory: () => AsyncGenerator<T, void, unknown>
@@ -125,6 +165,129 @@ const compareValues = <T>(left: T, right: T): number => {
   }
   return 0;
 };
+
+const createLinearRuntimeState = (
+  operation: LinearOperation
+): LinearRuntimeState => {
+  switch (operation.kind) {
+    case 'map':
+    case 'filter':
+    case 'choose':
+    case 'takeWhile':
+      return {
+        kind: operation.kind,
+        index: 0,
+      };
+    case 'skipWhile':
+      return {
+        kind: operation.kind,
+        index: 0,
+        skipping: true,
+      };
+  }
+};
+
+const createLinearPipelineFactories = <T>(
+  pipeline: LinearPipeline
+): IteratorFactories<T> =>
+  createAsyncOnlyFactories(() =>
+    createAsyncIterable(async function* () {
+      const runtimeStates = pipeline.operations.map(createLinearRuntimeState);
+      const applyOperations = async (
+        input: unknown
+      ): Promise<unknown | typeof __LINEAR_SKIP | typeof __LINEAR_STOP> => {
+        let current = input;
+
+        for (
+          let operationIndex = 0;
+          operationIndex < pipeline.operations.length;
+          operationIndex++
+        ) {
+          const operation = pipeline.operations[operationIndex]!;
+          const runtimeState = runtimeStates[operationIndex]!;
+
+          switch (operation.kind) {
+            case 'map': {
+              const selected = operation.selector(current, runtimeState.index);
+              current = isPromiseLike(selected) ? await selected : selected;
+              runtimeState.index++;
+              break;
+            }
+            case 'filter': {
+              const result = operation.predicate(current, runtimeState.index);
+              const included = isPromiseLike(result) ? await result : result;
+              runtimeState.index++;
+              if (!included) {
+                return __LINEAR_SKIP;
+              }
+              break;
+            }
+            case 'choose': {
+              const result = operation.selector(current, runtimeState.index);
+              const selected = isPromiseLike(result) ? await result : result;
+              runtimeState.index++;
+              if (!isNonNullish(selected)) {
+                return __LINEAR_SKIP;
+              }
+              current = selected;
+              break;
+            }
+            case 'skipWhile': {
+              const skipState = runtimeState as Extract<
+                LinearRuntimeState,
+                { kind: 'skipWhile' }
+              >;
+              const result = operation.predicate(current, runtimeState.index);
+              const shouldSkip = isPromiseLike(result) ? await result : result;
+              runtimeState.index++;
+              if (skipState.skipping && shouldSkip) {
+                return __LINEAR_SKIP;
+              }
+              skipState.skipping = false;
+              break;
+            }
+            case 'takeWhile': {
+              const result = operation.predicate(current, runtimeState.index);
+              const shouldTake = isPromiseLike(result) ? await result : result;
+              if (!shouldTake) {
+                return __LINEAR_STOP;
+              }
+              runtimeState.index++;
+              break;
+            }
+          }
+        }
+
+        return current;
+      };
+
+      const { syncFactory, asyncFactory } = pipeline.sourceFactories;
+      if (syncFactory !== undefined) {
+        for (const value of syncFactory()) {
+          const resolvedValue = (
+            isPromiseLike(value) ? await value : value
+          ) as T;
+          const processedValue = await applyOperations(resolvedValue);
+          if (processedValue === __LINEAR_STOP) {
+            return;
+          }
+          if (processedValue !== __LINEAR_SKIP) {
+            yield processedValue as T;
+          }
+        }
+      } else {
+        for await (const value of asyncFactory()) {
+          const processedValue = await applyOperations(value);
+          if (processedValue === __LINEAR_STOP) {
+            return;
+          }
+          if (processedValue !== __LINEAR_SKIP) {
+            yield processedValue as T;
+          }
+        }
+      }
+    })
+  );
 
 const collectKeysFromSource = async <T, TKey>(
   source: AsyncOperatorSource<T>,
@@ -244,13 +407,35 @@ const findExtremeBy = async <T, TKey>(
 const createAsyncOperator = <T>(
   iteratorFactoriesOrAsyncFactory:
     | IteratorFactories<T>
-    | AsyncIterableFactory<T>
+    | AsyncIterableFactory<T>,
+  linearPipeline?: LinearPipeline | undefined
 ): AsyncOperator<T> => {
   const iteratorFactories = normalizeIteratorFactories(
     iteratorFactoriesOrAsyncFactory
   );
   const { syncFactory, asyncFactory } = iteratorFactories;
   const iterableFactory = asyncFactory;
+  const appendLinearOperation = <U>(
+    operation: LinearOperation,
+    createFallbackIteratorFactories: () => IteratorFactories<U>
+  ): AsyncOperator<U> => {
+    const nextLinearPipeline: LinearPipeline =
+      linearPipeline === undefined
+        ? {
+            sourceFactories: iteratorFactories as IteratorFactories<unknown>,
+            operations: [operation],
+          }
+        : {
+            sourceFactories: linearPipeline.sourceFactories,
+            operations: [...linearPipeline.operations, operation],
+          };
+    const nextIteratorFactories =
+      linearPipeline === undefined
+        ? createFallbackIteratorFactories()
+        : createLinearPipelineFactories<U>(nextLinearPipeline);
+
+    return createAsyncOperator<U>(nextIteratorFactories, nextLinearPipeline);
+  };
   const reduce = (async <U>(
     ...args:
       | [(previousValue: T, currentValue: T, index: number) => Awaitable<T>]
@@ -358,47 +543,57 @@ const createAsyncOperator = <T>(
 
   return {
     [Symbol.asyncIterator]: () => asyncFactory()[Symbol.asyncIterator](),
-    map: <U>(selector: (value: T, index: number) => Awaitable<U>) => {
-      const mappedSyncFactory =
-        syncFactory === undefined
-          ? undefined
-          : () =>
-              createSyncIterable(function* () {
-                let index = 0;
+    map: <U>(selector: (value: T, index: number) => Awaitable<U>) =>
+      appendLinearOperation<U>(
+        {
+          kind: 'map',
+          selector: selector as (
+            value: unknown,
+            index: number
+          ) => Awaitable<unknown>,
+        },
+        () => {
+          const mappedSyncFactory =
+            syncFactory === undefined
+              ? undefined
+              : () =>
+                  createSyncIterable(function* () {
+                    let index = 0;
 
-                for (const value of syncFactory()) {
-                  const currentIndex = index;
-                  if (isPromiseLike(value)) {
-                    yield value.then((resolvedValue) =>
-                      selector(resolvedValue as T, currentIndex)
-                    ) as Awaitable<U>;
-                  } else {
-                    yield selector(value as T, currentIndex);
-                  }
-                  index++;
-                }
-              });
+                    for (const value of syncFactory()) {
+                      const currentIndex = index;
+                      if (isPromiseLike(value)) {
+                        yield value.then((resolvedValue) =>
+                          selector(resolvedValue as T, currentIndex)
+                        ) as Awaitable<U>;
+                      } else {
+                        yield selector(value as T, currentIndex);
+                      }
+                      index++;
+                    }
+                  });
 
-      if (mappedSyncFactory !== undefined) {
-        return createAsyncOperator<U>({
-          syncFactory: mappedSyncFactory,
-          asyncFactory: () => toAsyncIterable(mappedSyncFactory()),
-        }) as AsyncOperator<U>;
-      }
+          if (mappedSyncFactory !== undefined) {
+            return {
+              syncFactory: mappedSyncFactory,
+              asyncFactory: () => toAsyncIterable(mappedSyncFactory()),
+            };
+          }
 
-      return createAsyncOperator<U>(
-        createAsyncOnlyFactories(() =>
-          createAsyncIterable(async function* () {
-            let index = 0;
-            for await (const value of iterableFactory()) {
-              const selected = selector(value, index);
-              yield (isPromiseLike(selected) ? await selected : selected) as U;
-              index++;
-            }
-          })
-        )
-      ) as AsyncOperator<U>;
-    },
+          return createAsyncOnlyFactories(() =>
+            createAsyncIterable(async function* () {
+              let index = 0;
+              for await (const value of iterableFactory()) {
+                const selected = selector(value, index);
+                yield (
+                  isPromiseLike(selected) ? await selected : selected
+                ) as U;
+                index++;
+              }
+            })
+          );
+        }
+      ),
     flatMap: <U>(
       selector: (value: T, index: number) => Awaitable<AsyncOperatorSource<U>>
     ) =>
@@ -516,31 +711,41 @@ const createAsyncOperator = <T>(
         })
       ) as AsyncOperator<U>,
     filter: (predicate: (value: T, index: number) => Awaitable<boolean>) =>
-      createAsyncOperator(() =>
-        createAsyncIterable(async function* () {
-          let index = 0;
-          if (syncFactory !== undefined) {
-            for (const value of syncFactory()) {
-              const resolvedValue = (
-                isPromiseLike(value) ? await value : value
-              ) as T;
-              const result = predicate(resolvedValue, index);
-              if (isPromiseLike(result) ? await result : result) {
-                yield resolvedValue as T;
+      appendLinearOperation<T>(
+        {
+          kind: 'filter',
+          predicate: predicate as (
+            value: unknown,
+            index: number
+          ) => Awaitable<boolean>,
+        },
+        () =>
+          createAsyncOnlyFactories(() =>
+            createAsyncIterable(async function* () {
+              let index = 0;
+              if (syncFactory !== undefined) {
+                for (const value of syncFactory()) {
+                  const resolvedValue = (
+                    isPromiseLike(value) ? await value : value
+                  ) as T;
+                  const result = predicate(resolvedValue, index);
+                  if (isPromiseLike(result) ? await result : result) {
+                    yield resolvedValue as T;
+                  }
+                  index++;
+                }
+              } else {
+                for await (const value of iterableFactory()) {
+                  const result = predicate(value, index);
+                  if (isPromiseLike(result) ? await result : result) {
+                    yield value as T;
+                  }
+                  index++;
+                }
               }
-              index++;
-            }
-          } else {
-            for await (const value of iterableFactory()) {
-              const result = predicate(value, index);
-              if (isPromiseLike(result) ? await result : result) {
-                yield value as T;
-              }
-              index++;
-            }
-          }
-        })
-      ) as AsyncOperator<T>,
+            })
+          )
+      ),
     concat: (...sources: AsyncOperatorSource<T>[]) => {
       const concatenatedSyncFactory =
         syncFactory !== undefined &&
@@ -597,33 +802,47 @@ const createAsyncOperator = <T>(
     choose: <U>(
       selector: (value: T, index: number) => Awaitable<U | null | undefined>
     ) =>
-      createAsyncOperator(() =>
-        createAsyncIterable(async function* () {
-          let index = 0;
-          if (syncFactory !== undefined) {
-            for (const value of syncFactory()) {
-              const resolvedValue = (
-                isPromiseLike(value) ? await value : value
-              ) as T;
-              const result = selector(resolvedValue, index);
-              const selected = isPromiseLike(result) ? await result : result;
-              if (isNonNullish(selected)) {
-                yield selected as NonNullable<U>;
+      appendLinearOperation<NonNullable<U>>(
+        {
+          kind: 'choose',
+          selector: selector as (
+            value: unknown,
+            index: number
+          ) => Awaitable<unknown | null | undefined>,
+        },
+        () =>
+          createAsyncOnlyFactories(() =>
+            createAsyncIterable(async function* () {
+              let index = 0;
+              if (syncFactory !== undefined) {
+                for (const value of syncFactory()) {
+                  const resolvedValue = (
+                    isPromiseLike(value) ? await value : value
+                  ) as T;
+                  const result = selector(resolvedValue, index);
+                  const selected = isPromiseLike(result)
+                    ? await result
+                    : result;
+                  if (isNonNullish(selected)) {
+                    yield selected as NonNullable<U>;
+                  }
+                  index++;
+                }
+              } else {
+                for await (const value of iterableFactory()) {
+                  const result = selector(value, index);
+                  const selected = isPromiseLike(result)
+                    ? await result
+                    : result;
+                  if (isNonNullish(selected)) {
+                    yield selected as NonNullable<U>;
+                  }
+                  index++;
+                }
               }
-              index++;
-            }
-          } else {
-            for await (const value of iterableFactory()) {
-              const result = selector(value, index);
-              const selected = isPromiseLike(result) ? await result : result;
-              if (isNonNullish(selected)) {
-                yield selected as NonNullable<U>;
-              }
-              index++;
-            }
-          }
-        })
-      ) as AsyncOperator<NonNullable<U>>,
+            })
+          )
+      ),
     slice: (start: number, end?: number) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
@@ -789,40 +1008,56 @@ const createAsyncOperator = <T>(
         })
       ) as AsyncOperator<T>,
     skipWhile: (predicate: (value: T, index: number) => Awaitable<boolean>) =>
-      createAsyncOperator(() =>
-        createAsyncIterable(async function* () {
-          let index = 0;
-          let skipping = true;
-          if (syncFactory !== undefined) {
-            for (const value of syncFactory()) {
-              const resolvedValue = (
-                isPromiseLike(value) ? await value : value
-              ) as T;
-              const result = predicate(resolvedValue, index);
-              if (skipping && (isPromiseLike(result) ? await result : result)) {
-                index++;
-                continue;
-              }
+      appendLinearOperation<T>(
+        {
+          kind: 'skipWhile',
+          predicate: predicate as (
+            value: unknown,
+            index: number
+          ) => Awaitable<boolean>,
+        },
+        () =>
+          createAsyncOnlyFactories(() =>
+            createAsyncIterable(async function* () {
+              let index = 0;
+              let skipping = true;
+              if (syncFactory !== undefined) {
+                for (const value of syncFactory()) {
+                  const resolvedValue = (
+                    isPromiseLike(value) ? await value : value
+                  ) as T;
+                  const result = predicate(resolvedValue, index);
+                  if (
+                    skipping &&
+                    (isPromiseLike(result) ? await result : result)
+                  ) {
+                    index++;
+                    continue;
+                  }
 
-              skipping = false;
-              yield resolvedValue as T;
-              index++;
-            }
-          } else {
-            for await (const value of iterableFactory()) {
-              const result = predicate(value, index);
-              if (skipping && (isPromiseLike(result) ? await result : result)) {
-                index++;
-                continue;
-              }
+                  skipping = false;
+                  yield resolvedValue as T;
+                  index++;
+                }
+              } else {
+                for await (const value of iterableFactory()) {
+                  const result = predicate(value, index);
+                  if (
+                    skipping &&
+                    (isPromiseLike(result) ? await result : result)
+                  ) {
+                    index++;
+                    continue;
+                  }
 
-              skipping = false;
-              yield value as T;
-              index++;
-            }
-          }
-        })
-      ) as AsyncOperator<T>,
+                  skipping = false;
+                  yield value as T;
+                  index++;
+                }
+              }
+            })
+          )
+      ),
     take: (count: number) =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
@@ -852,33 +1087,43 @@ const createAsyncOperator = <T>(
         })
       ) as AsyncOperator<T>,
     takeWhile: (predicate: (value: T, index: number) => Awaitable<boolean>) =>
-      createAsyncOperator(() =>
-        createAsyncIterable(async function* () {
-          let index = 0;
-          if (syncFactory !== undefined) {
-            for (const value of syncFactory()) {
-              const resolvedValue = (
-                isPromiseLike(value) ? await value : value
-              ) as T;
-              const result = predicate(resolvedValue, index);
-              if (!(isPromiseLike(result) ? await result : result)) {
-                return;
+      appendLinearOperation<T>(
+        {
+          kind: 'takeWhile',
+          predicate: predicate as (
+            value: unknown,
+            index: number
+          ) => Awaitable<boolean>,
+        },
+        () =>
+          createAsyncOnlyFactories(() =>
+            createAsyncIterable(async function* () {
+              let index = 0;
+              if (syncFactory !== undefined) {
+                for (const value of syncFactory()) {
+                  const resolvedValue = (
+                    isPromiseLike(value) ? await value : value
+                  ) as T;
+                  const result = predicate(resolvedValue, index);
+                  if (!(isPromiseLike(result) ? await result : result)) {
+                    return;
+                  }
+                  yield resolvedValue as T;
+                  index++;
+                }
+              } else {
+                for await (const value of iterableFactory()) {
+                  const result = predicate(value, index);
+                  if (!(isPromiseLike(result) ? await result : result)) {
+                    return;
+                  }
+                  yield value as T;
+                  index++;
+                }
               }
-              yield resolvedValue as T;
-              index++;
-            }
-          } else {
-            for await (const value of iterableFactory()) {
-              const result = predicate(value, index);
-              if (!(isPromiseLike(result) ? await result : result)) {
-                return;
-              }
-              yield value as T;
-              index++;
-            }
-          }
-        })
-      ) as AsyncOperator<T>,
+            })
+          )
+      ),
     pairwise: () =>
       createAsyncOperator(() =>
         createAsyncIterable(async function* () {
