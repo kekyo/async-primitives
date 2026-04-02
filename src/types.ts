@@ -274,9 +274,10 @@ export type AsyncOperatorSource<T> = Iterable<Awaitable<T>>;
 /**
  * Chainable operators for asynchronously resolved collections
  * @remarks
- * The sequence is evaluated lazily and sequentially, and resolved when a terminal operator such as `toArray()` is executed.
+ * The sequence is evaluated lazily and sequentially, and can be consumed either by terminal operators
+ * such as `toArray()` or directly via `for await`.
  */
-export interface AsyncOperator<T> {
+export interface AsyncOperator<T> extends AsyncIterable<T> {
   /**
    * Projects each resolved value into a new value
    * @param selector Selector function for each resolved value
@@ -303,6 +304,214 @@ export interface AsyncOperator<T> {
   readonly filter: (
     predicate: (value: T, index: number) => Awaitable<boolean>
   ) => AsyncOperator<T>;
+
+  /**
+   * Projects each resolved value into another value and omits nullish results
+   * @param selector Selector function for each resolved value
+   * @returns A new async operator whose values are the non-nullish projected results
+   */
+  readonly choose: <U>(
+    selector: (value: T, index: number) => Awaitable<U | null | undefined>
+  ) => AsyncOperator<NonNullable<U>>;
+
+  /**
+   * Removes duplicate values
+   * @returns A new async operator whose values are distinct
+   */
+  readonly distinct: () => AsyncOperator<T>;
+
+  /**
+   * Removes duplicate values by projected key
+   * @param selector Selector function that produces the distinct key
+   * @returns A new async operator whose values are distinct by key
+   */
+  readonly distinctBy: <TKey>(
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => AsyncOperator<T>;
+
+  /**
+   * Skips the specified number of values
+   * @param count Number of values to skip
+   * @returns A new async operator that skips the specified number of values
+   */
+  readonly skip: (count: number) => AsyncOperator<T>;
+
+  /**
+   * Skips values while the predicate returns true
+   * @param predicate Predicate function for each resolved value
+   * @returns A new async operator that skips values while the predicate matches
+   */
+  readonly skipWhile: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => AsyncOperator<T>;
+
+  /**
+   * Takes the specified number of values
+   * @param count Number of values to take
+   * @returns A new async operator that takes the specified number of values
+   */
+  readonly take: (count: number) => AsyncOperator<T>;
+
+  /**
+   * Takes values while the predicate returns true
+   * @param predicate Predicate function for each resolved value
+   * @returns A new async operator that takes values while the predicate matches
+   */
+  readonly takeWhile: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => AsyncOperator<T>;
+
+  /**
+   * Produces adjacent pairs from the sequence
+   * @returns A new async operator whose values are adjacent pairs
+   */
+  readonly pairwise: () => AsyncOperator<readonly [T, T]>;
+
+  /**
+   * Combines the sequence with another sequence element by element
+   * @param source Source sequence to zip with
+   * @returns A new async operator whose values are pairs from both sequences
+   */
+  readonly zip: <U>(
+    source: AsyncOperatorSource<U>
+  ) => AsyncOperator<readonly [T, U]>;
+
+  /**
+   * Produces intermediate accumulator states, including the initial value
+   * @param reducer Reducer function for each resolved value
+   * @param initialValue Initial accumulator value
+   * @returns A new async operator whose values are intermediate accumulator states
+   */
+  readonly scan: <U>(
+    reducer: (previousValue: U, currentValue: T, index: number) => Awaitable<U>,
+    initialValue: U
+  ) => AsyncOperator<U>;
+
+  /**
+   * Executes an action for each resolved value
+   * @param action Action function for each resolved value
+   * @returns A promise that resolves when all values have been processed
+   */
+  readonly forEach: (
+    action: (value: T, index: number) => Awaitable<void>
+  ) => Promise<void>;
+
+  /**
+   * Reduces the sequence to a single value
+   */
+  readonly reduce: {
+    /**
+     * Reduces the sequence without an explicit initial value
+     * @param reducer Reducer function for each resolved value
+     * @returns A promise that resolves to the reduced value
+     */
+    (
+      reducer: (
+        previousValue: T,
+        currentValue: T,
+        index: number
+      ) => Awaitable<T>
+    ): Promise<T>;
+
+    /**
+     * Reduces the sequence with an explicit initial value
+     * @param reducer Reducer function for each resolved value
+     * @param initialValue Initial accumulator value
+     * @returns A promise that resolves to the reduced value
+     */
+    <U>(
+      reducer: (
+        previousValue: U,
+        currentValue: T,
+        index: number
+      ) => Awaitable<U>,
+      initialValue: U
+    ): Promise<U>;
+  };
+
+  /**
+   * Determines whether any value satisfies the predicate
+   * @param predicate Predicate function for each resolved value
+   * @returns A promise that resolves to true when any value satisfies the predicate
+   */
+  readonly some: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => Promise<boolean>;
+
+  /**
+   * Determines whether all values satisfy the predicate
+   * @param predicate Predicate function for each resolved value
+   * @returns A promise that resolves to true when all values satisfy the predicate
+   */
+  readonly every: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => Promise<boolean>;
+
+  /**
+   * Finds the first value that satisfies the predicate
+   * @param predicate Predicate function for each resolved value
+   * @returns A promise that resolves to the found value or undefined
+   */
+  readonly find: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => Promise<T | undefined>;
+
+  /**
+   * Finds the index of the first value that satisfies the predicate
+   * @param predicate Predicate function for each resolved value
+   * @returns A promise that resolves to the found index or -1
+   */
+  readonly findIndex: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => Promise<number>;
+
+  /**
+   * Finds the minimum value in the sequence
+   * @returns A promise that resolves to the minimum value or undefined
+   */
+  readonly min: () => Promise<T | undefined>;
+
+  /**
+   * Finds the value with the minimum projected key
+   * @param selector Selector function that produces the comparison key
+   * @returns A promise that resolves to the value with the minimum key or undefined
+   */
+  readonly minBy: <TKey>(
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => Promise<T | undefined>;
+
+  /**
+   * Finds the maximum value in the sequence
+   * @returns A promise that resolves to the maximum value or undefined
+   */
+  readonly max: () => Promise<T | undefined>;
+
+  /**
+   * Finds the value with the maximum projected key
+   * @param selector Selector function that produces the comparison key
+   * @returns A promise that resolves to the value with the maximum key or undefined
+   */
+  readonly maxBy: <TKey>(
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => Promise<T | undefined>;
+
+  /**
+   * Groups values by projected key
+   * @param selector Selector function that produces the grouping key
+   * @returns A promise that resolves to grouped values
+   */
+  readonly groupBy: <TKey>(
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => Promise<Map<TKey, T[]>>;
+
+  /**
+   * Counts values by projected key
+   * @param selector Selector function that produces the counting key
+   * @returns A promise that resolves to counts grouped by key
+   */
+  readonly countBy: <TKey>(
+    selector: (value: T, index: number) => Awaitable<TKey>
+  ) => Promise<Map<TKey, number>>;
 
   /**
    * Resolves the sequence into an array

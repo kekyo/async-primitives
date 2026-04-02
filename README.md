@@ -470,8 +470,7 @@ try {
 
 ### from()
 
-Creates an `AsyncOperator<T>` from an iterable of values or promises, allowing chainable operators such as `map()`, `flatMap()`, `filter()` and `toArray()`.
-The pipeline is evaluated lazily and sequentially.
+Creates an `AsyncOperator<T>` from an iterable of values or promises, allowing lazy and sequential operator chaining.
 
 ```typescript
 import { from } from 'async-primitives';
@@ -485,19 +484,50 @@ const values = await from([Promise.resolve(1), 2, Promise.resolve(3)])
 console.log(values); // [4, 104, 6, 106]
 ```
 
+`AsyncOperator<T>` is also an `AsyncIterable<T>`, so it can be consumed directly with `for await`.
+
 ```typescript
-// Materialize the sequence at the terminal operator
-const values = await from(iterable).toArray();
+// Consume directly as AsyncIterable<T>
+for await (const value of from(iterable).map((value) => value * 2)) {
+  console.log(value);
+}
 ```
 
-Operator variations are:
+Intermediate operators:
 
-| Operator | Description                                   |
-| :------- | :-------------------------------------------- |
-| `map()` | Projects each resolved value into another value |
-| `flatMap()` | Projects each resolved value into an iterable and flattens it by one level |
-| `filter()` | Keeps only values whose predicate result is truthy |
-| `toArray()` | Evaluates the pipeline and collects the resulting values into an array |
+| Operator       | Description                                                                |
+| :------------- | :------------------------------------------------------------------------- |
+| `map()`        | Projects each resolved value into another value                            |
+| `flatMap()`    | Projects each resolved value into an iterable and flattens it by one level |
+| `filter()`     | Keeps only values whose predicate result is truthy                         |
+| `choose()`     | Projects each resolved value and omits `null` and `undefined` results      |
+| `distinct()`   | Removes duplicate values                                                   |
+| `distinctBy()` | Removes duplicate values by projected key                                  |
+| `skip()`       | Skips the specified number of values                                       |
+| `skipWhile()`  | Skips values while the predicate returns true                              |
+| `take()`       | Takes the specified number of values                                       |
+| `takeWhile()`  | Takes values while the predicate returns true                              |
+| `pairwise()`   | Produces adjacent pairs                                                    |
+| `zip()`        | Combines values with another iterable element by element                   |
+| `scan()`       | Produces intermediate accumulator states, including the initial value      |
+
+Terminal operators:
+
+| Operator      | Description                                                                            |
+| :------------ | :------------------------------------------------------------------------------------- |
+| `forEach()`   | Executes an action for each value                                                      |
+| `reduce()`    | Reduces the sequence to a single value                                                 |
+| `some()`      | Returns true when any value satisfies the predicate                                    |
+| `every()`     | Returns true when all values satisfy the predicate                                     |
+| `find()`      | Returns the first value that satisfies the predicate                                   |
+| `findIndex()` | Returns the index of the first value that satisfies the predicate                      |
+| `min()`       | Returns the minimum value, or `undefined` for an empty sequence                        |
+| `minBy()`     | Returns the value with the minimum projected key, or `undefined` for an empty sequence |
+| `max()`       | Returns the maximum value, or `undefined` for an empty sequence                        |
+| `maxBy()`     | Returns the value with the maximum projected key, or `undefined` for an empty sequence |
+| `groupBy()`   | Collects values into a `Map` grouped by projected key                                  |
+| `countBy()`   | Counts values into a `Map` grouped by projected key                                    |
+| `toArray()`   | Materializes the resulting values into an array                                        |
 
 ### ES2022+ using statement
 

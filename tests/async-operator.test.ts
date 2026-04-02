@@ -15,6 +15,20 @@ describe('AsyncOperator', () => {
       expect(actual).toEqual([1, 2, 3]);
     });
 
+    it('should support direct consumption with for await', async () => {
+      const values: number[] = [];
+
+      for await (const value of from([
+        Promise.resolve(1),
+        2,
+        delay(1).then(() => 3),
+      ])) {
+        values.push(value);
+      }
+
+      expect(values).toEqual([1, 2, 3]);
+    });
+
     it('should stop iterating when the source rejects', async () => {
       const error = new Error('source failed');
       const events: string[] = [];
@@ -34,7 +48,7 @@ describe('AsyncOperator', () => {
     });
   });
 
-  describe('chain operators', () => {
+  describe('intermediate operators', () => {
     it('should chain map, filter and flatMap with async callbacks', async () => {
       const result = await from([Promise.resolve(1), 2, 3])
         .map(async (value, index) => {
@@ -132,6 +146,174 @@ describe('AsyncOperator', () => {
         'yield-2',
         'map-start-2',
         'map-end-2',
+      ]);
+    });
+
+    it('should support choose, distinct and distinctBy', async () => {
+      const objects = [
+        { id: 1, name: 'alice' },
+        { id: 1, name: 'alice-duplicate' },
+        { id: 2, name: 'bob' },
+      ] as const;
+
+      const chosen = await from([1, 2, 2, 3, 4, 4])
+        .choose((value) => (value % 2 === 0 ? value * 10 : undefined))
+        .distinct()
+        .toArray();
+
+      const distinctObjects = await from(objects)
+        .distinctBy((value) => value.id)
+        .map((value) => value.name)
+        .toArray();
+
+      expect(chosen).toEqual([20, 40]);
+      expect(distinctObjects).toEqual(['alice', 'bob']);
+    });
+
+    it('should support skip, take, skipWhile and takeWhile', async () => {
+      const result = await from([1, 2, 3, 4, 5, 6, 7])
+        .skip(1)
+        .skipWhile((value) => value < 3)
+        .take(4)
+        .takeWhile((value) => value < 7)
+        .toArray();
+
+      expect(result).toEqual([3, 4, 5, 6]);
+    });
+
+    it('should support pairwise and zip', async () => {
+      const pairwise = await from([1, 2, 3, 4]).pairwise().toArray();
+      const zipped = await from([1, 2, 3])
+        .zip([Promise.resolve('a'), 'b'])
+        .toArray();
+
+      expect(pairwise).toEqual([
+        [1, 2],
+        [2, 3],
+        [3, 4],
+      ]);
+      expect(zipped).toEqual([
+        [1, 'a'],
+        [2, 'b'],
+      ]);
+    });
+
+    it('should support scan including the initial value', async () => {
+      const values = await from([1, 2, 3])
+        .scan(async (state, value) => {
+          await delay(1);
+          return state + value;
+        }, 0)
+        .toArray();
+
+      const emptyValues = await from<number>([])
+        .scan((state, value) => state + value, 0)
+        .toArray();
+
+      expect(values).toEqual([0, 1, 3, 6]);
+      expect(emptyValues).toEqual([0]);
+    });
+  });
+
+  describe('terminal operators', () => {
+    it('should support forEach and reduce with an initial value', async () => {
+      const visited: string[] = [];
+
+      await from([1, 2, 3]).forEach(async (value, index) => {
+        await delay(1);
+        visited.push(`${index}:${value}`);
+      });
+
+      const sum = await from([1, 2, 3, 4]).reduce(
+        async (state, value) => state + value,
+        0
+      );
+
+      expect(visited).toEqual(['0:1', '1:2', '2:3']);
+      expect(sum).toBe(10);
+    });
+
+    it('should support reduce without an initial value and reject empty sources', async () => {
+      const sum = await from([1, 2, 3, 4]).reduce(
+        async (state, value) => state + value
+      );
+
+      await expect(
+        from<number>([]).reduce((state, value) => state + value)
+      ).rejects.toThrow('Reduce of empty AsyncOperator with no initial value');
+      expect(sum).toBe(10);
+    });
+
+    it('should short-circuit some and every', async () => {
+      const someVisits: number[] = [];
+      const everyVisits: number[] = [];
+
+      const someResult = await from([1, 2, 3, 4]).some((value) => {
+        someVisits.push(value);
+        return value >= 3;
+      });
+
+      const everyResult = await from([1, 2, 3, 4]).every((value) => {
+        everyVisits.push(value);
+        return value < 3;
+      });
+
+      expect(someResult).toBe(true);
+      expect(everyResult).toBe(false);
+      expect(someVisits).toEqual([1, 2, 3]);
+      expect(everyVisits).toEqual([1, 2, 3]);
+    });
+
+    it('should support find and findIndex', async () => {
+      const found = await from([5, 7, 9, 10]).find((value) => value % 2 === 0);
+      const foundIndex = await from([5, 7, 9, 10]).findIndex(
+        (value) => value % 2 === 0
+      );
+      const missingIndex = await from([1, 3, 5]).findIndex(
+        (value) => value % 2 === 0
+      );
+
+      expect(found).toBe(10);
+      expect(foundIndex).toBe(3);
+      expect(missingIndex).toBe(-1);
+    });
+
+    it('should support min, minBy, max and maxBy', async () => {
+      const values = [5, 2, 9, 3];
+      const objects = [
+        { name: 'alice', score: 20 },
+        { name: 'bob', score: 10 },
+        { name: 'charlie', score: 30 },
+      ] as const;
+
+      const min = await from(values).min();
+      const max = await from(values).max();
+      const minBy = await from(objects).minBy((value) => value.score);
+      const maxBy = await from(objects).maxBy((value) => value.score);
+      const emptyMin = await from<number>([]).min();
+
+      expect(min).toBe(2);
+      expect(max).toBe(9);
+      expect(minBy).toEqual({ name: 'bob', score: 10 });
+      expect(maxBy).toEqual({ name: 'charlie', score: 30 });
+      expect(emptyMin).toBeUndefined();
+    });
+
+    it('should support groupBy and countBy', async () => {
+      const grouped = await from(['ant', 'ape', 'bear', 'bee']).groupBy(
+        (value) => value[0]
+      );
+      const counted = await from(['ant', 'ape', 'bear', 'bee']).countBy(
+        (value) => value[0]
+      );
+
+      expect(Array.from(grouped.entries())).toEqual([
+        ['a', ['ant', 'ape']],
+        ['b', ['bear', 'bee']],
+      ]);
+      expect(Array.from(counted.entries())).toEqual([
+        ['a', 2],
+        ['b', 2],
       ]);
     });
   });
