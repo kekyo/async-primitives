@@ -660,27 +660,56 @@ const createAsyncOperator = <T>(
           }
 
           let index = 0;
-          const iterator = iterableFactory()[Symbol.asyncIterator]();
 
-          while (true) {
-            if (
-              endIndex !== undefined &&
-              endIndex !== Infinity &&
-              index >= endIndex
-            ) {
-              return;
-            }
+          if (syncFactory !== undefined) {
+            const iterator = syncFactory()[Symbol.iterator]();
 
-            const result = await iterator.next();
-            if (result.done) {
-              return;
-            }
+            while (true) {
+              if (
+                endIndex !== undefined &&
+                endIndex !== Infinity &&
+                index >= endIndex
+              ) {
+                return;
+              }
 
-            const value = result.value;
-            if (index >= startIndex) {
-              yield value as T;
+              const result = iterator.next();
+              if (result.done) {
+                return;
+              }
+
+              const value = result.value;
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              if (index >= startIndex) {
+                yield resolvedValue as T;
+              }
+              index++;
             }
-            index++;
+          } else {
+            const iterator = iterableFactory()[Symbol.asyncIterator]();
+
+            while (true) {
+              if (
+                endIndex !== undefined &&
+                endIndex !== Infinity &&
+                index >= endIndex
+              ) {
+                return;
+              }
+
+              const result = await iterator.next();
+              if (result.done) {
+                return;
+              }
+
+              const value = result.value;
+              if (index >= startIndex) {
+                yield value as T;
+              }
+              index++;
+            }
           }
         })
       ) as AsyncOperator<T>,
@@ -803,11 +832,21 @@ const createAsyncOperator = <T>(
           }
 
           let takenCount = 0;
-          for await (const value of iterableFactory()) {
-            yield value as T;
-            takenCount++;
-            if (takenCount >= normalizedCount) {
-              return;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              yield (isPromiseLike(value) ? await value : value) as T;
+              takenCount++;
+              if (takenCount >= normalizedCount) {
+                return;
+              }
+            }
+          } else {
+            for await (const value of iterableFactory()) {
+              yield value as T;
+              takenCount++;
+              if (takenCount >= normalizedCount) {
+                return;
+              }
             }
           }
         })
@@ -846,12 +885,25 @@ const createAsyncOperator = <T>(
           let hasPreviousValue = false;
           let previousValue: T | undefined;
 
-          for await (const value of iterableFactory()) {
-            if (hasPreviousValue) {
-              yield [previousValue as T, value as T] as const;
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              const resolvedValue = (
+                isPromiseLike(value) ? await value : value
+              ) as T;
+              if (hasPreviousValue) {
+                yield [previousValue as T, resolvedValue] as const;
+              }
+              previousValue = resolvedValue;
+              hasPreviousValue = true;
             }
-            previousValue = value;
-            hasPreviousValue = true;
+          } else {
+            for await (const value of iterableFactory()) {
+              if (hasPreviousValue) {
+                yield [previousValue as T, value as T] as const;
+              }
+              previousValue = value;
+              hasPreviousValue = true;
+            }
           }
         })
       ) as AsyncOperator<readonly [T, T]>,
@@ -1214,11 +1266,21 @@ const createAsyncOperator = <T>(
           const normalizedSize = normalizeRequiredCount(size, 'Chunk size');
           let chunk: T[] = [];
 
-          for await (const value of iterableFactory()) {
-            chunk.push(value);
-            if (chunk.length >= normalizedSize) {
-              yield chunk;
-              chunk = [];
+          if (syncFactory !== undefined) {
+            for (const value of syncFactory()) {
+              chunk.push((isPromiseLike(value) ? await value : value) as T);
+              if (chunk.length >= normalizedSize) {
+                yield chunk;
+                chunk = [];
+              }
+            }
+          } else {
+            for await (const value of iterableFactory()) {
+              chunk.push(value);
+              if (chunk.length >= normalizedSize) {
+                yield chunk;
+                chunk = [];
+              }
             }
           }
 

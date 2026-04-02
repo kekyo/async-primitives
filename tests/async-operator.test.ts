@@ -232,6 +232,22 @@ describe('AsyncOperator', () => {
       expect(events).toEqual(['yield-1', 'yield-2', 'yield-3']);
     });
 
+    it('should reject skipped values for positive slice bounds', async () => {
+      const error = new Error('slice failed');
+      const events: string[] = [];
+      const source = {
+        [Symbol.iterator]: function* () {
+          events.push('yield-1');
+          yield Promise.reject(error);
+          events.push('yield-2');
+          yield 2;
+        },
+      };
+
+      await expect(from(source).slice(1, 2).toArray()).rejects.toBe(error);
+      expect(events).toEqual(['yield-1']);
+    });
+
     it('should support concat with iterable and async iterable sources', async () => {
       const result = await from([Promise.resolve(1), 2])
         .concat(
@@ -256,6 +272,25 @@ describe('AsyncOperator', () => {
         .toArray();
 
       expect(result).toEqual([3, 4, 5, 6]);
+    });
+
+    it('should stop early for take on sync sources', async () => {
+      const events: string[] = [];
+      const source = {
+        [Symbol.iterator]: function* () {
+          events.push('yield-1');
+          yield 1;
+          events.push('yield-2');
+          yield 2;
+          events.push('yield-3');
+          yield 3;
+        },
+      };
+
+      const values = await from(source).take(2).toArray();
+
+      expect(values).toEqual([1, 2]);
+      expect(events).toEqual(['yield-1', 'yield-2']);
     });
 
     it('should support pairwise and zip', async () => {
@@ -286,6 +321,22 @@ describe('AsyncOperator', () => {
         [1, 'x'],
         [2, 'y'],
       ]);
+    });
+
+    it('should reject before requesting the next value in pairwise', async () => {
+      const error = new Error('pairwise failed');
+      const events: string[] = [];
+      const source = {
+        [Symbol.iterator]: function* () {
+          events.push('yield-1');
+          yield Promise.reject(error);
+          events.push('yield-2');
+          yield 2;
+        },
+      };
+
+      await expect(from(source).pairwise().toArray()).rejects.toBe(error);
+      expect(events).toEqual(['yield-1']);
     });
 
     it('should support scan including the initial value', async () => {
@@ -391,6 +442,24 @@ describe('AsyncOperator', () => {
         [2, 3, 4],
       ]);
       expect(emptyWindows).toEqual([]);
+    });
+
+    it('should reject before filling a chunk when the source fails', async () => {
+      const error = new Error('chunk failed');
+      const events: string[] = [];
+      const source = {
+        [Symbol.iterator]: function* () {
+          events.push('yield-1');
+          yield 1;
+          events.push('yield-2');
+          yield Promise.reject(error);
+          events.push('yield-3');
+          yield 3;
+        },
+      };
+
+      await expect(from(source).chunkBySize(2).toArray()).rejects.toBe(error);
+      expect(events).toEqual(['yield-1', 'yield-2']);
     });
 
     it('should reject invalid chunk and window sizes', async () => {
