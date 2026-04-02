@@ -261,6 +261,58 @@ export interface DeferredGenerator<T> {
 
 /////////////////////////////////////////////////////////////
 
+/**
+ * Value or promise-like value
+ */
+export type Awaitable<T> = T | PromiseLike<T>;
+
+/**
+ * Source sequence handled by `AsyncOperator`
+ */
+export type AsyncOperatorSource<T> = Iterable<Awaitable<T>>;
+
+/**
+ * Chainable operators for asynchronously resolved collections
+ * @remarks
+ * The sequence is evaluated lazily and sequentially, and resolved when a terminal operator such as `toArray()` is executed.
+ */
+export interface AsyncOperator<T> {
+  /**
+   * Projects each resolved value into a new value
+   * @param selector Selector function for each resolved value
+   * @returns A new async operator whose values are the projected results
+   */
+  readonly map: <U>(
+    selector: (value: T, index: number) => Awaitable<U>
+  ) => AsyncOperator<U>;
+
+  /**
+   * Projects each resolved value into a sequence and flattens the result by one level
+   * @param selector Selector function that returns a sequence for each resolved value
+   * @returns A new async operator whose values are the flattened results
+   */
+  readonly flatMap: <U>(
+    selector: (value: T, index: number) => Awaitable<AsyncOperatorSource<U>>
+  ) => AsyncOperator<U>;
+
+  /**
+   * Filters resolved values by predicate
+   * @param predicate Predicate function for each resolved value
+   * @returns A new async operator whose values satisfy the predicate
+   */
+  readonly filter: (
+    predicate: (value: T, index: number) => Awaitable<boolean>
+  ) => AsyncOperator<T>;
+
+  /**
+   * Resolves the sequence into an array
+   * @returns A promise that resolves to an array of values in input order
+   */
+  readonly toArray: () => Promise<T[]>;
+}
+
+/////////////////////////////////////////////////////////////
+
 // Deprecated type aliases for backward compatibility
 
 /** @deprecated Use `Mutex` instead */

@@ -49,6 +49,11 @@ export { createReaderWriterLock } from './primitives/reader-writer-lock';
 
 /////////////////////////////////////////////////////////////
 
+// Async operator export.
+export { from } from './primitives/async-operator';
+
+/////////////////////////////////////////////////////////////
+
 // Deprecated aliases for backward compatibility
 
 /** @deprecated Use `createMutex` instead */

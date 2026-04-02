@@ -29,6 +29,12 @@ Mutex, producer-consumer separation (side-effect operation), signaling (flag con
 | `createConditional()`         | Automatic conditional trigger (one-waiter per trigger)    |
 | `createManuallyConditional()` | Manual conditional control (raise/drop state)             |
 
+Iterator operations:
+
+| Function | Description                                   |
+| :------- | :-------------------------------------------- |
+| `from()` | Chainable operators for iterable async values |
+
 Advanced features:
 
 | Function             | Description                                  |
@@ -461,6 +467,37 @@ try {
   console.log('Lock acquisition was aborted');
 }
 ```
+
+### from()
+
+Creates an `AsyncOperator<T>` from an iterable of values or promises, allowing chainable operators such as `map()`, `flatMap()`, `filter()` and `toArray()`.
+The pipeline is evaluated lazily and sequentially.
+
+```typescript
+import { from } from 'async-primitives';
+
+const values = await from([Promise.resolve(1), 2, Promise.resolve(3)])
+  .map(async (value) => value * 2)
+  .filter((value) => value > 2)
+  .flatMap((value) => [value, value + 100])
+  .toArray();
+
+console.log(values); // [4, 104, 6, 106]
+```
+
+```typescript
+// Materialize the sequence at the terminal operator
+const values = await from(iterable).toArray();
+```
+
+Operator variations are:
+
+| Operator | Description                                   |
+| :------- | :-------------------------------------------- |
+| `map()` | Projects each resolved value into another value |
+| `flatMap()` | Projects each resolved value into an iterable and flattens it by one level |
+| `filter()` | Keeps only values whose predicate result is truthy |
+| `toArray()` | Evaluates the pipeline and collects the resulting values into an array |
 
 ### ES2022+ using statement
 
