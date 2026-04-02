@@ -38,6 +38,7 @@
     "test:browser": "npm run build && npx playwright test --reporter=line",
     "benchmark": "tsx benchmarks/benchmark.ts",
     "benchmark:json": "tsx benchmarks/benchmark.ts --output=json",
+    "benchmark:update-readme": "tsx benchmarks/update-readme.ts",
     "pack": "npm run build && screw-up pack --pack-destination ./artifacts"
   },
   "devDependencies": {

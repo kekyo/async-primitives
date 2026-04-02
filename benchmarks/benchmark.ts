@@ -1,12 +1,11 @@
 #!/usr/bin/env tsx
 
-import { Bench } from 'tinybench';
-import { getSystemInfo } from './utils/system-info.js';
 import { formatResults } from './utils/formatter.js';
 import { selectBenchmarkSuites } from './suites/index.js';
 import { parseBenchmarkOptions } from './utils/options.js';
+import { runBenchmarkSuites } from './run-benchmark-suites.js';
 
-async function main() {
+const main = async (): Promise<void> => {
   const { outputFormat, suiteFilters } = parseBenchmarkOptions(
     process.argv.slice(2)
   );
@@ -16,29 +15,24 @@ async function main() {
     throw new Error(`No benchmark suites matched: ${suiteFilters.join(', ')}`);
   }
 
-  console.log('🚀 Starting async-primitives benchmarks...\n');
+  const logProgress =
+    outputFormat === 'markdown'
+      ? (message: string): void => console.log(message)
+      : (message: string): void => console.error(message);
+
+  logProgress('🚀 Starting async-primitives benchmarks...\n');
   if (suiteFilters.length > 0) {
-    console.log(
+    logProgress(
       `Selected suites: ${selectedSuites.map((suite) => suite.name).join(', ')}\n`
     );
   }
 
-  const bench = new Bench({ time: 1000, iterations: 10 });
+  logProgress('Running benchmarks...');
+  const { tasks, systemInfo } = await runBenchmarkSuites(selectedSuites);
+  logProgress('\n✅ Benchmarks completed!\n');
 
-  // Add selected benchmark suites
-  for (const suite of selectedSuites) {
-    suite.register(bench);
-  }
-
-  console.log('Running benchmarks...');
-  await bench.run();
-
-  console.log('\n✅ Benchmarks completed!\n');
-
-  const systemInfo = getSystemInfo();
-  const results = formatResults(bench.tasks, systemInfo, outputFormat);
-
+  const results = formatResults(tasks, systemInfo, outputFormat);
   console.log(results);
-}
+};
 
 main().catch(console.error);

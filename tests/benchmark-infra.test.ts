@@ -6,6 +6,11 @@ import {
 } from '../benchmarks/suites/index.js';
 import { formatResults } from '../benchmarks/utils/formatter.js';
 import { parseBenchmarkOptions } from '../benchmarks/utils/options.js';
+import {
+  benchmarkResultsEndMarker,
+  benchmarkResultsStartMarker,
+  replaceBenchmarkResultsSection,
+} from '../benchmarks/utils/readme.js';
 
 type BenchmarkTask = {
   readonly name: string;
@@ -156,5 +161,25 @@ describe('Benchmark infrastructure', () => {
         stdDev: 0.046,
       },
     ]);
+  });
+
+  it('should replace the generated benchmark section in README content', () => {
+    const readme = `before
+${benchmarkResultsStartMarker}
+old
+${benchmarkResultsEndMarker}
+after`;
+
+    expect(replaceBenchmarkResultsSection(readme, 'new results')).toBe(`before
+${benchmarkResultsStartMarker}
+new results
+${benchmarkResultsEndMarker}
+after`);
+  });
+
+  it('should fail when README benchmark markers are missing', () => {
+    expect(() =>
+      replaceBenchmarkResultsSection('before\nafter', 'new results')
+    ).toThrowError(/README benchmark markers were not found/);
   });
 });
